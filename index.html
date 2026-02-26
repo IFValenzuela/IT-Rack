@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>IT Rack Inventory</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-dot"></div>
+        <div class="logo-text">
+          <span class="logo-main">IT Rack Inventory</span>
+          <span class="logo-sub">Deliveries & Hardware Tracking</span>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab active" data-view="dashboard">Dashboard</button>
+        <button class="nav-tab" data-view="models">Models</button>
+        <button class="nav-tab" data-view="devices">All Devices</button>
+        <button class="nav-tab" data-view="history">Activity Log</button>
+      </nav>
+    </header>
+
+    <main class="app-main">
+      <!-- DASHBOARD VIEW -->
+      <section id="view-dashboard" class="view active">
+        <div class="cards-row">
+          <div class="summary-card">
+            <h3>Total Models</h3>
+            <p class="summary-number" id="summary-total-models">0</p>
+          </div>
+          <div class="summary-card">
+            <h3>In Stock</h3>
+            <p class="summary-number" id="summary-in-stock">0</p>
+          </div>
+          <div class="summary-card">
+            <h3>Removed / Assigned</h3>
+            <p class="summary-number" id="summary-removed">0</p>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Quick Add Device Model</h2>
+              <p class="panel-subtitle">
+                Create a model for any device you keep in the rack, then track all its serial numbers.
+              </p>
+            </div>
+          </div>
+          <form id="quick-add-model-form" class="form-inline">
+            <div class="form-field">
+              <label for="quick-model-name">Model name</label>
+              <input
+                id="quick-model-name"
+                type="text"
+                placeholder="e.g. Latitude 7420"
+                required
+              />
+            </div>
+            <div class="form-field">
+              <label for="quick-model-notes">Notes (optional)</label>
+              <input
+                id="quick-model-notes"
+                type="text"
+                placeholder="e.g. 14'' laptop, i7, 16 GB RAM"
+              />
+            </div>
+            <button class="btn primary" type="submit">Add Model</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Models Overview</h2>
+              <p class="panel-subtitle">
+                Click a model to manage its serial numbers and deliveries.
+              </p>
+            </div>
+          </div>
+          <div id="dashboard-models-list" class="pill-list empty-state">
+            <p>No models yet. Add your first model above.</p>
+          </div>
+        </section>
+      </section>
+
+      <!-- MODELS VIEW -->
+      <section id="view-models" class="view">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Device Models</h2>
+              <p class="panel-subtitle">
+                All models you track in the rack. Each has its own space for serial numbers.
+              </p>
+            </div>
+            <button class="btn primary" id="btn-open-add-model-dialog">
+              + New Model
+            </button>
+          </div>
+          <div id="models-table-container" class="table-container empty-state">
+            <p>No models yet. Use “New Model” to create one.</p>
+          </div>
+        </section>
+
+        <section id="model-detail" class="panel panel-detail hidden">
+          <div class="panel-header">
+            <div>
+              <h2 id="model-detail-title">Model detail</h2>
+              <p class="panel-subtitle" id="model-detail-subtitle">
+                Manage serial numbers and deliveries for this model.
+              </p>
+            </div>
+            <div class="panel-header-actions">
+              <span id="model-detail-counts" class="badge"></span>
+              <button class="btn ghost" id="btn-close-model-detail">
+                Close
+              </button>
+            </div>
+          </div>
+
+          <div class="split-layout">
+            <div class="split-column">
+              <h3>Serials in Stock</h3>
+              <form id="add-serial-form" class="form-inline">
+                <div class="form-field">
+                  <label for="serial-number-input">Serial number</label>
+                  <input
+                    id="serial-number-input"
+                    type="text"
+                    placeholder="e.g. ABC123XYZ"
+                    required
+                  />
+                </div>
+                <div class="form-field">
+                  <label for="serial-pr-input">PR Number / Ticket</label>
+                  <input
+                    id="serial-pr-input"
+                    type="text"
+                    placeholder="e.g. PR-12345 or Ticket-678"
+                    required
+                  />
+                </div>
+                <div class="form-field">
+                  <label for="serial-department-select">Department</label>
+                  <select id="serial-department-select" required>
+                    <option value="">Select department…</option>
+                    <option value="Planta Oeste">Planta Oeste</option>
+                    <option value="Planta Este">Planta Este</option>
+                  </select>
+                </div>
+                <button class="btn primary" type="submit">Add Serial</button>
+              </form>
+
+              <div
+                id="model-serials-table-container"
+                class="table-container table-small empty-state"
+              >
+                <p>No serials yet for this model.</p>
+              </div>
+            </div>
+
+            <div class="split-column">
+              <h3>History for This Model</h3>
+              <div
+                id="model-history-table-container"
+                class="table-container table-small empty-state"
+              >
+                <p>No history yet. Add or remove serials to see activity.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- DEVICES VIEW -->
+      <section id="view-devices" class="view">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>All Devices</h2>
+              <p class="panel-subtitle">
+                Every serial currently in stock, across all models.
+              </p>
+            </div>
+          </div>
+          <form id="device-filters-form" class="form-inline">
+            <div class="form-field">
+              <label for="filter-department">Department</label>
+              <select id="filter-department">
+                <option value="">All departments</option>
+                <option value="Planta Oeste">Planta Oeste</option>
+                <option value="Planta Este">Planta Este</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="filter-location-owner">Search (model, serial, person)</label>
+              <input
+                id="filter-location-owner"
+                type="text"
+                placeholder="e.g. Latitude, 123ABC, John"
+              />
+            </div>
+            <button type="button" class="btn ghost" id="btn-clear-filters">
+              Clear filters
+            </button>
+          </form>
+          <div id="devices-table-container" class="table-container empty-state">
+            <p>No devices in stock yet.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Removed / Assigned Devices</h2>
+              <p class="panel-subtitle">
+                Items you removed from stock, kept here for full accountability.
+              </p>
+            </div>
+          </div>
+          <div
+            id="devices-removed-table-container"
+            class="table-container empty-state"
+          >
+            <p>No removed devices yet.</p>
+          </div>
+        </section>
+      </section>
+
+      <!-- HISTORY VIEW -->
+      <section id="view-history" class="view">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Activity Log</h2>
+              <p class="panel-subtitle">
+                Every change to your rack inventory. This is your accountability
+                trail for stock coming in and out.
+              </p>
+            </div>
+            <div class="panel-header-actions">
+              <button class="btn ghost" id="btn-export-data">Export</button>
+              <label class="btn ghost file-input-label">
+                Import
+                <input
+                  type="file"
+                  id="file-import-data"
+                  accept="application/json"
+                  hidden
+                />
+              </label>
+              <button class="btn ghost" id="btn-clear-all-data">Clear all data</button>
+            </div>
+          </div>
+
+          <form id="history-filters-form" class="form-inline">
+            <div class="form-field">
+              <label for="filter-history-type">Type</label>
+              <select id="filter-history-type">
+                <option value="">All activity</option>
+                <option value="in">Added to stock</option>
+                <option value="out">Removed from stock</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="filter-history-year">Year</label>
+              <select id="filter-history-year">
+                <option value="">All years</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="filter-history-month">Month</label>
+              <select id="filter-history-month">
+                <option value="">All months</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+              </select>
+            </div>
+          </form>
+
+          <div id="history-table-container" class="table-container empty-state">
+            <p>No activity yet. Add or remove devices to see history.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Add Model Dialog -->
+    <div id="add-model-dialog" class="dialog-backdrop hidden">
+      <div class="dialog">
+        <div class="dialog-header">
+          <h2>New Device Model</h2>
+        </div>
+        <form id="add-model-form" class="dialog-body">
+          <div class="form-field">
+            <label for="model-name-input">Model name</label>
+            <input
+              id="model-name-input"
+              type="text"
+              placeholder="e.g. OptiPlex 7090"
+              required
+            />
+          </div>
+          <div class="form-field">
+            <label for="model-notes-input">Notes (optional)</label>
+            <textarea
+              id="model-notes-input"
+              rows="3"
+              placeholder="e.g. SFF desktop, 32 GB RAM"
+            ></textarea>
+          </div>
+          <div class="dialog-footer">
+            <button
+              type="button"
+              class="btn ghost"
+              id="btn-cancel-add-model"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn primary">Create Model</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Remove from Stock Dialog -->
+    <div id="remove-serial-dialog" class="dialog-backdrop hidden">
+      <div class="dialog">
+        <div class="dialog-header">
+          <h2>Remove from Stock</h2>
+        </div>
+        <form id="remove-serial-form" class="dialog-body">
+          <p class="dialog-description">
+            This serial will leave active stock but stay recorded under
+            “Removed / Assigned” and in the activity log.
+          </p>
+          <div class="form-field">
+            <label for="remove-reason-input">Reason</label>
+            <input
+              id="remove-reason-input"
+              type="text"
+              placeholder="e.g. Assigned to user, scrapped, sold"
+              required
+            />
+          </div>
+          <div class="form-field">
+            <label for="remove-destination-input"
+              >Destination / Person (optional)</label
+            >
+            <input
+              id="remove-destination-input"
+              type="text"
+              placeholder="e.g. John Doe, Recycling"
+            />
+          </div>
+
+          <div class="dialog-footer">
+            <button
+              type="button"
+              class="btn ghost"
+              id="btn-cancel-remove-serial"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn danger">
+              Confirm Remove from Stock
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Firebase SDKs (App + Firestore). No Auth since we want NO LOGIN. -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    // (Optional, later) App Check to protect Firestore without user auth:
+    // import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+  
+    // === Your Firebase config (from Console) ===
+    const firebaseConfig = {
+      apiKey: "AIzaSyDM7hBlU7fqSlwKhlzkLRofenjVaK53mA4",
+      authDomain: "it-rack-stock.firebaseapp.com",
+      projectId: "it-rack-stock",
+      storageBucket: "it-rack-stock.firebasestorage.app",
+      messagingSenderId: "882885956152",
+      appId: "1:882885956152:web:cc3abfece74a03e4f34ccd",
+      measurementId: "G-83SPPV6J7Q"
+    };
+  
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+  
+    // If you ever want Analytics later, it requires HTTPS + proper hosting:
+    // import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+    // const analytics = getAnalytics(app);
+  
+    // Initialize Firestore
+    const db = getFirestore(app);
+  
+    // OPTIONAL (recommended once you’re ready): App Check (protect Firestore without login)
+    // initializeAppCheck(app, {
+    //   provider: new ReCaptchaEnterpriseProvider("YOUR_RECAPTCHA_ENTERPRISE_KEY"),
+    //   isTokenAutoRefreshEnabled: true
+    // });
+  
+    // Firestore storage for inventory (replaces localStorage)
+    const INV_COLLECTION = "inventory";
+    const INV_DOC = "data";
+
+    const invRef = doc(db, INV_COLLECTION, INV_DOC);
+    window.__inventoryStorage = {
+      async load() {
+        const snap = await getDoc(invRef);
+        if (!snap.exists()) return null;
+        return snap.data();
+      },
+      async save(data) {
+        await setDoc(invRef, data);
+      },
+      subscribe(callback) {
+        return onSnapshot(invRef, (snap) => {
+          if (snap.exists()) callback(snap.data());
+        });
+      },
+    };
+    window.__fb = { app, db };
+  </script>
+  
+  
+    <script src="app.js"></script>
+  </body>
+</html>
+
