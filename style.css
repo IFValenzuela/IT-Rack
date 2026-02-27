@@ -718,3 +718,84 @@ tbody tr:hover {
   }
 }
 
+/* =========================================
+   RESPONSIVE DESIGN (Móviles y Tablets)
+   ========================================= */
+
+/* 1. Hacer que las tablas se puedan deslizar horizontalmente en celulares */
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Scroll suave en iPhone */
+}
+
+/* Evita que las columnas se aplasten demasiado */
+table {
+  min-width: 650px; 
+}
+
+/* 2. Ajustes para Tablets y pantallas medianas */
+@media (max-width: 840px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 20px 10px;
+  }
+
+  .app-main {
+    margin-top: 12px;
+    padding: 0 12px 24px;
+  }
+
+  .split-layout {
+    grid-template-columns: 1fr; /* Pone las columnas una debajo de otra */
+  }
+}
+
+/* 3. Ajustes para Celulares */
+@media (max-width: 560px) {
+  .panel {
+    padding: 14px 12px;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .cards-row {
+    grid-template-columns: 1fr; /* Tarjetas de 1 en 1 */
+  }
+
+  /* Mejora la barra de navegación para que se deslice con el dedo */
+  .nav-tabs {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  
+  .nav-tabs::-webkit-scrollbar {
+    display: none; /* Oculta la barra de scroll fea pero mantiene la función */
+  }
+
+  .nav-tab {
+    flex: 0 0 auto;
+    text-align: center;
+  }
+
+  /* Ajusta los modales (diálogos) para que no toquen los bordes de la pantalla */
+  .dialog {
+    width: calc(100% - 32px);
+    margin: 16px;
+  }
+
+  /* Los botones en línea se apilan */
+  .panel-header-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
