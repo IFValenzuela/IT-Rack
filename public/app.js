@@ -17,140 +17,75 @@ function uid() {
   );
 }
 
-function getFb() {
-  return window.__fb || null;
-}
-
-async function migrateFromLegacyOrLocalStorage() {
-  const fb = getFb();
-  if (!fb) return;
+async function loadFromFirestore() {
   try {
-    const { getDoc, getDocs, setDoc, modelsRef, devicesRef, historyRef, legacyInvRef } = fb;
-
-    // Check if new collections already have data
-    const [modelsSnap, devicesSnap, historySnap] = await Promise.all([
-      getDocs(modelsRef),
-      getDocs(devicesRef),
-      getDocs(historyRef),
-    ]);
-    const hasNewData = !modelsSnap.empty || !devicesSnap.empty || !historySnap.empty;
-    if (hasNewData) return;
-
-    let payload = null;
-
-    // Try legacy Firestore doc first
-    const legacySnap = await getDoc(legacyInvRef);
-    if (legacySnap.exists()) {
-      const d = legacySnap.data();
-      if (d && Array.isArray(d.models) && Array.isArray(d.devices) && Array.isArray(d.history)) {
-        payload = { models: d.models, devices: d.devices, history: d.history };
-      }
+    const storage = window.__inventoryStorage;
+    if (!storage) {
+      console.warn("Firebase not ready, using empty state");
+      return;
     }
-
-    // Fallback: localStorage
-    if (!payload && typeof localStorage !== "undefined") {
+    let parsed = await storage.load();
+    // One-time migration from localStorage if Firestore is empty
+    if (!parsed && typeof localStorage !== "undefined") {
       const raw = localStorage.getItem("rackInventoryData_v1");
       if (raw) {
         try {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object" && Array.isArray(parsed.models)) {
-            payload = {
+          parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") {
+            await storage.save({
               models: parsed.models || [],
               devices: parsed.devices || [],
               history: parsed.history || [],
-            };
+            });
           }
         } catch (_) {}
       }
     }
-
-    if (!payload || (payload.models.length === 0 && payload.devices.length === 0 && payload.history.length === 0)) {
-      return;
+    if (parsed && typeof parsed === "object") {
+      state.models = Array.isArray(parsed.models) ? parsed.models : [];
+      state.devices = Array.isArray(parsed.devices) ? parsed.devices : [];
+      state.history = Array.isArray(parsed.history) ? parsed.history : [];
     }
-
-    const { writeBatch, doc } = fb;
-    const BATCH_LIMIT = 500;
-    const allOps = [
-      ...payload.models.map((m) => ({ type: "models", id: m.id, data: m })),
-      ...payload.devices.map((d) => ({ type: "devices", id: d.id, data: d })),
-      ...payload.history.map((h) => ({ type: "history", id: h.id, data: h })),
-    ];
-
-    for (let i = 0; i < allOps.length; i += BATCH_LIMIT) {
-      const chunk = allOps.slice(i, i + BATCH_LIMIT);
-      const batch = writeBatch(fb.db);
-      chunk.forEach((op) => {
-        const docRef = doc(fb.db, "inventory", "data", op.type, op.id);
-        batch.set(docRef, op.data);
-      });
-      await batch.commit();
-    }
-    if (typeof localStorage !== "undefined") localStorage.removeItem("rackInventoryData_v1");
   } catch (e) {
-    console.error("Migration error", e);
+    console.error("Error loading inventory from Firestore", e);
   }
 }
 
 function subscribeToRealtimeChanges() {
-  const fb = getFb();
-  if (!fb) return;
-  const { onSnapshot, modelsRef, devicesRef, historyRef } = fb;
-
-  function applyAndRender() {
-    renderAll();
-  }
-
-  onSnapshot(modelsRef, (snap) => {
-    state.models = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    applyAndRender();
-  });
-  onSnapshot(devicesRef, (snap) => {
-    state.devices = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    applyAndRender();
-  });
-  onSnapshot(historyRef, (snap) => {
-    state.history = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    applyAndRender();
+  const storage = window.__inventoryStorage;
+  if (!storage || !storage.subscribe) return;
+  storage.subscribe((data) => {
+    if (data && typeof data === "object") {
+      state.models = Array.isArray(data.models) ? data.models : [];
+      state.devices = Array.isArray(data.devices) ? data.devices : [];
+      state.history = Array.isArray(data.history) ? data.history : [];
+      renderAll();
+    }
   });
 }
 
-async function clearAllData() {
+function writeToFirestore() {
+  const storage = window.__inventoryStorage;
+  if (!storage) return;
+  const payload = {
+    models: state.models,
+    devices: state.devices,
+    history: state.history,
+  };
+  storage.save(payload).catch((e) => {
+    console.error("Error saving inventory to Firestore", e);
+    showToast("Could not sync to cloud. Check console.");
+  });
+}
+
+function clearAllData() {
   if (!confirm("Delete all models, devices, and history? This cannot be undone.")) return;
-  const fb = getFb();
-  if (!fb) {
-    state.models = [];
-    state.devices = [];
-    state.history = [];
-    renderAll();
-    showToast("All data cleared. Fresh start.");
-    return;
-  }
-  try {
-    const { getDocs, writeBatch, modelsRef, devicesRef, historyRef } = fb;
-
-    const [modelsSnap, devicesSnap, historySnap] = await Promise.all([
-      getDocs(modelsRef),
-      getDocs(devicesRef),
-      getDocs(historyRef),
-    ]);
-    const allRefs = [
-      ...modelsSnap.docs.map((d) => d.ref),
-      ...devicesSnap.docs.map((d) => d.ref),
-      ...historySnap.docs.map((d) => d.ref),
-    ];
-
-    const BATCH_LIMIT = 500;
-    for (let i = 0; i < allRefs.length; i += BATCH_LIMIT) {
-      const batch = writeBatch(fb.db);
-      allRefs.slice(i, i + BATCH_LIMIT).forEach((ref) => batch.delete(ref));
-      await batch.commit();
-    }
-  } catch (e) {
-    console.error("Error clearing data", e);
-    showToast("Could not clear. Check console.");
-    return;
-  }
+  state.models = [];
+  state.devices = [];
+  state.history = [];
+  writeToFirestore();
   if (typeof localStorage !== "undefined") localStorage.removeItem("rackInventoryData_v1");
+  renderAll();
   showToast("All data cleared. Fresh start.");
 }
 
@@ -294,6 +229,7 @@ let currentModelId = null;
 let pendingRemoveDeviceId = null;
 
 function openModelDetail(modelId) {
+  // ensure Models view is visible when opening detail
   switchView("models");
   const model = state.models.find((m) => m.id === modelId);
   if (!model) return;
@@ -699,7 +635,7 @@ function closeRemoveSerialDialog() {
 
 // ---- Data operations ----
 
-async function addModel(name, notes) {
+function addModel(name, notes) {
   const trimmed = name.trim();
   if (!trimmed) return;
   const model = {
@@ -708,26 +644,14 @@ async function addModel(name, notes) {
     notes: (notes || "").trim(),
     createdAt: new Date().toISOString(),
   };
-  const fb = getFb();
-  if (!fb) {
-    state.models.push(model);
-    renderAll();
-    showToast(`Model ${model.name} created.`);
-    return model;
-  }
-  try {
-    const { setDoc, doc } = fb;
-    const modelRef = doc(fb.db, "inventory", "data", "models", model.id);
-    await setDoc(modelRef, model);
-    showToast(`Model ${model.name} created.`);
-    return model;
-  } catch (e) {
-    console.error("Error adding model", e);
-    showToast("Could not save. Check console.");
-  }
+  state.models.push(model);
+  writeToFirestore();
+  renderAll();
+  showToast(`Model ${model.name} created.`);
+  return model;
 }
 
-async function addDeviceSerial(modelId, serial, department, prNumber) {
+function addDeviceSerial(modelId, serial, department, prNumber) {
   const model = state.models.find((m) => m.id === modelId);
   if (!model) return;
   const cleanSerial = serial.trim();
@@ -755,10 +679,8 @@ async function addDeviceSerial(modelId, serial, department, prNumber) {
   }
 
   const now = new Date().toISOString();
-  const deviceId = uid();
-  const historyId = uid();
   const device = {
-    id: deviceId,
+    id: uid(),
     modelId,
     serial: cleanSerial,
     prNumber: cleanPr,
@@ -769,8 +691,9 @@ async function addDeviceSerial(modelId, serial, department, prNumber) {
     reason: "",
     destination: "",
   };
-  const historyEntry = {
-    id: historyId,
+  state.devices.push(device);
+  state.history.push({
+    id: uid(),
     type: "in",
     modelId,
     serial: cleanSerial,
@@ -778,84 +701,39 @@ async function addDeviceSerial(modelId, serial, department, prNumber) {
     at: now,
     reason: "Added to stock",
     destination: "",
-  };
-
-  const fb = getFb();
-  if (!fb) {
-    state.devices.push(device);
-    state.history.push(historyEntry);
-    renderAll();
-    showToast(`Serial added to ${model.name}.`);
-    return;
-  }
-  try {
-    const { setDoc, doc, writeBatch } = fb;
-    const batch = writeBatch(fb.db);
-    const deviceRef = doc(fb.db, "inventory", "data", "devices", deviceId);
-    const historyDocRef = doc(fb.db, "inventory", "data", "history", historyId);
-    batch.set(deviceRef, device);
-    batch.set(historyDocRef, historyEntry);
-    await batch.commit();
-    showToast(`Serial added to ${model.name}.`);
-  } catch (e) {
-    console.error("Error adding serial", e);
-    showToast("Could not save. Check console.");
-  }
+  });
+  writeToFirestore();
+  renderAll();
+  showToast(`Serial added to ${model.name}.`);
 }
 
-async function removeDeviceFromStock(deviceId, reason, destination) {
+function removeDeviceFromStock(deviceId, reason, destination) {
   const device = state.devices.find((d) => d.id === deviceId);
   if (!device || device.status !== "in") return;
   const model = state.models.find((m) => m.id === device.modelId);
   const now = new Date().toISOString();
 
-  const trimmedReason = (reason || "").trim();
-  const trimmedDest = (destination || "").trim();
-  const historyId = uid();
-  const historyEntry = {
-    id: historyId,
+  device.status = "out";
+  device.removedAt = now;
+  device.reason = (reason || "").trim();
+  device.destination = (destination || "").trim();
+
+  state.history.push({
+    id: uid(),
     type: "out",
     modelId: device.modelId,
     serial: device.serial,
     prNumber: device.prNumber || "",
     at: now,
-    reason: trimmedReason,
-    destination: trimmedDest,
-  };
+    reason: device.reason,
+    destination: device.destination,
+  });
 
-  const fb = getFb();
-  if (!fb) {
-    device.status = "out";
-    device.removedAt = now;
-    device.reason = trimmedReason;
-    device.destination = trimmedDest;
-    state.history.push(historyEntry);
-    renderAll();
-    showToast(
-      `Serial removed from stock${model ? " for " + model.name + "" : ""}.`
-    );
-    return;
-  }
-  try {
-    const { doc, writeBatch } = fb;
-    const deviceRef = doc(fb.db, "inventory", "data", "devices", deviceId);
-    const historyDocRef = doc(fb.db, "inventory", "data", "history", historyId);
-    const batch = writeBatch(fb.db);
-    batch.update(deviceRef, {
-      status: "out",
-      removedAt: now,
-      reason: trimmedReason,
-      destination: trimmedDest,
-    });
-    batch.set(historyDocRef, historyEntry);
-    await batch.commit();
-    showToast(
-      `Serial removed from stock${model ? " for " + model.name + "" : ""}.`
-    );
-  } catch (e) {
-    console.error("Error removing device", e);
-    showToast("Could not save. Check console.");
-  }
+  writeToFirestore();
+  renderAll();
+  showToast(
+    `Serial removed from stock${model ? " for " + model.name + "" : ""}.`
+  );
 }
 
 // ---- Import / Export ----
@@ -891,7 +769,7 @@ function exportData() {
 function importDataFromFile(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = async (event) => {
+  reader.onload = (event) => {
     try {
       const text = event.target.result;
       const parsed = JSON.parse(text);
@@ -905,45 +783,11 @@ function importDataFromFile(file) {
         showToast("Invalid backup file.");
         return;
       }
-
-      const fb = getFb();
-      if (!fb) {
-        state.models = payload.models;
-        state.devices = payload.devices;
-        state.history = payload.history;
-        renderAll();
-        showToast("Inventory imported.");
-        return;
-      }
-
-      const { doc, writeBatch } = fb;
-      const BATCH_LIMIT = 500;
-      const allOps = [];
-
-      payload.models.forEach((m) => {
-        allOps.push({ type: "model", data: m });
-      });
-      payload.devices.forEach((d) => {
-        allOps.push({ type: "device", data: d });
-      });
-      payload.history.forEach((h) => {
-        allOps.push({ type: "history", data: h });
-      });
-
-      for (let i = 0; i < allOps.length; i += BATCH_LIMIT) {
-        const chunk = allOps.slice(i, i + BATCH_LIMIT);
-        const batch = writeBatch(fb.db);
-        chunk.forEach((op) => {
-          if (op.type === "model") {
-            batch.set(doc(fb.db, "inventory", "data", "models", op.data.id), op.data);
-          } else if (op.type === "device") {
-            batch.set(doc(fb.db, "inventory", "data", "devices", op.data.id), op.data);
-          } else {
-            batch.set(doc(fb.db, "inventory", "data", "history", op.data.id), op.data);
-          }
-        });
-        await batch.commit();
-      }
+      state.models = payload.models;
+      state.devices = payload.devices;
+      state.history = payload.history;
+      writeToFirestore();
+      renderAll();
       showToast("Inventory imported.");
     } catch (e) {
       console.error("Import error", e);
@@ -984,12 +828,14 @@ function renderAll() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  while (!window.__fb) {
+  // Wait for Firebase to be ready
+  while (!window.__inventoryStorage) {
     await new Promise((r) => setTimeout(r, 50));
   }
-  await migrateFromLegacyOrLocalStorage();
+  await loadFromFirestore();
   subscribeToRealtimeChanges();
 
+  // Nav
   document.querySelectorAll(".nav-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
       const view = btn.dataset.view;
@@ -997,6 +843,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
+  // Quick add model on dashboard
   const quickForm = document.getElementById("quick-add-model-form");
   quickForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1008,6 +855,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  // Add model dialog
   document
     .getElementById("btn-open-add-model-dialog")
     .addEventListener("click", openAddModelDialog);
@@ -1026,10 +874,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
+  // Close model detail
   document
     .getElementById("btn-close-model-detail")
     .addEventListener("click", closeModelDetail);
 
+  // Add serial to current model
   const addSerialForm = document.getElementById("add-serial-form");
   addSerialForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1046,6 +896,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     addSerialForm.reset();
   });
 
+  // Remove serial dialog
   document
     .getElementById("btn-cancel-remove-serial")
     .addEventListener("click", closeRemoveSerialDialog);
@@ -1066,6 +917,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       closeRemoveSerialDialog();
     });
 
+  // Export / Import
   document
     .getElementById("btn-export-data")
     .addEventListener("click", exportData);
@@ -1080,6 +932,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     .getElementById("btn-clear-all-data")
     .addEventListener("click", clearAllData);
 
+  // Device filters
   const deptFilterEl = document.getElementById("filter-department");
   const textFilterEl = document.getElementById("filter-location-owner");
   const clearFiltersBtn = document.getElementById("btn-clear-filters");

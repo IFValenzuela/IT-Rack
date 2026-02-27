@@ -389,10 +389,7 @@
     <!-- Firebase SDKs (App + Firestore). No Auth since we want NO LOGIN. -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import {
-      getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-      collection, getDocs, onSnapshot, writeBatch
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     // (Optional, later) App Check to protect Firestore without user auth:
     // import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
   
@@ -423,35 +420,27 @@
     //   isTokenAutoRefreshEnabled: true
     // });
   
-    // Firestore: separate collections under /inventory/data/ (subcollections)
+    // Firestore storage for inventory (replaces localStorage)
     const INV_COLLECTION = "inventory";
     const INV_DOC = "data";
-    const invDataRef = doc(db, INV_COLLECTION, INV_DOC);
-    const modelsRef = collection(invDataRef, "models");
-    const devicesRef = collection(invDataRef, "devices");
-    const historyRef = collection(invDataRef, "history");
 
-    const legacyInvRef = doc(db, INV_COLLECTION, INV_DOC);
-
-    window.__fb = {
-      app,
-      db,
-      invDataRef,
-      modelsRef,
-      devicesRef,
-      historyRef,
-      legacyInvRef,
-      doc,
-      getDoc,
-      getDocs,
-      setDoc,
-      addDoc,
-      updateDoc,
-      deleteDoc,
-      collection,
-      writeBatch,
-      onSnapshot,
+    const invRef = doc(db, INV_COLLECTION, INV_DOC);
+    window.__inventoryStorage = {
+      async load() {
+        const snap = await getDoc(invRef);
+        if (!snap.exists()) return null;
+        return snap.data();
+      },
+      async save(data) {
+        await setDoc(invRef, data);
+      },
+      subscribe(callback) {
+        return onSnapshot(invRef, (snap) => {
+          if (snap.exists()) callback(snap.data());
+        });
+      },
     };
+    window.__fb = { app, db };
   </script>
   
   
