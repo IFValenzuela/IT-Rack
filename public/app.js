@@ -294,7 +294,6 @@ let currentModelId = null;
 let pendingRemoveDeviceId = null;
 
 function openModelDetail(modelId) {
-  // ensure Models view is visible when opening detail
   switchView("models");
   const model = state.models.find((m) => m.id === modelId);
   if (!model) return;
@@ -838,7 +837,7 @@ async function removeDeviceFromStock(deviceId, reason, destination) {
     return;
   }
   try {
-    const { updateDoc, setDoc, doc, writeBatch } = fb;
+    const { doc, writeBatch } = fb;
     const deviceRef = doc(fb.db, "inventory", "data", "devices", deviceId);
     const historyDocRef = doc(fb.db, "inventory", "data", "history", historyId);
     const batch = writeBatch(fb.db);
@@ -917,7 +916,7 @@ function importDataFromFile(file) {
         return;
       }
 
-      const { setDoc, doc, writeBatch } = fb;
+      const { doc, writeBatch } = fb;
       const BATCH_LIMIT = 500;
       const allOps = [];
 
@@ -985,14 +984,12 @@ function renderAll() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // Wait for Firebase to be ready
   while (!window.__fb) {
     await new Promise((r) => setTimeout(r, 50));
   }
   await migrateFromLegacyOrLocalStorage();
   subscribeToRealtimeChanges();
 
-  // Nav
   document.querySelectorAll(".nav-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
       const view = btn.dataset.view;
@@ -1000,7 +997,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  // Quick add model on dashboard
   const quickForm = document.getElementById("quick-add-model-form");
   quickForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1012,7 +1008,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // Add model dialog
   document
     .getElementById("btn-open-add-model-dialog")
     .addEventListener("click", openAddModelDialog);
@@ -1031,12 +1026,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-  // Close model detail
   document
     .getElementById("btn-close-model-detail")
     .addEventListener("click", closeModelDetail);
 
-  // Add serial to current model
   const addSerialForm = document.getElementById("add-serial-form");
   addSerialForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1053,7 +1046,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     addSerialForm.reset();
   });
 
-  // Remove serial dialog
   document
     .getElementById("btn-cancel-remove-serial")
     .addEventListener("click", closeRemoveSerialDialog);
@@ -1074,7 +1066,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       closeRemoveSerialDialog();
     });
 
-  // Export / Import
   document
     .getElementById("btn-export-data")
     .addEventListener("click", exportData);
@@ -1089,7 +1080,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     .getElementById("btn-clear-all-data")
     .addEventListener("click", clearAllData);
 
-  // Device filters
   const deptFilterEl = document.getElementById("filter-department");
   const textFilterEl = document.getElementById("filter-location-owner");
   const clearFiltersBtn = document.getElementById("btn-clear-filters");
