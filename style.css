@@ -799,3 +799,30 @@ table {
     justify-content: flex-start;
   }
 }
+
+/* --- PARCHE PARA EVITAR QUE LAS TABLAS ROMPAN LA PANTALLA EN MÓVILES --- */
+
+.panel, .split-layout, .split-column {
+  min-width: 0; /* Esto evita el Grid Blowout */
+  max-width: 100%;
+}
+
+.table-container {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 10px;
+}
+
+/* Arreglo para que el formulario no se encime en celulares */
+@media (max-width: 560px) {
+  .form-inline {
+    grid-template-columns: 1fr; /* Fuerza a que los inputs bajen uno por uno */
+    gap: 12px;
+  }
+  
+  .form-inline .btn {
+    width: 100%; /* El botón ocupa todo el ancho, más fácil de tocar */
+    margin-top: 8px;
+  }
+}
