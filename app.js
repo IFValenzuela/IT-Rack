@@ -262,8 +262,12 @@ let selectedModelIds = new Set();
 function updateModelsHeader() {
   const actions = document.getElementById("models-header-actions");
   if (!actions) return;
+  const filterEl = document.getElementById("filter-models-input");
+  const filterValue = filterEl ? filterEl.value : "";
+  const filterHtml = `<input type="text" id="filter-models-input" class="filter-input" placeholder="Search models…" value="${(filterValue || "").replace(/"/g, "&quot;")}" aria-label="Search device models" />`;
   if (deleteMode) {
     actions.innerHTML = `
+      ${filterHtml}
       <button class="btn danger" id="btn-confirm-delete-models">Delete Selected</button>
       <button class="btn ghost" id="btn-cancel-delete-mode">Cancel</button>
     `;
@@ -271,11 +275,16 @@ function updateModelsHeader() {
     document.getElementById("btn-cancel-delete-mode").addEventListener("click", exitDeleteMode);
   } else {
     actions.innerHTML = `
+      ${filterHtml}
+      <button class="btn ghost" id="btn-enter-delete-mode">Delete</button>
       <button class="btn primary" id="btn-open-add-model-dialog">+ New Model</button>
-      <button class="btn danger" id="btn-enter-delete-mode">Delete</button>
     `;
     document.getElementById("btn-enter-delete-mode").addEventListener("click", enterDeleteMode);
     document.getElementById("btn-open-add-model-dialog").addEventListener("click", openAddModelDialog);
+  }
+  const newFilter = document.getElementById("filter-models-input");
+  if (newFilter) {
+    newFilter.addEventListener("input", () => renderModelsTable());
   }
 }
 
@@ -326,8 +335,23 @@ function renderModelsTable() {
     container.innerHTML = "<p>No models yet. Use New Models to create one.</p>";
     return;
   }
+  const filterEl = document.getElementById("filter-models-input");
+  const filter = filterEl ? filterEl.value.trim().toLowerCase() : "";
+  let modelsToShow = state.models.slice();
+  if (filter) {
+    modelsToShow = modelsToShow.filter(
+      (m) =>
+        (m.name || "").toLowerCase().includes(filter) ||
+        (m.notes || "").toLowerCase().includes(filter)
+    );
+  }
+  if (!modelsToShow.length) {
+    container.classList.remove("empty-state");
+    container.innerHTML = "<p>No models match your search.</p>";
+    return;
+  }
   container.classList.remove("empty-state");
-  const rows = state.models
+  const rows = modelsToShow
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((m) => {
