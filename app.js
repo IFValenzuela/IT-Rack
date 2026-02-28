@@ -2,14 +2,12 @@
 
 const state = {
   models: [],
-  // each device = {
-  //   id, modelId, serial, prNumber, status: 'in' | 'out',
-  //   department, createdAt, removedAt, reason, destination
-  // }
   devices: [],
-  // each history entry = {id, type: 'in' | 'out', modelId, serial, prNumber, at, reason, destination}
   history: [],
+  technicians: [],
 };
+
+let historySort = "desc"; // 'desc' = newest first, 'asc' = oldest first
 
 function uid() {
   return (
@@ -38,13 +36,14 @@ async function loadFromFirestore() {
               history: parsed.history || [],
             });
           }
-        } catch (_) {}
+        } catch (_) { }
       }
     }
     if (parsed && typeof parsed === "object") {
       state.models = Array.isArray(parsed.models) ? parsed.models : [];
       state.devices = Array.isArray(parsed.devices) ? parsed.devices : [];
       state.history = Array.isArray(parsed.history) ? parsed.history : [];
+      state.technicians = Array.isArray(parsed.technicians) ? parsed.technicians : [];
     }
   } catch (e) {
     console.error("Error loading inventory from Firestore", e);
@@ -59,7 +58,9 @@ function subscribeToRealtimeChanges() {
       state.models = Array.isArray(data.models) ? data.models : [];
       state.devices = Array.isArray(data.devices) ? data.devices : [];
       state.history = Array.isArray(data.history) ? data.history : [];
+      state.technicians = Array.isArray(data.technicians) ? data.technicians : [];
       renderAll();
+      populateTechnicianSelect();
     }
   });
 }
@@ -71,6 +72,7 @@ function writeToFirestore() {
     models: state.models,
     devices: state.devices,
     history: state.history,
+    technicians: state.technicians,
   };
   storage.save(payload).catch((e) => {
     console.error("Error saving inventory to Firestore", e);
@@ -79,7 +81,7 @@ function writeToFirestore() {
 }
 
 function clearAllData() {
-  if (!confirm("Delete all models, devices, and history? This cannot be undone.")) return;
+  if (!confirm("Delete all models, devices, and history? This cannot be undone.\nNote: the people list will NOT be cleared.")) return;
   state.models = [];
   state.devices = [];
   state.history = [];
@@ -87,6 +89,68 @@ function clearAllData() {
   if (typeof localStorage !== "undefined") localStorage.removeItem("rackInventoryData_v1");
   renderAll();
   showToast("All data cleared. Fresh start.");
+}
+
+// ---- Technician helpers ----
+
+function populateTechnicianSelect() {
+  const sel = document.getElementById("serial-added-by-select");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Select person…</option>';
+  state.technicians
+    .slice()
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  // Always add the sentinel option at the bottom
+  const addOpt = document.createElement("option");
+  addOpt.value = "__add_new__";
+  addOpt.textContent = "＋ Add new person…";
+  sel.appendChild(addOpt);
+  if (current && state.technicians.includes(current)) sel.value = current;
+}
+
+function populateDeliveredBySelect() {
+  const sel = document.getElementById("remove-delivered-by-select");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Select person…</option>';
+  state.technicians
+    .slice()
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  const addOpt = document.createElement("option");
+  addOpt.value = "__add_new__";
+  addOpt.textContent = "＋ Add new person…";
+  sel.appendChild(addOpt);
+  if (current && state.technicians.includes(current)) sel.value = current;
+}
+
+function addTechnician(name) {
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  if (state.technicians.includes(trimmed)) {
+    showToast("That person is already in the list.");
+    return false;
+  }
+  state.technicians.push(trimmed);
+  writeToFirestore();
+  populateTechnicianSelect();
+  // Auto-select the new person
+  const sel = document.getElementById("serial-added-by-select");
+  if (sel) sel.value = trimmed;
+  showToast(`"${trimmed}" added to the team list.`);
+  return true;
 }
 
 function showToast(message) {
@@ -118,6 +182,27 @@ function formatDateTime(isoString) {
       minute: "2-digit",
     })
   );
+}
+
+// Returns stock age CSS class and badge label based on how long a device has been in stock
+function getStockAgeInfo(createdAtIso) {
+  const now = Date.now();
+  const added = new Date(createdAtIso).getTime();
+  if (Number.isNaN(added)) return { rowClass: "", badge: "" };
+  const diffDays = (now - added) / (1000 * 60 * 60 * 24);
+  if (diffDays >= 30) {
+    return {
+      rowClass: "stock-age-critical",
+      badge: '<span class="stock-age-badge critical">1+ month</span>',
+    };
+  }
+  if (diffDays >= 14) {
+    return {
+      rowClass: "stock-age-warning",
+      badge: '<span class="stock-age-badge warning">2+ weeks</span>',
+    };
+  }
+  return { rowClass: "", badge: "" };
 }
 
 // ---- Rendering helpers ----
@@ -171,13 +256,74 @@ function renderDashboard() {
     });
 }
 
+let deleteMode = false;
+let selectedModelIds = new Set();
+
+function updateModelsHeader() {
+  const actions = document.getElementById("models-header-actions");
+  if (!actions) return;
+  if (deleteMode) {
+    actions.innerHTML = `
+      <button class="btn danger" id="btn-confirm-delete-models">Delete Selected</button>
+      <button class="btn ghost" id="btn-cancel-delete-mode">Cancel</button>
+    `;
+    document.getElementById("btn-confirm-delete-models").addEventListener("click", deleteSelectedModels);
+    document.getElementById("btn-cancel-delete-mode").addEventListener("click", exitDeleteMode);
+  } else {
+    actions.innerHTML = `
+      <button class="btn primary" id="btn-open-add-model-dialog">+ New Model</button>
+      <button class="btn danger" id="btn-enter-delete-mode">Delete</button>
+    `;
+    document.getElementById("btn-enter-delete-mode").addEventListener("click", enterDeleteMode);
+    document.getElementById("btn-open-add-model-dialog").addEventListener("click", openAddModelDialog);
+  }
+}
+
+function enterDeleteMode() {
+  deleteMode = true;
+  selectedModelIds.clear();
+  renderModelsTable();
+  updateModelsHeader();
+}
+
+function exitDeleteMode() {
+  deleteMode = false;
+  selectedModelIds.clear();
+  renderModelsTable();
+  updateModelsHeader();
+}
+
+function deleteSelectedModels() {
+  if (selectedModelIds.size === 0) {
+    showToast("Select at least one model to delete.");
+    return;
+  }
+  const count = selectedModelIds.size;
+  const names = state.models
+    .filter((m) => selectedModelIds.has(m.id))
+    .map((m) => `• ${m.name}`)
+    .join("\n");
+  if (!confirm(`Delete ${count} model${count > 1 ? "s" : ""}?\n${names}\n\nAll their devices and history will also be removed. This cannot be undone.`)) return;
+
+  selectedModelIds.forEach((id) => {
+    if (currentModelId === id) closeModelDetail();
+    state.models = state.models.filter((m) => m.id !== id);
+    state.devices = state.devices.filter((d) => d.modelId !== id);
+    state.history = state.history.filter((h) => h.modelId !== id);
+  });
+  writeToFirestore();
+  const deleted = count;
+  exitDeleteMode();
+  renderAll();
+  showToast(`${deleted} model${deleted > 1 ? "s" : ""} deleted.`);
+}
+
 function renderModelsTable() {
   const container = document.getElementById("models-table-container");
   if (!container) return;
   if (!state.models.length) {
     container.classList.add("empty-state");
-    container.innerHTML =
-      "<p>No models yet. Use New Models to create one.</p>";
+    container.innerHTML = "<p>No models yet. Use New Models to create one.</p>";
     return;
   }
   container.classList.remove("empty-state");
@@ -191,8 +337,12 @@ function renderModelsTable() {
       const outCount = state.devices.filter(
         (d) => d.modelId === m.id && d.status === "out"
       ).length;
+      const checkCell = deleteMode
+        ? `<td style="width:36px;padding:7px 10px;"><input type="checkbox" class="js-model-checkbox" data-model-id="${m.id}" ${selectedModelIds.has(m.id) ? "checked" : ""} style="width:16px;height:16px;cursor:pointer;" /></td>`
+        : "";
       return `
-        <tr data-model-id="${m.id}" class="js-row-model">
+        <tr data-model-id="${m.id}" class="js-row-model${deleteMode ? " row-selectable" : ""}">
+          ${checkCell}
           <td>${m.name}</td>
           <td>${m.notes ? m.notes : ""}</td>
           <td>${inCount}</td>
@@ -202,10 +352,12 @@ function renderModelsTable() {
       `;
     })
     .join("");
+  const checkHeader = deleteMode ? "<th></th>" : "";
   container.innerHTML = `
     <table>
       <thead>
         <tr>
+          ${checkHeader}
           <th>Model</th>
           <th>Notes</th>
           <th>In stock</th>
@@ -218,10 +370,31 @@ function renderModelsTable() {
   `;
 
   container.querySelectorAll(".js-row-model").forEach((row) => {
-    row.addEventListener("click", () => {
-      const id = row.getAttribute("data-model-id");
-      openModelDetail(id);
-    });
+    if (deleteMode) {
+      // Clicking the row toggles the checkbox
+      row.addEventListener("click", (e) => {
+        const cb = row.querySelector(".js-model-checkbox");
+        if (!cb) return;
+        if (e.target === cb) return; // checkbox handles itself
+        cb.checked = !cb.checked;
+        const id = row.getAttribute("data-model-id");
+        if (cb.checked) selectedModelIds.add(id);
+        else selectedModelIds.delete(id);
+      });
+      const cb = row.querySelector(".js-model-checkbox");
+      if (cb) {
+        cb.addEventListener("change", () => {
+          const id = row.getAttribute("data-model-id");
+          if (cb.checked) selectedModelIds.add(id);
+          else selectedModelIds.delete(id);
+        });
+      }
+    } else {
+      row.addEventListener("click", () => {
+        const id = row.getAttribute("data-model-id");
+        openModelDetail(id);
+      });
+    }
   });
 }
 
@@ -279,12 +452,14 @@ function renderModelSerialsTable(modelId) {
     .slice()
     .sort((a, b) => a.serial.localeCompare(b.serial))
     .map((d) => {
+      const { rowClass, badge } = getStockAgeInfo(d.createdAt);
       return `
-        <tr data-device-id="${d.id}">
+        <tr data-device-id="${d.id}" class="${rowClass}">
           <td>${d.serial}</td>
           <td>${d.prNumber || ""}</td>
           <td>${d.department || ""}</td>
-          <td>${formatDateTime(d.createdAt)}</td>
+          <td>${d.addedBy || ""}</td>
+          <td>${formatDateTime(d.createdAt)}${badge}</td>
           <td style="text-align:right;">
             <button class="btn ghost js-remove-serial" type="button">
               Remove from stock
@@ -302,6 +477,7 @@ function renderModelSerialsTable(modelId) {
           <th>Serial</th>
           <th>PR / Ticket</th>
           <th>Department</th>
+          <th>Added by</th>
           <th>Added</th>
           <th></th>
         </tr>
@@ -336,13 +512,26 @@ function renderModelHistoryTable(modelId) {
     .map((h) => {
       const statusClass = h.type === "in" ? "status-in" : "status-out";
       const label = h.type === "in" ? "Added" : "Removed";
+      const technician = h.addedBy || h.deliveredBy || "";
+      const dash = '<span style="color:var(--text-muted)">—</span>';
+      const reason = h.reason || (h.type === "in" ? dash : "");
+      const destination = h.destination || (h.type === "in" ? dash : "");
+      let rowClass = "";
+      if (h.type === "in") {
+        const device = state.devices.find((d) => d.serial === h.serial && d.modelId === h.modelId && d.status === "in");
+        if (device) {
+          const info = getStockAgeInfo(device.createdAt);
+          rowClass = info.rowClass;
+        }
+      }
       return `
-        <tr>
+        <tr class="${rowClass}">
           <td><span class="status-chip ${statusClass}">${label}</span></td>
           <td>${h.serial}</td>
           <td>${h.prNumber || ""}</td>
-          <td>${h.reason || ""}</td>
-          <td>${h.destination || ""}</td>
+          <td>${technician}</td>
+          <td>${reason}</td>
+          <td>${destination}</td>
           <td>${formatDateTime(h.at)}</td>
         </tr>
       `;
@@ -355,8 +544,9 @@ function renderModelHistoryTable(modelId) {
           <th>Type</th>
           <th>Serial</th>
           <th>PR / Ticket</th>
+          <th>Handled by</th>
           <th>Reason</th>
-          <th>Destination / Person</th>
+          <th>Destination</th>
           <th>At</th>
         </tr>
       </thead>
@@ -428,13 +618,15 @@ function renderDevicesView() {
       .sort((a, b) => a.serial.localeCompare(b.serial))
       .map((d) => {
         const model = state.models.find((m) => m.id === d.modelId);
+        const { rowClass, badge } = getStockAgeInfo(d.createdAt);
         return `
-          <tr>
+          <tr class="${rowClass}">
             <td>${model ? model.name : "Unknown model"}</td>
             <td>${d.department || ""}</td>
             <td>${d.serial}</td>
             <td>${d.prNumber || ""}</td>
-            <td>${formatDateTime(d.createdAt)}</td>
+            <td>${d.addedBy || ""}</td>
+            <td>${formatDateTime(d.createdAt)}${badge}</td>
           </tr>
         `;
       })
@@ -447,6 +639,7 @@ function renderDevicesView() {
             <th>Department</th>
             <th>Serial</th>
             <th>PR / Ticket</th>
+            <th>Added by</th>
             <th>Added</th>
           </tr>
         </thead>
@@ -471,6 +664,7 @@ function renderDevicesView() {
             <td>${d.department || ""}</td>
             <td>${d.serial}</td>
             <td>${d.prNumber || ""}</td>
+            <td>${d.deliveredBy || ""}</td>
             <td>${d.reason || ""}</td>
             <td>${d.destination || ""}</td>
             <td>${formatDateTime(d.removedAt)}</td>
@@ -486,8 +680,9 @@ function renderDevicesView() {
             <th>Department</th>
             <th>Serial</th>
             <th>PR / Ticket</th>
+            <th>Delivered by</th>
             <th>Reason</th>
-            <th>Destination / Person</th>
+            <th>Destination</th>
             <th>Removed at</th>
           </tr>
         </thead>
@@ -573,18 +768,35 @@ function renderHistoryView() {
   }
 
   const rows = entries
-    .sort((a, b) => new Date(b.at) - new Date(a.at))
+    .sort((a, b) =>
+      historySort === "asc"
+        ? new Date(a.at) - new Date(b.at)
+        : new Date(b.at) - new Date(a.at)
+    )
     .map((h) => {
       const model = state.models.find((m) => m.id === h.modelId);
       const statusClass = h.type === "in" ? "status-in" : "status-out";
       const label = h.type === "in" ? "Added to stock" : "Removed from stock";
+      const technician = h.addedBy || h.deliveredBy || "";
+      const dash = '<span style="color:var(--text-muted)">—</span>';
+      const reason = h.reason || (h.type === "in" ? dash : "");
+      const destination = h.destination || (h.type === "in" ? dash : "");
+      let rowClass = "";
+      if (h.type === "in") {
+        const device = state.devices.find((d) => d.serial === h.serial && d.modelId === h.modelId && d.status === "in");
+        if (device) {
+          const info = getStockAgeInfo(device.createdAt);
+          rowClass = info.rowClass;
+        }
+      }
       return `
-        <tr>
+        <tr class="${rowClass}">
           <td><span class="status-chip ${statusClass}">${label}</span></td>
           <td>${model ? model.name : "Unknown model"}</td>
           <td>${h.serial}</td>
-          <td>${h.reason || ""}</td>
-          <td>${h.destination || ""}</td>
+          <td>${technician}</td>
+          <td>${reason}</td>
+          <td>${destination}</td>
           <td>${formatDateTime(h.at)}</td>
         </tr>
       `;
@@ -597,8 +809,9 @@ function renderHistoryView() {
           <th>Type</th>
           <th>Model</th>
           <th>Serial</th>
+          <th>Handled by</th>
           <th>Reason</th>
-          <th>Destination / Person</th>
+          <th>Destination</th>
           <th>At</th>
         </tr>
       </thead>
@@ -621,9 +834,22 @@ function closeAddModelDialog() {
 
 function openRemoveSerialDialog(deviceId) {
   pendingRemoveDeviceId = deviceId;
-  document
-    .getElementById("remove-serial-dialog")
-    .classList.remove("hidden");
+  document.getElementById("remove-serial-dialog").classList.remove("hidden");
+  populateDeliveredBySelect();
+  // Wire the add-new sentinel for the delivered-by select
+  const sel = document.getElementById("remove-delivered-by-select");
+  if (sel) {
+    sel.addEventListener("change", function handler() {
+      if (sel.value !== "__add_new__") return;
+      const name = prompt("Enter the new person's name:");
+      if (name && name.trim()) {
+        addTechnician(name.trim());
+        populateDeliveredBySelect();
+      } else {
+        sel.value = "";
+      }
+    });
+  }
   document.getElementById("remove-reason-input").focus();
 }
 
@@ -651,7 +877,7 @@ function addModel(name, notes) {
   return model;
 }
 
-function addDeviceSerial(modelId, serial, department, prNumber) {
+function addDeviceSerial(modelId, serial, department, prNumber, addedBy) {
   const model = state.models.find((m) => m.id === modelId);
   if (!model) return;
   const cleanSerial = serial.trim();
@@ -664,6 +890,11 @@ function addDeviceSerial(modelId, serial, department, prNumber) {
   const cleanPr = (prNumber || "").trim();
   if (!cleanPr) {
     showToast("Please enter a PR number or ticket.");
+    return;
+  }
+  const cleanAddedBy = (addedBy || "").trim();
+  if (!cleanAddedBy) {
+    showToast("Please select who is adding this device.");
     return;
   }
 
@@ -686,6 +917,7 @@ function addDeviceSerial(modelId, serial, department, prNumber) {
     prNumber: cleanPr,
     status: "in",
     department: cleanDepartment,
+    addedBy: cleanAddedBy,
     createdAt: now,
     removedAt: null,
     reason: "",
@@ -698,6 +930,7 @@ function addDeviceSerial(modelId, serial, department, prNumber) {
     modelId,
     serial: cleanSerial,
     prNumber: cleanPr,
+    addedBy: cleanAddedBy,
     at: now,
     reason: "Added to stock",
     destination: "",
@@ -707,7 +940,7 @@ function addDeviceSerial(modelId, serial, department, prNumber) {
   showToast(`Serial added to ${model.name}.`);
 }
 
-function removeDeviceFromStock(deviceId, reason, destination) {
+function removeDeviceFromStock(deviceId, reason, deliveredBy, destination) {
   const device = state.devices.find((d) => d.id === deviceId);
   if (!device || device.status !== "in") return;
   const model = state.models.find((m) => m.id === device.modelId);
@@ -716,6 +949,7 @@ function removeDeviceFromStock(deviceId, reason, destination) {
   device.status = "out";
   device.removedAt = now;
   device.reason = (reason || "").trim();
+  device.deliveredBy = (deliveredBy || "").trim();
   device.destination = (destination || "").trim();
 
   state.history.push({
@@ -726,6 +960,7 @@ function removeDeviceFromStock(deviceId, reason, destination) {
     prNumber: device.prNumber || "",
     at: now,
     reason: device.reason,
+    deliveredBy: device.deliveredBy,
     destination: device.destination,
   });
 
@@ -835,6 +1070,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadFromFirestore();
   subscribeToRealtimeChanges();
 
+  // Hidden testing feature: click "All Devices" text specifically 5 times to inject old test stock
+  let testClickCount = 0;
+  let testClickTimeout;
+  document.querySelectorAll(".nav-tab").forEach((btn) => {
+    if (btn.dataset.view === "devices") {
+      btn.addEventListener("click", () => {
+        testClickCount++;
+        clearTimeout(testClickTimeout);
+        testClickTimeout = setTimeout(() => { testClickCount = 0; }, 2000);
+        if (testClickCount >= 5) {
+          testClickCount = 0;
+          injectTestStock();
+        }
+      });
+    }
+  });
+
   // Nav
   document.querySelectorAll(".nav-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -843,22 +1095,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
+  const logoArea = document.getElementById("app-logo-area");
+  if (logoArea) {
+    logoArea.addEventListener("click", () => {
+      switchView("history");
+    });
+  }
+
   // Quick add model on dashboard
   const quickForm = document.getElementById("quick-add-model-form");
   quickForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const name = document.getElementById("quick-model-name").value;
-    const notes = document.getElementById("quick-model-notes").value;
-    const model = addModel(name, notes);
+    const model = addModel(name, "");
     if (model) {
       quickForm.reset();
     }
   });
 
-  // Add model dialog
-  document
-    .getElementById("btn-open-add-model-dialog")
-    .addEventListener("click", openAddModelDialog);
+  // Models header (Delete / New Model buttons — managed dynamically)
+  updateModelsHeader();
   document
     .getElementById("btn-cancel-add-model")
     .addEventListener("click", closeAddModelDialog);
@@ -867,8 +1123,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("submit", (e) => {
       e.preventDefault();
       const name = document.getElementById("model-name-input").value;
-      const notes = document.getElementById("model-notes-input").value;
-      const model = addModel(name, notes);
+      const model = addModel(name, "");
       if (model) {
         closeAddModelDialog();
       }
@@ -888,13 +1143,30 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     const serial = document.getElementById("serial-number-input").value;
-    const department = document.getElementById(
-      "serial-department-select"
-    ).value;
+    const department = document.getElementById("serial-department-select").value;
     const prNumber = document.getElementById("serial-pr-input").value;
-    addDeviceSerial(currentModelId, serial, department, prNumber);
+    const addedBy = document.getElementById("serial-added-by-select").value;
+    addDeviceSerial(currentModelId, serial, department, prNumber, addedBy);
     addSerialForm.reset();
+    // Re-select the person after form reset so they don't have to pick again
+    const sel = document.getElementById("serial-added-by-select");
+    if (sel && addedBy) sel.value = addedBy;
   });
+
+  // Add person to team list
+  const addedBySelect = document.getElementById("serial-added-by-select");
+  if (addedBySelect) {
+    addedBySelect.addEventListener("change", () => {
+      if (addedBySelect.value !== "__add_new__") return;
+      const name = prompt("Enter the new person's name:");
+      if (name && name.trim()) {
+        addTechnician(name.trim());
+      } else {
+        // Revert to empty if cancelled
+        addedBySelect.value = "";
+      }
+    });
+  }
 
   // Remove serial dialog
   document
@@ -910,10 +1182,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
       const reason = document.getElementById("remove-reason-input").value;
-      const destination = document.getElementById(
-        "remove-destination-input"
-      ).value;
-      removeDeviceFromStock(pendingRemoveDeviceId, reason, destination);
+      const deliveredBy = document.getElementById("remove-delivered-by-select").value;
+      const destination = document.getElementById("remove-destination-input").value;
+      removeDeviceFromStock(pendingRemoveDeviceId, reason, deliveredBy, destination);
       closeRemoveSerialDialog();
     });
 
@@ -964,5 +1235,86 @@ document.addEventListener("DOMContentLoaded", async () => {
     historyMonthSelect.addEventListener("change", renderHistoryView);
   }
 
+  // Sort button for history
+  const sortBtn = document.getElementById("btn-history-sort");
+  if (sortBtn) {
+    sortBtn.addEventListener("click", () => {
+      historySort = historySort === "desc" ? "asc" : "desc";
+      sortBtn.dataset.order = historySort;
+      sortBtn.textContent =
+        historySort === "desc" ? "⬇ Newest first" : "⬆ Oldest first";
+      renderHistoryView();
+    });
+  }
+
   renderAll();
+  populateTechnicianSelect();
+  switchView("history");
 });
+
+function injectTestStock() {
+  if (!state.models.length) {
+    showToast("Add at least one model first to run this test.");
+    return;
+  }
+  const modelId = state.models[0].id;
+  const now = Date.now();
+
+  // Device 1: 15 days old (Yellow)
+  const dateYellow = new Date(now - (15 * 24 * 60 * 60 * 1000)).toISOString();
+  state.devices.push({
+    id: uid(),
+    modelId,
+    serial: "TEST-YELLOW-14D",
+    prNumber: "PR-TEST-1",
+    status: "in",
+    department: "Planta Oeste",
+    addedBy: "System Test",
+    createdAt: dateYellow,
+    removedAt: null,
+    reason: "",
+    destination: "",
+  });
+  state.history.push({
+    id: uid(),
+    type: "in",
+    modelId,
+    serial: "TEST-YELLOW-14D",
+    prNumber: "PR-TEST-1",
+    addedBy: "System Test",
+    at: dateYellow,
+    reason: "Added to stock",
+    destination: "",
+  });
+
+  // Device 2: 35 days old (Red)
+  const dateRed = new Date(now - (35 * 24 * 60 * 60 * 1000)).toISOString();
+  state.devices.push({
+    id: uid(),
+    modelId,
+    serial: "TEST-RED-30D",
+    prNumber: "PR-TEST-2",
+    status: "in",
+    department: "Planta Este",
+    addedBy: "System Test",
+    createdAt: dateRed,
+    removedAt: null,
+    reason: "",
+    destination: "",
+  });
+  state.history.push({
+    id: uid(),
+    type: "in",
+    modelId,
+    serial: "TEST-RED-30D",
+    prNumber: "PR-TEST-2",
+    addedBy: "System Test",
+    at: dateRed,
+    reason: "Added to stock",
+    destination: "",
+  });
+
+  writeToFirestore();
+  renderAll();
+  showToast("Test devices injected! Check All Devices view.");
+}
