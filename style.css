@@ -1293,3 +1293,122 @@ table {
   padding: 10px 18px 14px;
   border-top: 1px solid rgba(220, 228, 245, 0.9);
 }
+
+/* ---- Dashboard Quick-Link Model Cards ---- */
+
+.dash-model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  padding: 4px 0 2px;
+}
+
+.dash-model-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fff;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+  font-family: inherit;
+}
+
+.dash-model-card:hover {
+  box-shadow: 0 6px 22px rgba(0, 92, 155, 0.12);
+  border-color: var(--blue);
+  transform: translateY(-2px);
+}
+
+.dmc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dmc-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dmc-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.dmc-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.dmc-badge.in {
+  background: #e6f7ee;
+  color: #1a7a45;
+}
+
+.dmc-badge.out {
+  background: #f1f3f8;
+  color: var(--text-muted);
+}
+
+.dmc-arrow {
+  font-size: 1rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.dash-model-card:hover .dmc-arrow {
+  transform: translateX(4px);
+  color: var(--blue);
+}
+
+/* ---- Age Legend (Devices Command Center) ---- */
+
+.age-legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 6px 2px;
+  flex-wrap: wrap;
+}
+
+.age-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.age-legend-item::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.age-legend-item.warning::before {
+  background: #fef3c7;
+  border: 1.5px solid #f59e0b;
+}
+
+.age-legend-item.critical::before {
+  background: #fee2e2;
+  border: 1.5px solid #ef4444;
+}
