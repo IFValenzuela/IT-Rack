@@ -174,6 +174,9 @@
               Every serial currently in stock, across all models.
             </p>
           </div>
+          <div class="panel-header-actions">
+            <button type="button" class="btn primary" id="btn-toggle-removed">View Removed (0)</button>
+          </div>
         </div>
         <form id="device-filters-form" class="form-inline">
           <div class="form-field">
@@ -188,9 +191,13 @@
             <label for="filter-location-owner">Search (model, serial, person)</label>
             <input id="filter-location-owner" type="text" placeholder="e.g. Latitude, 123ABC, John" />
           </div>
+          <div class="segmented-control" id="seg-view-in" style="align-self:flex-end;">
+            <button type="button" class="seg-btn btn ghost active" data-view="all">All</button>
+            <button type="button" class="seg-btn btn ghost" data-view="individual">Individual</button>
+            <button type="button" class="seg-btn btn ghost" data-view="grouped">Grouped by Kit</button>
+          </div>
           <button type="button" class="btn ghost" id="btn-devices-sort" data-order="desc">Newest Added</button>
-          <button type="button" class="btn ghost" id="btn-clear-filters">Clear filters</button>
-          <button type="button" class="btn ghost" id="btn-toggle-removed">View Removed (0)</button>
+          <button type="button" class="btn ghost" id="btn-clear-filters">Clear</button>
         </form>
         <div id="devices-table-container" class="table-container empty-state">
           <p>No devices in stock yet.</p>
@@ -204,10 +211,10 @@
             <p class="panel-subtitle">Archived inventory. Filters here are independent from the active stock above.</p>
           </div>
           <div class="panel-header-actions">
-            <button type="button" class="btn ghost" id="btn-close-removed">Close Archive</button>
+            <button type="button" class="btn-link" id="btn-close-removed">Close Archive &#10005;</button>
           </div>
         </div>
-        <form id="removed-filters-form" class="form-inline" style="padding:0 18px 12px;">
+        <form id="removed-filters-form" class="form-inline">
           <div class="form-field">
             <label for="filter-removed-dept">Department</label>
             <select id="filter-removed-dept">
@@ -220,12 +227,12 @@
             <label for="filter-removed-search">Search (model, serial, person)</label>
             <input id="filter-removed-search" type="text" placeholder="e.g. Latitude, 123ABC, John" />
           </div>
-          <div class="form-field">
-            <label for="filter-removed-destination">Destination / Reason</label>
-            <select id="filter-removed-destination">
-              <option value="">All destinations</option>
-            </select>
+          <div class="segmented-control" id="seg-view-out" style="align-self:flex-end;">
+            <button type="button" class="seg-btn btn ghost active" data-view="all">All</button>
+            <button type="button" class="seg-btn btn ghost" data-view="individual">Individual</button>
+            <button type="button" class="seg-btn btn ghost" data-view="grouped">Grouped by Kit</button>
           </div>
+          <button type="button" class="btn ghost" id="btn-removed-sort" data-order="desc">Newest Removed</button>
           <button type="button" class="btn ghost" id="btn-clear-removed-filters">Clear</button>
         </form>
         <div id="devices-removed-table-container" class="table-container empty-state">

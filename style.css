@@ -1412,3 +1412,75 @@ table {
   background: #fee2e2;
   border: 1.5px solid #ef4444;
 }
+
+/* ---- Segmented Controls ---- */
+.segmented-control {
+  display: inline-flex;
+  gap: 3px;
+}
+
+/* Active state: solid Skyworks blue to distinguish from ghost siblings */
+.seg-btn.active,
+.seg-btn.btn.ghost.active {
+  background: #005696 !important;
+  color: #fff !important;
+  border-color: #005696 !important;
+}
+
+
+/* ---- Text / Icon link button ---- */
+.btn-link {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-link:hover {
+  background: var(--gray-light);
+  color: var(--text);
+}
+
+/* ---- Kit Sub-header rows (Grouped mode — single unified table) ---- */
+tr.kit-sub-header td {
+  background: #f1f3f5;
+  padding: 7px 12px;
+  border-top: 8px solid #fff;
+  border-bottom: none;
+}
+
+tr.kit-sub-header:first-child td {
+  border-top: none;
+}
+
+.kit-ticket-cell {
+  font-size: 0.82rem;
+  color: var(--text);
+  padding-left: 10px !important;
+  border-left: 2px solid #005696 !important;
+}
+
+.kit-ticket-cell strong {
+  color: #005696;
+}
+
+.kit-count {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+tr.kit-device-row td {
+  padding-left: 14px;
+}
+
+tr.kit-spacer td {
+  height: 10px;
+  background: transparent !important;
+  border: none !important;
+  padding: 0;
+}

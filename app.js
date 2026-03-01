@@ -9,9 +9,12 @@ const state = {
 
 let historySort = "desc";
 let devicesSort = "desc";
+let removedSort = "desc";
 let devicesRemovedDestFilter = "";
 let removedTextFilter = "";
 let removedDeptFilter = "";
+let viewModeIn = "all"; // 'all' | 'individual' | 'grouped'
+let viewModeOut = "all";
 
 function uid() {
   return (
@@ -603,6 +606,13 @@ function renderModelHistoryTable(modelId) {
   `;
 }
 
+/** Returns Set of prNumbers that appear ≥2 times in the device list. */
+function getKitIds(devices) {
+  const counts = {};
+  devices.forEach((d) => { if (d.prNumber) counts[d.prNumber] = (counts[d.prNumber] || 0) + 1; });
+  return new Set(Object.keys(counts).filter((k) => counts[k] > 1));
+}
+
 function renderDevicesView() {
   const inContainer = document.getElementById("devices-table-container");
   const outContainer = document.getElementById(
@@ -658,123 +668,148 @@ function renderDevicesView() {
     );
   }
 
-  // Update toggle button count (total unfiltered removed)
+  // Update toggle button count
   const totalRemoved = state.devices.filter((d) => d.status === "out").length;
   const toggleBtn = document.getElementById("btn-toggle-removed");
   if (toggleBtn) toggleBtn.textContent = `View Removed (${totalRemoved})`;
 
-  // Populate destination dropdown from all unique destination/reason values
-  const destSelect = document.getElementById("filter-removed-destination");
-  if (destSelect) {
-    const prevDest = destSelect.value;
-    const uniqueDests = [...new Set(
-      state.devices
-        .filter((d) => d.status === "out" && (d.destination || d.reason))
-        .map((d) => d.destination || d.reason)
-    )].sort((a, b) => a.localeCompare(b));
-    destSelect.innerHTML = '<option value="">All destinations</option>';
-    uniqueDests.forEach((val) => {
-      const opt = document.createElement("option");
-      opt.value = val;
-      opt.textContent = val;
-      destSelect.appendChild(opt);
-    });
-    if (prevDest && uniqueDests.includes(prevDest)) destSelect.value = prevDest;
-  }
-
-  // Update record count label
+  // Update archive record count
   const countLabel = document.getElementById("removed-count-label");
   if (countLabel) countLabel.textContent = `${outDevices.length} record${outDevices.length !== 1 ? "s" : ""}`;
 
-  // Refresh stat cards (they now live in the Devices view)
+  // Refresh stat cards
   renderDashboard();
 
-  if (!inDevices.length) {
-    inContainer.classList.add("empty-state");
-    inContainer.innerHTML = "<p>No devices in stock yet.</p>";
-  } else {
-    inContainer.classList.remove("empty-state");
-    const rows = inDevices
-      .slice()
-      .sort((a, b) =>
-        devicesSort === "desc"
-          ? new Date(b.createdAt) - new Date(a.createdAt)
-          : new Date(a.createdAt) - new Date(b.createdAt)
-      )
-      .map((d) => {
-        const model = state.models.find((m) => m.id === d.modelId);
-        const { rowClass, badge } = getStockAgeInfo(d.createdAt);
-        return `
-          <tr class="${rowClass}">
-            <td>${model ? model.name : "Unknown model"}</td>
-            <td>${d.department || ""}</td>
-            <td>${d.serial}</td>
-            <td>${d.prNumber || ""}</td>
-            <td>${d.addedBy || ""}</td>
-            <td>${formatDateTime(d.createdAt)}${badge}</td>
-          </tr>
-        `;
-      })
-      .join("");
-    inContainer.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>Model</th>
-            <th>Department</th>
-            <th>Serial</th>
-            <th>PR / Ticket</th>
-            <th>Added by</th>
-            <th>Added</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  }
+  // ---- Unified render helper ----
+  const renderList = (devices, container, isOut, viewMode, sortDir) => {
+    const dateField = isOut ? "removedAt" : "createdAt";
 
-  if (!outDevices.length) {
-    outContainer.classList.add("empty-state");
-    outContainer.innerHTML = "<p>No removed devices yet.</p>";
-  } else {
-    outContainer.classList.remove("empty-state");
-    const rows = outDevices
-      .slice()
-      .sort((a, b) => new Date(b.removedAt) - new Date(a.removedAt))
-      .map((d) => {
+    if (!devices.length) {
+      container.classList.add("empty-state");
+      container.innerHTML = `<p>No ${isOut ? "removed" : "in-stock"} devices match the current filters.</p>`;
+      return;
+    }
+    container.classList.remove("empty-state");
+
+    if (viewMode === "all" || viewMode === "individual") {
+      // 'individual': only solo devices (not in a kit); 'all': everything
+      let listDevices = devices;
+      if (viewMode === "individual") {
+        const kitIds = getKitIds(devices);
+        listDevices = devices.filter(d => !d.prNumber || !kitIds.has(d.prNumber));
+      }
+      // --- Flat sorted list ---
+      const sorted = listDevices.slice().sort((a, b) =>
+        sortDir === "desc"
+          ? new Date(b[dateField]) - new Date(a[dateField])
+          : new Date(a[dateField]) - new Date(b[dateField])
+      );
+      const rows = sorted.map((d) => {
         const model = state.models.find((m) => m.id === d.modelId);
-        return `
-          <tr>
+        if (!isOut) {
+          const { rowClass, badge } = getStockAgeInfo(d.createdAt);
+          return `<tr class="${rowClass}">
             <td>${model ? model.name : "Unknown model"}</td>
-            <td>${d.department || ""}</td>
-            <td>${d.serial}</td>
-            <td>${d.prNumber || ""}</td>
-            <td>${d.deliveredBy || ""}</td>
-            <td>${d.reason || ""}</td>
-            <td>${d.destination || ""}</td>
+            <td>${d.department || ""}</td><td>${d.serial}</td>
+            <td>${d.prNumber || ""}</td><td>${d.addedBy || ""}</td>
+            <td>${formatDateTime(d.createdAt)}${badge}</td>
+          </tr>`;
+        } else {
+          return `<tr>
+            <td>${model ? model.name : "Unknown model"}</td>
+            <td>${d.department || ""}</td><td>${d.serial}</td>
+            <td>${d.prNumber || ""}</td><td>${d.deliveredBy || ""}</td>
+            <td>${d.reason || ""}</td><td>${d.destination || ""}</td>
             <td>${formatDateTime(d.removedAt)}</td>
-          </tr>
-        `;
-      })
-      .join("");
-    outContainer.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>Model</th>
-            <th>Department</th>
-            <th>Serial</th>
-            <th>PR / Ticket</th>
-            <th>Delivered by</th>
-            <th>Reason</th>
-            <th>Destination</th>
-            <th>Removed at</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  }
+          </tr>`;
+        }
+      }).join("");
+
+      const headIn = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Added by</th><th>Added</th>`;
+      const headOut = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Delivered by</th><th>Reason</th><th>Destination</th><th>Removed at</th>`;
+      container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${rows}</tbody></table>`;
+
+    } else {
+      // --- Grouped by Kit (structural cards) ---
+      const kitIds = getKitIds(devices);
+      const kitDevices = devices.filter(d => d.prNumber && kitIds.has(d.prNumber));
+
+      if (!kitDevices.length) {
+        container.innerHTML = `<div class="empty-state" style="padding:32px;"><p>No complete kits found in current filters.<br>Switch to <strong>Individual</strong> to see all devices.</p></div>`;
+        return;
+      }
+
+      // Build group Map
+      const groups = new Map();
+      kitDevices.forEach(d => {
+        if (!groups.has(d.prNumber)) groups.set(d.prNumber, []);
+        groups.get(d.prNumber).push(d);
+      });
+
+      // Sort groups by most-recent item in group
+      const groupArr = [...groups.entries()].sort((a, b) => {
+        const ta = Math.max(...a[1].map(d => +new Date(d[dateField]) || 0));
+        const tb = Math.max(...b[1].map(d => +new Date(d[dateField]) || 0));
+        return sortDir === "desc" ? tb - ta : ta - tb;
+      });
+
+      // Number of columns in grouped mode
+      const colCount = isOut ? 6 : 5; // grouped removes PR/Ticket col; archive has 6 cols
+      const headIn = `<th>Model</th><th>Department</th><th>Serial</th><th>Added by</th><th>Added</th>`;
+      const headOut = `<th>Model</th><th>Department</th><th>Serial</th><th>Delivered by</th><th>Reason</th><th>Removed at</th>`;
+
+      const bodyRows = groupArr.map(([prId, items], groupIdx) => {
+        // Sort items within group
+        items.sort((a, b) => sortDir === "desc"
+          ? +new Date(b[dateField]) - +new Date(a[dateField])
+          : +new Date(a[dateField]) - +new Date(b[dateField]));
+
+        const dest = (items[0].destination || (isOut ? items[0].reason : "") || "");
+        const itemCount = `${items.length} item${items.length !== 1 ? "s" : ""}`;
+
+        // Sub-header: full-span cell, destination inline — same format for both in-stock and archive
+        const assignedTo = dest ? ` &mdash; Assigned to: <strong>${dest}</strong>` : "";
+        const subHeader = `<tr class="kit-sub-header">
+            <td colspan="${colCount}" class="kit-ticket-cell">Ticket&nbsp;/&nbsp;PR:&nbsp;<strong>${prId}</strong>${assignedTo}&nbsp;&nbsp;<span class="kit-count">${itemCount}</span></td>
+          </tr>`;
+
+        const deviceRows = items.map(d => {
+          const model = state.models.find(m => m.id === d.modelId);
+          if (!isOut) {
+            const { rowClass, badge } = getStockAgeInfo(d.createdAt);
+            return `<tr class="${rowClass} kit-device-row">
+              <td>${model ? model.name : "Unknown"}</td>
+              <td>${d.department || ""}</td>
+              <td><strong>${d.serial}</strong></td>
+              <td>${d.addedBy || ""}</td>
+              <td>${formatDateTime(d.createdAt)}${badge}</td>
+            </tr>`;
+          } else {
+            return `<tr class="kit-device-row">
+              <td>${model ? model.name : "Unknown"}</td>
+              <td>${d.department || ""}</td>
+              <td><strong>${d.serial}</strong></td>
+              <td>${d.deliveredBy || ""}</td>
+              <td>${d.reason || ""}</td>
+              <td>${formatDateTime(d.removedAt)}</td>
+            </tr>`;
+          }
+        }).join("");
+
+        // Spacer row between groups (not after last)
+        const spacer = groupIdx < groupArr.length - 1
+          ? `<tr class="kit-spacer"><td colspan="${colCount}"></td></tr>`
+          : "";
+
+        return `${subHeader}${deviceRows}${spacer}`;
+      }).join("");
+
+      container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${bodyRows}</tbody></table>`;
+    }
+  };
+
+  renderList(inDevices, inContainer, false, viewModeIn, devicesSort);
+  renderList(outDevices, outContainer, true, viewModeOut, removedSort);
 }
 
 function renderHistoryView() {
@@ -1913,20 +1948,46 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderDevicesView();
     });
   }
-  if (removedDestSelect2) {
-    removedDestSelect2.addEventListener("change", () => {
-      devicesRemovedDestFilter = removedDestSelect2.value;
+  // Segmented controls (View Mode)
+  const setupSeg = (containerId, onSelect) => {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.querySelectorAll(".seg-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        el.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        onSelect(btn.dataset.view);
+      });
+    });
+  };
+  setupSeg("seg-view-in", (v) => { viewModeIn = v; renderDevicesView(); });
+  setupSeg("seg-view-out", (v) => { viewModeOut = v; renderDevicesView(); });
+
+  // Removed Date Sort toggle
+  const btnRemovedSort = document.getElementById("btn-removed-sort");
+  if (btnRemovedSort) {
+    btnRemovedSort.addEventListener("click", () => {
+      removedSort = removedSort === "desc" ? "asc" : "desc";
+      btnRemovedSort.textContent = removedSort === "desc" ? "Newest Removed" : "Oldest Removed";
       renderDevicesView();
     });
   }
+
   if (btnClearRemoved) {
     btnClearRemoved.addEventListener("click", () => {
       removedTextFilter = "";
       removedDeptFilter = "";
       devicesRemovedDestFilter = "";
+      viewModeOut = "all";
       if (removedSearchInput) removedSearchInput.value = "";
       if (removedDeptSelect) removedDeptSelect.value = "";
-      if (removedDestSelect2) removedDestSelect2.value = "";
+      // Reset seg-view-out to All
+      const segOut = document.getElementById("seg-view-out");
+      if (segOut) {
+        segOut.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+        const first = segOut.querySelector(".seg-btn[data-view='all']");
+        if (first) first.classList.add("active");
+      }
       renderDevicesView();
     });
   }
