@@ -157,6 +157,41 @@
           </div>
         </div>
       </section>
+
+      <!-- Deploy a Kit Panel (Phase 2) -->
+      <section class="panel hidden" id="kit-deploy-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Deploy a Kit</h2>
+            <p class="panel-subtitle">
+              Select a kit from the dropdown to see all its devices, then deploy them in one click.
+            </p>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn ghost"
+              onclick="document.getElementById('kit-deploy-panel').classList.add('hidden')">Close</button>
+          </div>
+        </div>
+        <div class="form-field" style="max-width:420px;">
+          <label for="kit-deploy-select" style="font-size:0.78rem;color:var(--text-muted);">Kit in Stock</label>
+          <select id="kit-deploy-select">
+            <option value="">— No kits prepared yet —</option>
+          </select>
+        </div>
+        <div class="form-field" style="max-width:420px;margin-top:10px;">
+          <label for="kit-deploy-delivered-by" style="font-size:0.78rem;color:var(--text-muted);">Deployed by <span
+              style="color:var(--danger)">*</span></label>
+          <select id="kit-deploy-delivered-by">
+            <option value="">Select person…</option>
+          </select>
+        </div>
+        <div id="kit-deploy-results" class="table-container empty-state" style="margin-top:10px;">
+          <p>Enter a Kit ID above and click Search to see all devices in this kit.</p>
+        </div>
+        <div class="kit-deploy-action-row">
+          <button class="btn danger hidden" id="btn-deploy-kit">Deploy All</button>
+        </div>
+      </section>
     </section>
 
     <!-- DEVICES VIEW -->
@@ -219,7 +254,7 @@
             </p>
           </div>
           <div class="panel-header-actions">
-            <button class="btn ghost" id="btn-history-sort" data-order="desc">⬇ Newest first</button>
+            <button class="btn ghost" id="btn-history-sort" data-order="desc">Newest First</button>
             <button class="btn ghost" id="btn-export-data">Export</button>
             <label class="btn ghost file-input-label">
               Import
@@ -329,6 +364,30 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- New Hire Kit Dialog (Phase 1: Add New Serials to Stock) -->
+  <div id="new-hire-kit-dialog" class="dialog-backdrop hidden">
+    <div class="dialog dialog-wide">
+      <div class="dialog-header nhk-dialog-header">
+        <div>
+          <h2>Prepare New Hire Kit</h2>
+          <p class="dialog-description" style="margin-top:4px;">Add new devices to stock and tag them with a Kit ID for
+            one-click deployment later.</p>
+        </div>
+        <button class="btn ghost" id="btn-close-nhk-dialog" style="flex-shrink:0;">Cancel</button>
+      </div>
+      <!-- Stepper indicator -->
+      <div class="nhk-stepper" id="nhk-stepper">
+        <div class="nhk-step active" id="nhk-step-dot-1"><span>1</span><label>Kit Details</label></div>
+        <div class="nhk-step-connector"></div>
+        <div class="nhk-step" id="nhk-step-dot-2"><span>2</span><label>Add Serials</label></div>
+        <div class="nhk-step-connector"></div>
+        <div class="nhk-step" id="nhk-step-dot-3"><span>3</span><label>Confirm Entry</label></div>
+      </div>
+      <!-- Dynamic step content rendered by JS -->
+      <div class="dialog-body nhk-body" id="nhk-step-content"></div>
     </div>
   </div>
 

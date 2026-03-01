@@ -276,9 +276,16 @@ function updateModelsHeader() {
   } else {
     actions.innerHTML = `
       ${filterHtml}
+      <button class="btn ghost" id="btn-prepare-kit">Prepare Kit</button>
+      <button class="btn ghost" id="btn-open-deploy-kit">Deploy a Kit</button>
       <button class="btn ghost" id="btn-enter-delete-mode">Delete</button>
       <button class="btn primary" id="btn-open-add-model-dialog">+ New Model</button>
     `;
+    document.getElementById("btn-prepare-kit").addEventListener("click", openNewHireKitDialog);
+    document.getElementById("btn-open-deploy-kit").addEventListener("click", () => {
+      const panel = document.getElementById("kit-deploy-panel");
+      if (panel) panel.classList.toggle("hidden");
+    });
     document.getElementById("btn-enter-delete-mode").addEventListener("click", enterDeleteMode);
     document.getElementById("btn-open-add-model-dialog").addEventListener("click", openAddModelDialog);
   }
@@ -995,6 +1002,494 @@ function removeDeviceFromStock(deviceId, reason, deliveredBy, destination) {
   );
 }
 
+// ---- New Hire Kit — Models-First (Phase 1: Add to Stock | Phase 2: Deploy) ----
+
+const nhkState = {
+  step: 1,
+  kitId: "",            // Ticket # or New Hire Name — used as kit_id tag
+  selectedModelIds: [],
+  serialInputs: {},     // modelId -> new serial string entered by user
+  prNumber: "",
+  department: "",
+  addedBy: "",
+};
+
+function openNewHireKitDialog() {
+  nhkState.step = 1;
+  nhkState.kitId = "";
+  nhkState.selectedModelIds = [];
+  nhkState.serialInputs = {};
+  nhkState.prNumber = "";
+  nhkState.department = "";
+  nhkState.addedBy = "";
+  document.getElementById("new-hire-kit-dialog").classList.remove("hidden");
+  nhkRenderStep();
+}
+
+function closeNewHireKitDialog() {
+  document.getElementById("new-hire-kit-dialog").classList.add("hidden");
+}
+
+function nhkUpdateStepper() {
+  [1, 2, 3].forEach((n) => {
+    const dot = document.getElementById(`nhk-step-dot-${n}`);
+    if (!dot) return;
+    dot.classList.remove("active", "done");
+    if (n < nhkState.step) dot.classList.add("done");
+    else if (n === nhkState.step) dot.classList.add("active");
+  });
+  const connectors = document.querySelectorAll(".nhk-step-connector");
+  connectors.forEach((c, i) => {
+    c.classList.toggle("done", nhkState.step > i + 1);
+  });
+}
+
+function nhkRenderStep() {
+  nhkUpdateStepper();
+  const content = document.getElementById("nhk-step-content");
+  if (!content) return;
+  if (nhkState.step === 1) nhkRenderStep1(content);
+  else if (nhkState.step === 2) nhkRenderStep2(content);
+  else if (nhkState.step === 3) nhkRenderStep3(content);
+}
+
+// Step 1: Kit ID + model checklist (no stock restriction — adding NEW serials)
+function nhkRenderStep1(container) {
+  const models = state.models
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((m) => ({
+      ...m,
+      inStockCount: state.devices.filter(
+        (d) => d.modelId === m.id && d.status === "in"
+      ).length,
+    }));
+
+  container.innerHTML = `
+    <div class="nhk-hire-name-row">
+      <label for="nhk-kit-id-input">Kit ID — Ticket # or New Hire Name <span style="color:var(--danger)">*</span></label>
+      <input
+        id="nhk-kit-id-input"
+        type="text"
+        placeholder="e.g. Jane-Smith-2026 or PR-20345"
+        value="${nhkState.kitId.replace(/"/g, "&quot;")}"
+        autocomplete="off"
+      />
+      <p style="font-size:0.7rem;color:var(--text-muted);margin:3px 0 0;">This ID links all kit devices so you can deploy them all later with one click.</p>
+    </div>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin:10px 0 6px;">Select the models to include in this kit:</p>
+    <input
+      type="text"
+      id="nhk-model-search"
+      placeholder="Search models..."
+      autocomplete="off"
+      style="width:100%;margin-bottom:8px;box-sizing:border-box;"
+    />
+    <div class="nhk-model-list">
+      ${models.map((m) => {
+    const isSelected = nhkState.selectedModelIds.includes(m.id);
+    return `
+          <label class="nhk-model-card${isSelected ? " selected" : ""}" data-model-id="${m.id}">
+            <input type="checkbox" class="nhk-model-cb" data-model-id="${m.id}" ${isSelected ? "checked" : ""} />
+            <div>
+              <div class="nhk-card-label">${m.name}</div>
+              <span class="nhk-card-stock">${m.inStockCount} in stock</span>
+            </div>
+          </label>
+        `;
+  }).join("")}
+    </div>
+    <div class="nhk-footer">
+      <button class="btn ghost" id="nhk-btn-cancel-s1">Cancel</button>
+      <button class="btn primary" id="nhk-btn-next-s1">Next: Add Serials →</button>
+    </div>
+  `;
+
+  const kitIdInput = document.getElementById("nhk-kit-id-input");
+  kitIdInput.focus();
+  kitIdInput.addEventListener("input", () => { nhkState.kitId = kitIdInput.value; });
+
+  // Live model search filter
+  const modelSearch = document.getElementById("nhk-model-search");
+  modelSearch.addEventListener("input", () => {
+    const q = modelSearch.value.toLowerCase().trim();
+    container.querySelectorAll(".nhk-model-card").forEach((card) => {
+      const name = (card.querySelector(".nhk-card-label")?.textContent || "").toLowerCase();
+      card.style.display = !q || name.includes(q) ? "" : "none";
+    });
+  });
+
+  container.querySelectorAll(".nhk-model-cb").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = cb.dataset.modelId;
+      const card = cb.closest(".nhk-model-card");
+      if (cb.checked) {
+        if (!nhkState.selectedModelIds.includes(id)) nhkState.selectedModelIds.push(id);
+        card.classList.add("selected");
+      } else {
+        nhkState.selectedModelIds = nhkState.selectedModelIds.filter((x) => x !== id);
+        card.classList.remove("selected");
+      }
+    });
+  });
+
+  container.querySelectorAll(".nhk-model-card").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.type === "checkbox") return;
+      const cb = card.querySelector("input[type=checkbox]");
+      if (!cb) return;
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event("change"));
+    });
+  });
+
+  document.getElementById("nhk-btn-cancel-s1").addEventListener("click", closeNewHireKitDialog);
+  document.getElementById("nhk-btn-next-s1").addEventListener("click", () => {
+    nhkState.kitId = document.getElementById("nhk-kit-id-input").value.trim();
+    if (!nhkState.kitId) {
+      showToast("Please enter a Kit ID (ticket # or hire name).");
+      document.getElementById("nhk-kit-id-input").focus();
+      return;
+    }
+    if (nhkState.selectedModelIds.length === 0) {
+      showToast("Select at least one model for the kit.");
+      return;
+    }
+    nhkState.step = 2;
+    nhkRenderStep();
+  });
+}
+
+// Step 2: Enter new serial numbers + shared PR/Dept/AddedBy fields
+function nhkRenderStep2(container) {
+  const techOptions = state.technicians
+    .slice()
+    .sort((a, b) => a.localeCompare(b))
+    .map((t) => `<option value="${t}" ${t === nhkState.addedBy ? "selected" : ""}>${t}</option>`)
+    .join("");
+
+  const serialCards = nhkState.selectedModelIds.map((modelId) => {
+    const model = state.models.find((m) => m.id === modelId);
+    const currentSerial = nhkState.serialInputs[modelId] || "";
+    return `
+      <div class="nhk-assign-card">
+        <div>
+          <div class="nhk-assign-model-name">${model ? model.name : modelId}</div>
+          <div class="nhk-assign-model-count">New serial</div>
+        </div>
+        <input
+          type="text"
+          class="nhk-new-serial-input"
+          data-model-id="${modelId}"
+          placeholder="e.g. SN-ABC123"
+          value="${currentSerial.replace(/"/g, "&quot;")}"
+          autocomplete="off"
+        />
+      </div>
+    `;
+  }).join("");
+
+  container.innerHTML = `
+    <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 8px;">
+      Enter new serial numbers to add to stock under Kit ID <strong>${nhkState.kitId}</strong>:
+    </p>
+    <div class="nhk-assign-grid">${serialCards}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:12px;">
+      <div class="form-field">
+        <label>PR Number / Ticket <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="nhk-pr-input" placeholder="e.g. PR-12345" value="${nhkState.prNumber.replace(/"/g, "&quot;")}" />
+      </div>
+      <div class="form-field">
+        <label>Department <span style="color:var(--danger)">*</span></label>
+        <select id="nhk-dept-select">
+          <option value="">Select department…</option>
+          <option value="Planta Oeste" ${nhkState.department === "Planta Oeste" ? "selected" : ""}>Planta Oeste</option>
+          <option value="Planta Este" ${nhkState.department === "Planta Este" ? "selected" : ""}>Planta Este</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Added by <span style="color:var(--danger)">*</span></label>
+        <select id="nhk-addedby-select">
+          <option value="">Select person…</option>
+          ${techOptions}
+        </select>
+      </div>
+    </div>
+    <div class="nhk-footer">
+      <button class="btn ghost" id="nhk-btn-back-s2">← Back</button>
+      <button class="btn primary" id="nhk-btn-next-s2">Review Entry →</button>
+    </div>
+  `;
+
+  container.querySelectorAll(".nhk-new-serial-input").forEach((inp) => {
+    inp.addEventListener("input", () => {
+      nhkState.serialInputs[inp.dataset.modelId] = inp.value;
+    });
+  });
+
+  document.getElementById("nhk-btn-back-s2").addEventListener("click", () => {
+    _nhkCollectStep2Fields(container);
+    nhkState.step = 1;
+    nhkRenderStep();
+  });
+
+  document.getElementById("nhk-btn-next-s2").addEventListener("click", () => {
+    _nhkCollectStep2Fields(container);
+    const missingSerials = nhkState.selectedModelIds.filter(
+      (id) => !(nhkState.serialInputs[id] || "").trim()
+    );
+    if (missingSerials.length > 0) {
+      const names = missingSerials.map((id) => state.models.find((m) => m.id === id)?.name || id).join(", ");
+      showToast(`Enter a serial number for: ${names}`);
+      return;
+    }
+    if (!nhkState.prNumber.trim()) { showToast("Please enter a PR Number / Ticket."); return; }
+    if (!nhkState.department) { showToast("Please select a department."); return; }
+    if (!nhkState.addedBy) { showToast("Please select who is adding these devices."); return; }
+    // Duplicate serial check within the kit
+    const serials = nhkState.selectedModelIds.map((id) => nhkState.serialInputs[id].trim().toLowerCase());
+    if (new Set(serials).size !== serials.length) {
+      showToast("Each serial number must be unique within the kit.");
+      return;
+    }
+    nhkState.step = 3;
+    nhkRenderStep();
+  });
+}
+
+function _nhkCollectStep2Fields(container) {
+  container.querySelectorAll(".nhk-new-serial-input").forEach((inp) => {
+    nhkState.serialInputs[inp.dataset.modelId] = inp.value;
+  });
+  const pr = document.getElementById("nhk-pr-input");
+  const dept = document.getElementById("nhk-dept-select");
+  const by = document.getElementById("nhk-addedby-select");
+  if (pr) nhkState.prNumber = pr.value;
+  if (dept) nhkState.department = dept.value;
+  if (by) nhkState.addedBy = by.value;
+}
+
+// Step 3: Confirm and add to stock
+function nhkRenderStep3(container) {
+  const items = nhkState.selectedModelIds.map((modelId) => {
+    const model = state.models.find((m) => m.id === modelId);
+    const serial = nhkState.serialInputs[modelId] || "—";
+    return `
+      <div class="nhk-confirm-item">
+        <span class="nhk-ci-model">${model ? model.name : modelId}</span>
+        <span class="nhk-ci-serial">${serial}</span>
+      </div>
+    `;
+  }).join("");
+
+  container.innerHTML = `
+    <div class="nhk-confirm-header">
+      <span class="nhk-hire-label">Kit ID (Ticket / New Hire Name):</span>
+      <span class="nhk-hire-value">${nhkState.kitId}</span>
+    </div>
+    <div style="display:flex;gap:14px;font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;flex-wrap:wrap;">
+      <span>PR: <strong style="color:var(--text-main)">${nhkState.prNumber}</strong></span>
+      <span>Dept: <strong style="color:var(--text-main)">${nhkState.department}</strong></span>
+      <span>Added by: <strong style="color:var(--text-main)">${nhkState.addedBy}</strong></span>
+    </div>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 8px;">
+      The following serials will be <strong>added to stock</strong> and tagged with this Kit ID:
+    </p>
+    <div class="nhk-confirm-list">${items}</div>
+    <div class="nhk-footer">
+      <button class="btn ghost" id="nhk-btn-back-s3">← Back</button>
+      <button class="btn primary" id="nhk-btn-submit">Add to Stock</button>
+    </div>
+  `;
+
+  document.getElementById("nhk-btn-back-s3").addEventListener("click", () => {
+    nhkState.step = 2;
+    nhkRenderStep();
+  });
+  document.getElementById("nhk-btn-submit").addEventListener("click", submitNewHireKit);
+}
+
+// Submit: bulk add to stock with kit_id tag
+function submitNewHireKit() {
+  const kitId = nhkState.kitId.trim();
+  if (!kitId) { showToast("Kit ID is missing."); return; }
+
+  const now = new Date().toISOString();
+  let addedCount = 0;
+
+  nhkState.selectedModelIds.forEach((modelId) => {
+    const cleanSerial = (nhkState.serialInputs[modelId] || "").trim();
+    if (!cleanSerial) return;
+    const model = state.models.find((m) => m.id === modelId);
+    if (!model) return;
+
+    // Skip duplicate in-stock serials for same model
+    const duplicate = state.devices.find(
+      (d) => d.modelId === modelId && d.serial.toLowerCase() === cleanSerial.toLowerCase() && d.status === "in"
+    );
+    if (duplicate) {
+      showToast(`"${cleanSerial}" already in stock for ${model.name}. Skipped.`);
+      return;
+    }
+
+    state.devices.push({
+      id: uid(),
+      modelId,
+      serial: cleanSerial,
+      prNumber: nhkState.prNumber.trim(),
+      status: "in",
+      department: nhkState.department,
+      addedBy: nhkState.addedBy,
+      kit_id: kitId,
+      createdAt: now,
+      removedAt: null,
+      reason: "",
+      destination: "",
+    });
+
+    state.history.push({
+      id: uid(),
+      type: "in",
+      modelId,
+      serial: cleanSerial,
+      prNumber: nhkState.prNumber.trim(),
+      addedBy: nhkState.addedBy,
+      kit_id: kitId,
+      at: now,
+      reason: `Kit: ${kitId}`,
+      destination: "",
+    });
+
+    addedCount++;
+  });
+
+  if (addedCount === 0) {
+    showToast("No devices were added. Check for duplicate serials.");
+    return;
+  }
+
+  writeToFirestore();
+  renderAll();
+  closeNewHireKitDialog();
+  showToast(`${addedCount} device${addedCount > 1 ? "s" : ""} added to stock under Kit "${kitId}".`);
+}
+
+// ---- Kit Deploy — Phase 2: Search & Bulk Remove ----
+
+/**
+ * Returns all in-stock devices tagged with a given kit_id.
+ * @param {string} kitId
+ */
+function getKitItems(kitId) {
+  return state.devices.filter(
+    (d) => d.kit_id === kitId && d.status === "in"
+  );
+}
+
+function renderKitDeployResults(kitId) {
+  const resultsEl = document.getElementById("kit-deploy-results");
+  const deployBtn = document.getElementById("btn-deploy-kit");
+  if (!resultsEl) return;
+
+  if (!kitId) {
+    resultsEl.classList.add("empty-state");
+    resultsEl.innerHTML = "<p>Enter a Kit ID and click Search.</p>";
+    if (deployBtn) deployBtn.classList.add("hidden");
+    return;
+  }
+
+  const items = getKitItems(kitId);
+  if (!items.length) {
+    resultsEl.classList.add("empty-state");
+    resultsEl.innerHTML = `<p>No in-stock devices found for kit <strong>"${kitId}"</strong>.</p>`;
+    if (deployBtn) deployBtn.classList.add("hidden");
+    return;
+  }
+
+  resultsEl.classList.remove("empty-state");
+  const rows = items
+    .sort((a, b) => a.serial.localeCompare(b.serial))
+    .map((d) => {
+      const model = state.models.find((m) => m.id === d.modelId);
+      return `
+        <tr>
+          <td>${model ? model.name : "Unknown"}</td>
+          <td>${d.serial}</td>
+          <td>${d.prNumber || ""}</td>
+          <td>${d.department || ""}</td>
+          <td>${d.addedBy || ""}</td>
+          <td>${formatDateTime(d.createdAt)}</td>
+        </tr>
+      `;
+    }).join("");
+
+  resultsEl.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th><th>Serial</th><th>PR / Ticket</th><th>Department</th><th>Added by</th><th>Added</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  if (deployBtn) {
+    deployBtn.classList.remove("hidden");
+    deployBtn.textContent = `Deploy All (${items.length} device${items.length > 1 ? "s" : ""})`;
+  }
+}
+
+function deployKit(kitId) {
+  const deliveredBy = (document.getElementById("kit-deploy-delivered-by")?.value || "").trim();
+  if (!deliveredBy) {
+    showToast("Please select who is deploying this kit.");
+    document.getElementById("kit-deploy-delivered-by")?.focus();
+    return;
+  }
+  const items = getKitItems(kitId);
+  if (!items.length) {
+    showToast("No in-stock devices found for this kit.");
+    return;
+  }
+  if (!confirm(`Deploy all ${items.length} device${items.length > 1 ? "s" : ""} in kit "${kitId}"?\n\nThey will be marked as Removed from stock.`)) return;
+
+  const now = new Date().toISOString();
+  items.forEach((device) => {
+    device.status = "out";
+    device.removedAt = now;
+    device.reason = "New Hire Kit Deployment";
+    device.deliveredBy = deliveredBy;
+    device.destination = kitId;
+
+    state.history.push({
+      id: uid(),
+      type: "out",
+      modelId: device.modelId,
+      serial: device.serial,
+      prNumber: device.prNumber || "",
+      at: now,
+      reason: "New Hire Kit Deployment",
+      deliveredBy: deliveredBy,
+      destination: kitId,
+      kit_id: kitId,
+    });
+  });
+
+  writeToFirestore();
+  renderAll();
+
+  // Clear the results panel
+  const resultsEl = document.getElementById("kit-deploy-results");
+  const deployBtn = document.getElementById("btn-deploy-kit");
+  if (resultsEl) {
+    resultsEl.classList.add("empty-state");
+    resultsEl.innerHTML = `<p>Kit "${kitId}" deployed by ${deliveredBy}. ${items.length} device${items.length > 1 ? "s" : ""} removed from stock.</p>`;
+  }
+  if (deployBtn) deployBtn.classList.add("hidden");
+  showToast(`Kit "${kitId}" deployed by ${deliveredBy} — ${items.length} device${items.length > 1 ? "s" : ""} removed.`);
+}
+
 // ---- Import / Export ----
 
 function exportData() {
@@ -1076,11 +1571,69 @@ function switchView(viewId) {
   });
 }
 
+/** Populates the kit-deploy select with all kit_ids that have at least one device in stock. */
+function renderKitDeployDropdown() {
+  const sel = document.getElementById("kit-deploy-select");
+  if (!sel) return;
+  const prevVal = sel.value;
+
+  // All unique kit_ids with at least one in-stock device
+  const kitIds = [...new Set(
+    state.devices
+      .filter((d) => d.kit_id && d.status === "in")
+      .map((d) => d.kit_id)
+  )].sort((a, b) => a.localeCompare(b));
+
+  sel.innerHTML = kitIds.length
+    ? '<option value="">— Select a kit —</option>'
+    : '<option value="">— No kits in stock —</option>';
+
+  kitIds.forEach((id) => {
+    const count = state.devices.filter((d) => d.kit_id === id && d.status === "in").length;
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = `${id}  (${count} device${count > 1 ? "s" : ""})`;
+    sel.appendChild(opt);
+  });
+
+  // Restore previous selection if still valid
+  if (prevVal && kitIds.includes(prevVal)) {
+    sel.value = prevVal;
+  } else if (prevVal) {
+    // Kit was deployed — clear results
+    const resultsEl = document.getElementById("kit-deploy-results");
+    const deployBtn = document.getElementById("btn-deploy-kit");
+    if (resultsEl) {
+      resultsEl.classList.add("empty-state");
+      resultsEl.innerHTML = "<p>Select a kit from the dropdown above.</p>";
+    }
+    if (deployBtn) deployBtn.classList.add("hidden");
+  }
+
+  // Also populate the Deployed-by technician select
+  const bySelect = document.getElementById("kit-deploy-delivered-by");
+  if (bySelect) {
+    const prevBy = bySelect.value;
+    bySelect.innerHTML = '<option value="">Select person\u2026</option>';
+    state.technicians
+      .slice()
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        bySelect.appendChild(opt);
+      });
+    if (prevBy && state.technicians.includes(prevBy)) bySelect.value = prevBy;
+  }
+}
+
 function renderAll() {
   renderDashboard();
   renderModelsTable();
   renderDevicesView();
   renderHistoryView();
+  renderKitDeployDropdown();
   if (currentModelId) {
     openModelDetail(currentModelId);
   }
@@ -1266,8 +1819,28 @@ document.addEventListener("DOMContentLoaded", async () => {
       historySort = historySort === "desc" ? "asc" : "desc";
       sortBtn.dataset.order = historySort;
       sortBtn.textContent =
-        historySort === "desc" ? "⬇ Newest first" : "⬆ Oldest first";
+        historySort === "desc" ? "Newest First" : "Oldest First";
       renderHistoryView();
+    });
+  }
+
+  // New Hire Kit — close button
+  const btnCloseNhk = document.getElementById("btn-close-nhk-dialog");
+  if (btnCloseNhk) {
+    btnCloseNhk.addEventListener("click", closeNewHireKitDialog);
+  }
+
+  // Kit Deploy — dropdown
+  const kitDeploySelect = document.getElementById("kit-deploy-select");
+  const btnDeployKit = document.getElementById("btn-deploy-kit");
+  if (kitDeploySelect) {
+    kitDeploySelect.addEventListener("change", () => {
+      renderKitDeployResults(kitDeploySelect.value);
+    });
+  }
+  if (btnDeployKit) {
+    btnDeployKit.addEventListener("click", () => {
+      deployKit(kitDeploySelect ? kitDeploySelect.value : "");
     });
   }
 
