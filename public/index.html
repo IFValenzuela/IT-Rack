@@ -18,63 +18,13 @@
       </div>
     </div>
     <nav class="nav-tabs">
-      <button class="nav-tab active" data-view="history">Activity Log</button>
-      <button class="nav-tab" data-view="dashboard">Dashboard</button>
+      <button class="nav-tab active" data-view="devices">All Devices</button>
       <button class="nav-tab" data-view="models">Models</button>
-      <button class="nav-tab" data-view="devices">All Devices</button>
+      <button class="nav-tab" data-view="history">Activity Log</button>
     </nav>
   </header>
 
   <main class="app-main">
-    <!-- DASHBOARD VIEW -->
-    <section id="view-dashboard" class="view">
-      <div class="cards-row">
-        <div class="summary-card">
-          <h3>Total Models</h3>
-          <p class="summary-number" id="summary-total-models">0</p>
-        </div>
-        <div class="summary-card">
-          <h3>In Stock</h3>
-          <p class="summary-number" id="summary-in-stock">0</p>
-        </div>
-        <div class="summary-card">
-          <h3>Removed / Assigned</h3>
-          <p class="summary-number" id="summary-removed">0</p>
-        </div>
-      </div>
-
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <h2>Quick Add Device Model</h2>
-            <p class="panel-subtitle">
-              Create a model for any device you keep in the rack, then track all its serial numbers.
-            </p>
-          </div>
-        </div>
-        <form id="quick-add-model-form" class="form-inline form-inline-tight">
-          <div class="form-field">
-            <label for="quick-model-name">Model name</label>
-            <input id="quick-model-name" type="text" placeholder="e.g. Latitude 7420" required />
-          </div>
-          <button class="btn primary" type="submit">Add Model</button>
-        </form>
-      </section>
-
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <h2>Models Overview</h2>
-            <p class="panel-subtitle">
-              Click a model to manage its serial numbers and deliveries.
-            </p>
-          </div>
-        </div>
-        <div id="dashboard-models-list" class="pill-list empty-state">
-          <p>No models yet. Add your first model above.</p>
-        </div>
-      </section>
-    </section>
 
     <!-- MODELS VIEW -->
     <section id="view-models" class="view">
@@ -194,8 +144,28 @@
       </section>
     </section>
 
-    <!-- DEVICES VIEW -->
-    <section id="view-devices" class="view">
+    <!-- DEVICES VIEW (Command Center) -->
+    <section id="view-devices" class="view active">
+      <!-- Stat Cards -->
+      <div class="cards-row">
+        <div class="summary-card">
+          <h3>Total Models</h3>
+          <p class="summary-number" id="summary-total-models">0</p>
+        </div>
+        <div class="summary-card">
+          <h3>In Stock</h3>
+          <p class="summary-number" id="summary-in-stock">0</p>
+        </div>
+        <div class="summary-card">
+          <h3>Removed / Assigned</h3>
+          <p class="summary-number" id="summary-removed">0</p>
+        </div>
+      </div>
+      <!-- Age legend -->
+      <div class="age-legend">
+        <span class="age-legend-item warning">2+ weeks in stock</span>
+        <span class="age-legend-item critical">1+ month in stock</span>
+      </div>
       <section class="panel">
         <div class="panel-header">
           <div>
@@ -218,24 +188,46 @@
             <label for="filter-location-owner">Search (model, serial, person)</label>
             <input id="filter-location-owner" type="text" placeholder="e.g. Latitude, 123ABC, John" />
           </div>
-          <button type="button" class="btn ghost" id="btn-clear-filters">
-            Clear filters
-          </button>
+          <button type="button" class="btn ghost" id="btn-devices-sort" data-order="desc">Newest Added</button>
+          <button type="button" class="btn ghost" id="btn-clear-filters">Clear filters</button>
+          <button type="button" class="btn ghost" id="btn-toggle-removed">View Removed (0)</button>
         </form>
         <div id="devices-table-container" class="table-container empty-state">
           <p>No devices in stock yet.</p>
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel hidden" id="removed-devices-panel">
         <div class="panel-header">
           <div>
-            <h2>Removed / Assigned Devices</h2>
-            <p class="panel-subtitle">
-              Items you removed from stock, kept here for full accountability.
-            </p>
+            <h2>Removed / Assigned &mdash; <span id="removed-count-label">0 records</span></h2>
+            <p class="panel-subtitle">Archived inventory. Filters here are independent from the active stock above.</p>
+          </div>
+          <div class="panel-header-actions">
+            <button type="button" class="btn ghost" id="btn-close-removed">Close Archive</button>
           </div>
         </div>
+        <form id="removed-filters-form" class="form-inline" style="padding:0 18px 12px;">
+          <div class="form-field">
+            <label for="filter-removed-dept">Department</label>
+            <select id="filter-removed-dept">
+              <option value="">All departments</option>
+              <option value="Planta Oeste">Planta Oeste</option>
+              <option value="Planta Este">Planta Este</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="filter-removed-search">Search (model, serial, person)</label>
+            <input id="filter-removed-search" type="text" placeholder="e.g. Latitude, 123ABC, John" />
+          </div>
+          <div class="form-field">
+            <label for="filter-removed-destination">Destination / Reason</label>
+            <select id="filter-removed-destination">
+              <option value="">All destinations</option>
+            </select>
+          </div>
+          <button type="button" class="btn ghost" id="btn-clear-removed-filters">Clear</button>
+        </form>
         <div id="devices-removed-table-container" class="table-container empty-state">
           <p>No removed devices yet.</p>
         </div>
@@ -243,7 +235,7 @@
     </section>
 
     <!-- HISTORY VIEW -->
-    <section id="view-history" class="view active">
+    <section id="view-history" class="view">
       <section class="panel">
         <div class="panel-header">
           <div>

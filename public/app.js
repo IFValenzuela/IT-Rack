@@ -7,7 +7,11 @@ const state = {
   technicians: [],
 };
 
-let historySort = "desc"; // 'desc' = newest first, 'asc' = oldest first
+let historySort = "desc";
+let devicesSort = "desc";
+let devicesRemovedDestFilter = "";
+let removedTextFilter = "";
+let removedDeptFilter = "";
 
 function uid() {
   return (
@@ -232,7 +236,7 @@ function renderDashboard() {
   if (!list) return;
   if (!state.models.length) {
     list.classList.add("empty-state");
-    list.innerHTML = "<p>No models yet. Add your first model above.</p>";
+    list.innerHTML = "<p>No models yet. Go to the Models tab to add your first one.</p>";
     return;
   }
   list.classList.remove("empty-state");
@@ -244,15 +248,28 @@ function renderDashboard() {
       const countIn = state.devices.filter(
         (d) => d.modelId === m.id && d.status === "in"
       ).length;
-      const pill = document.createElement("button");
-      pill.className = "pill";
-      pill.dataset.modelId = m.id;
-      pill.innerHTML = `
-        <span>${m.name}</span>
-        <span class="pill-count">${countIn} in stock</span>
+      const countOut = state.devices.filter(
+        (d) => d.modelId === m.id && d.status === "out"
+      ).length;
+
+      const card = document.createElement("button");
+      card.className = "dash-model-card";
+      card.dataset.modelId = m.id;
+      card.innerHTML = `
+        <div class="dmc-body">
+          <div class="dmc-name">${m.name}</div>
+          <div class="dmc-counts">
+            <span class="dmc-badge in">${countIn} in stock</span>
+            <span class="dmc-badge out">${countOut} removed</span>
+          </div>
+        </div>
+        <span class="dmc-arrow">→</span>
       `;
-      pill.addEventListener("click", () => openModelDetail(m.id));
-      list.appendChild(pill);
+      card.addEventListener("click", () => {
+        switchView("models");
+        openModelDetail(m.id);
+      });
+      list.appendChild(card);
     });
 }
 
@@ -601,43 +618,76 @@ function renderDevicesView() {
   let inDevices = state.devices.filter((d) => d.status === "in");
   let outDevices = state.devices.filter((d) => d.status === "out");
 
+  // In-stock filters only (main search bar is decoupled from removed table)
   if (deptFilter) {
-    inDevices = inDevices.filter(
-      (d) => (d.department || "") === deptFilter
-    );
+    inDevices = inDevices.filter((d) => (d.department || "") === deptFilter);
+  }
+  if (textFilter) {
+    inDevices = inDevices.filter((d) => {
+      const modelName = (state.models.find((m) => m.id === d.modelId)?.name || "").toLowerCase();
+      return (
+        modelName.includes(textFilter) ||
+        (d.serial || "").toLowerCase().includes(textFilter) ||
+        (d.prNumber || "").toLowerCase().includes(textFilter) ||
+        (d.destination || "").toLowerCase().includes(textFilter)
+      );
+    });
+  }
+
+  // Removed table — independent filters
+  if (removedDeptFilter) {
+    outDevices = outDevices.filter((d) => (d.department || "") === removedDeptFilter);
+  }
+  if (removedTextFilter) {
+    outDevices = outDevices.filter((d) => {
+      const modelName = (state.models.find((m) => m.id === d.modelId)?.name || "").toLowerCase();
+      return (
+        modelName.includes(removedTextFilter) ||
+        (d.serial || "").toLowerCase().includes(removedTextFilter) ||
+        (d.prNumber || "").toLowerCase().includes(removedTextFilter) ||
+        (d.destination || "").toLowerCase().includes(removedTextFilter) ||
+        (d.reason || "").toLowerCase().includes(removedTextFilter)
+      );
+    });
+  }
+
+  // Apply destination filter to removed table
+  if (devicesRemovedDestFilter) {
     outDevices = outDevices.filter(
-      (d) => (d.department || "") === deptFilter
+      (d) => (d.destination || d.reason || "") === devicesRemovedDestFilter
     );
   }
 
-  if (textFilter) {
-    inDevices = inDevices.filter((d) => {
-      const modelName = (
-        state.models.find((m) => m.id === d.modelId)?.name || ""
-      ).toLowerCase();
-      const serial = (d.serial || "").toLowerCase();
-      const dest = (d.destination || "").toLowerCase();
-      return (
-        modelName.includes(textFilter) ||
-        serial.includes(textFilter) ||
-        (d.prNumber || "").toLowerCase().includes(textFilter) ||
-        dest.includes(textFilter)
-      );
+  // Update toggle button count (total unfiltered removed)
+  const totalRemoved = state.devices.filter((d) => d.status === "out").length;
+  const toggleBtn = document.getElementById("btn-toggle-removed");
+  if (toggleBtn) toggleBtn.textContent = `View Removed (${totalRemoved})`;
+
+  // Populate destination dropdown from all unique destination/reason values
+  const destSelect = document.getElementById("filter-removed-destination");
+  if (destSelect) {
+    const prevDest = destSelect.value;
+    const uniqueDests = [...new Set(
+      state.devices
+        .filter((d) => d.status === "out" && (d.destination || d.reason))
+        .map((d) => d.destination || d.reason)
+    )].sort((a, b) => a.localeCompare(b));
+    destSelect.innerHTML = '<option value="">All destinations</option>';
+    uniqueDests.forEach((val) => {
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = val;
+      destSelect.appendChild(opt);
     });
-    outDevices = outDevices.filter((d) => {
-      const modelName = (
-        state.models.find((m) => m.id === d.modelId)?.name || ""
-      ).toLowerCase();
-      const serial = (d.serial || "").toLowerCase();
-      const dest = (d.destination || "").toLowerCase();
-      return (
-        modelName.includes(textFilter) ||
-        serial.includes(textFilter) ||
-        (d.prNumber || "").toLowerCase().includes(textFilter) ||
-        dest.includes(textFilter)
-      );
-    });
+    if (prevDest && uniqueDests.includes(prevDest)) destSelect.value = prevDest;
   }
+
+  // Update record count label
+  const countLabel = document.getElementById("removed-count-label");
+  if (countLabel) countLabel.textContent = `${outDevices.length} record${outDevices.length !== 1 ? "s" : ""}`;
+
+  // Refresh stat cards (they now live in the Devices view)
+  renderDashboard();
 
   if (!inDevices.length) {
     inContainer.classList.add("empty-state");
@@ -646,7 +696,11 @@ function renderDevicesView() {
     inContainer.classList.remove("empty-state");
     const rows = inDevices
       .slice()
-      .sort((a, b) => a.serial.localeCompare(b.serial))
+      .sort((a, b) =>
+        devicesSort === "desc"
+          ? new Date(b.createdAt) - new Date(a.createdAt)
+          : new Date(a.createdAt) - new Date(b.createdAt)
+      )
       .map((d) => {
         const model = state.models.find((m) => m.id === d.modelId);
         const { rowClass, badge } = getStockAgeInfo(d.createdAt);
@@ -1679,16 +1733,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Quick add model on dashboard
-  const quickForm = document.getElementById("quick-add-model-form");
-  quickForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const name = document.getElementById("quick-model-name").value;
-    const model = addModel(name, "");
-    if (model) {
-      quickForm.reset();
-    }
-  });
+  // Quick-add form removed from dashboard — Models tab is now the sole write point.
 
   // Models header (Delete / New Model buttons — managed dynamically)
   updateModelsHeader();
@@ -1824,6 +1869,68 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Sort button for devices
+  const devicesSortBtn = document.getElementById("btn-devices-sort");
+  if (devicesSortBtn) {
+    devicesSortBtn.addEventListener("click", () => {
+      devicesSort = devicesSort === "desc" ? "asc" : "desc";
+      devicesSortBtn.dataset.order = devicesSort;
+      devicesSortBtn.textContent =
+        devicesSort === "desc" ? "Newest Added" : "Oldest Added";
+      renderDevicesView();
+    });
+  }
+
+  // View Removed toggle (opens) + Close Archive (closes)
+  const btnToggleRemoved = document.getElementById("btn-toggle-removed");
+  const btnCloseRemoved = document.getElementById("btn-close-removed");
+  const removedPanel = document.getElementById("removed-devices-panel");
+  if (btnToggleRemoved && removedPanel) {
+    btnToggleRemoved.addEventListener("click", () => {
+      removedPanel.classList.remove("hidden");
+    });
+  }
+  if (btnCloseRemoved && removedPanel) {
+    btnCloseRemoved.addEventListener("click", () => {
+      removedPanel.classList.add("hidden");
+    });
+  }
+
+  // Removed section independent filters
+  const removedSearchInput = document.getElementById("filter-removed-search");
+  const removedDeptSelect = document.getElementById("filter-removed-dept");
+  const removedDestSelect2 = document.getElementById("filter-removed-destination");
+  const btnClearRemoved = document.getElementById("btn-clear-removed-filters");
+  if (removedSearchInput) {
+    removedSearchInput.addEventListener("input", () => {
+      removedTextFilter = removedSearchInput.value.trim().toLowerCase();
+      renderDevicesView();
+    });
+  }
+  if (removedDeptSelect) {
+    removedDeptSelect.addEventListener("change", () => {
+      removedDeptFilter = removedDeptSelect.value;
+      renderDevicesView();
+    });
+  }
+  if (removedDestSelect2) {
+    removedDestSelect2.addEventListener("change", () => {
+      devicesRemovedDestFilter = removedDestSelect2.value;
+      renderDevicesView();
+    });
+  }
+  if (btnClearRemoved) {
+    btnClearRemoved.addEventListener("click", () => {
+      removedTextFilter = "";
+      removedDeptFilter = "";
+      devicesRemovedDestFilter = "";
+      if (removedSearchInput) removedSearchInput.value = "";
+      if (removedDeptSelect) removedDeptSelect.value = "";
+      if (removedDestSelect2) removedDestSelect2.value = "";
+      renderDevicesView();
+    });
+  }
+
   // New Hire Kit — close button
   const btnCloseNhk = document.getElementById("btn-close-nhk-dialog");
   if (btnCloseNhk) {
@@ -1846,7 +1953,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   renderAll();
   populateTechnicianSelect();
-  switchView("history");
+  switchView("devices");
 });
 
 function injectTestStock() {
