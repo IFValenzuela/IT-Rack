@@ -15,6 +15,15 @@ let removedTextFilter = "";
 let removedDeptFilter = "";
 let viewModeIn = "all"; // 'all' | 'individual' | 'grouped'
 let viewModeOut = "all";
+// Show More pagination: 10 for individual/all, 5 for grouped
+const DEFAULT_LIMIT_INDIVIDUAL = 10;
+const DEFAULT_LIMIT_GROUPED = 5;
+const INCREMENT_INDIVIDUAL = 10;
+const INCREMENT_GROUPED = 5;
+let visibleIn = DEFAULT_LIMIT_INDIVIDUAL;
+let visibleOut = DEFAULT_LIMIT_INDIVIDUAL;
+let previousVisibleIn = 0;
+let previousVisibleOut = 0;
 
 function uid() {
   return (
@@ -613,6 +622,13 @@ function getKitIds(devices) {
   return new Set(Object.keys(counts).filter((k) => counts[k] > 1));
 }
 
+function resetDevicesPagination() {
+  visibleIn = viewModeIn === "grouped" ? DEFAULT_LIMIT_GROUPED : DEFAULT_LIMIT_INDIVIDUAL;
+  visibleOut = viewModeOut === "grouped" ? DEFAULT_LIMIT_GROUPED : DEFAULT_LIMIT_INDIVIDUAL;
+  previousVisibleIn = visibleIn;
+  previousVisibleOut = visibleOut;
+}
+
 function renderDevicesView() {
   const inContainer = document.getElementById("devices-table-container");
   const outContainer = document.getElementById(
@@ -680,9 +696,12 @@ function renderDevicesView() {
   // Refresh stat cards
   renderDashboard();
 
-  // ---- Unified render helper ----
-  const renderList = (devices, container, isOut, viewMode, sortDir) => {
+  // ---- Unified render helper with Show More pagination ----
+  const increment = (viewMode) => viewMode === "grouped" ? INCREMENT_GROUPED : INCREMENT_INDIVIDUAL;
+
+  const renderList = (devices, container, isOut, viewMode, sortDir, visibleCount, previousVisibleCount, onShowMore) => {
     const dateField = isOut ? "removedAt" : "createdAt";
+    const inc = increment(viewMode);
 
     if (!devices.length) {
       container.classList.add("empty-state");
@@ -704,18 +723,21 @@ function renderDevicesView() {
           ? new Date(b[dateField]) - new Date(a[dateField])
           : new Date(a[dateField]) - new Date(b[dateField])
       );
-      const rows = sorted.map((d) => {
+      const total = sorted.length;
+      const toShow = sorted.slice(0, visibleCount);
+      const rows = toShow.map((d, idx) => {
+        const revealClass = idx >= previousVisibleCount ? " row-reveal" : "";
         const model = state.models.find((m) => m.id === d.modelId);
         if (!isOut) {
           const { rowClass, badge } = getStockAgeInfo(d.createdAt);
-          return `<tr class="${rowClass}">
+          return `<tr class="${rowClass}${revealClass}">
             <td>${model ? model.name : "Unknown model"}</td>
             <td>${d.department || ""}</td><td>${d.serial}</td>
             <td>${d.prNumber || ""}</td><td>${d.addedBy || ""}</td>
             <td>${formatDateTime(d.createdAt)}${badge}</td>
           </tr>`;
         } else {
-          return `<tr>
+          return `<tr class="${revealClass}">
             <td>${model ? model.name : "Unknown model"}</td>
             <td>${d.department || ""}</td><td>${d.serial}</td>
             <td>${d.prNumber || ""}</td><td>${d.deliveredBy || ""}</td>
@@ -727,7 +749,14 @@ function renderDevicesView() {
 
       const headIn = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Added by</th><th>Added</th>`;
       const headOut = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Delivered by</th><th>Reason</th><th>Destination</th><th>Removed at</th>`;
-      container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${rows}</tbody></table>`;
+      const showMoreHtml = total > visibleCount
+        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show more (+${inc})</button></div>`
+        : "";
+      container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${rows}</tbody></table>${showMoreHtml}`;
+
+      container.querySelectorAll(".js-show-more").forEach((btn) => {
+        btn.addEventListener("click", () => onShowMore());
+      });
 
     } else {
       // --- Grouped by Kit (structural cards) ---
@@ -753,12 +782,15 @@ function renderDevicesView() {
         return sortDir === "desc" ? tb - ta : ta - tb;
       });
 
+      const total = groupArr.length;
+      const toShow = groupArr.slice(0, visibleCount);
+
       // Number of columns in grouped mode
       const colCount = isOut ? 6 : 5; // grouped removes PR/Ticket col; archive has 6 cols
       const headIn = `<th>Model</th><th>Department</th><th>Serial</th><th>Added by</th><th>Added</th>`;
       const headOut = `<th>Model</th><th>Department</th><th>Serial</th><th>Delivered by</th><th>Reason</th><th>Removed at</th>`;
 
-      const bodyRows = groupArr.map(([prId, items], groupIdx) => {
+      const bodyRows = toShow.map(([prId, items], groupIdx) => {
         // Sort items within group
         items.sort((a, b) => sortDir === "desc"
           ? +new Date(b[dateField]) - +new Date(a[dateField])
@@ -766,10 +798,11 @@ function renderDevicesView() {
 
         const dest = (items[0].destination || (isOut ? items[0].reason : "") || "");
         const itemCount = `${items.length} item${items.length !== 1 ? "s" : ""}`;
+        const revealClass = groupIdx >= previousVisibleCount ? " row-reveal" : "";
 
         // Sub-header: full-span cell, destination inline — same format for both in-stock and archive
         const assignedTo = dest ? ` &mdash; Assigned to: <strong>${dest}</strong>` : "";
-        const subHeader = `<tr class="kit-sub-header">
+        const subHeader = `<tr class="kit-sub-header${revealClass}">
             <td colspan="${colCount}" class="kit-ticket-cell">Ticket&nbsp;/&nbsp;PR:&nbsp;<strong>${prId}</strong>${assignedTo}&nbsp;&nbsp;<span class="kit-count">${itemCount}</span></td>
           </tr>`;
 
@@ -797,19 +830,37 @@ function renderDevicesView() {
         }).join("");
 
         // Spacer row between groups (not after last)
-        const spacer = groupIdx < groupArr.length - 1
+        const spacer = groupIdx < toShow.length - 1
           ? `<tr class="kit-spacer"><td colspan="${colCount}"></td></tr>`
           : "";
 
         return `${subHeader}${deviceRows}${spacer}`;
       }).join("");
 
-      container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${bodyRows}</tbody></table>`;
+      const showMoreHtml = total > visibleCount
+        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show more (+${inc})</button></div>`
+        : "";
+      container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${bodyRows}</tbody></table>${showMoreHtml}`;
+
+      container.querySelectorAll(".js-show-more").forEach((btn) => {
+        btn.addEventListener("click", () => onShowMore());
+      });
     }
   };
 
-  renderList(inDevices, inContainer, false, viewModeIn, devicesSort);
-  renderList(outDevices, outContainer, true, viewModeOut, removedSort);
+  renderList(inDevices, inContainer, false, viewModeIn, devicesSort, visibleIn, previousVisibleIn, () => {
+    previousVisibleIn = visibleIn;
+    visibleIn += increment(viewModeIn);
+    renderDevicesView();
+  });
+  renderList(outDevices, outContainer, true, viewModeOut, removedSort, visibleOut, previousVisibleOut, () => {
+    previousVisibleOut = visibleOut;
+    visibleOut += increment(viewModeOut);
+    renderDevicesView();
+  });
+
+  previousVisibleIn = visibleIn;
+  previousVisibleOut = visibleOut;
 }
 
 function renderHistoryView() {
@@ -1869,15 +1920,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const historyMonthSelect = document.getElementById("filter-history-month");
 
   if (deptFilterEl) {
-    deptFilterEl.addEventListener("change", renderDevicesView);
+    deptFilterEl.addEventListener("change", () => { resetDevicesPagination(); renderDevicesView(); });
   }
   if (textFilterEl) {
-    textFilterEl.addEventListener("input", renderDevicesView);
+    textFilterEl.addEventListener("input", () => { resetDevicesPagination(); renderDevicesView(); });
   }
   if (clearFiltersBtn) {
     clearFiltersBtn.addEventListener("click", () => {
       if (deptFilterEl) deptFilterEl.value = "";
       if (textFilterEl) textFilterEl.value = "";
+      resetDevicesPagination();
       renderDevicesView();
     });
   }
@@ -1939,12 +1991,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (removedSearchInput) {
     removedSearchInput.addEventListener("input", () => {
       removedTextFilter = removedSearchInput.value.trim().toLowerCase();
+      resetDevicesPagination();
       renderDevicesView();
     });
   }
   if (removedDeptSelect) {
     removedDeptSelect.addEventListener("change", () => {
       removedDeptFilter = removedDeptSelect.value;
+      resetDevicesPagination();
       renderDevicesView();
     });
   }
@@ -1960,8 +2014,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
   };
-  setupSeg("seg-view-in", (v) => { viewModeIn = v; renderDevicesView(); });
-  setupSeg("seg-view-out", (v) => { viewModeOut = v; renderDevicesView(); });
+  setupSeg("seg-view-in", (v) => { viewModeIn = v; resetDevicesPagination(); renderDevicesView(); });
+  setupSeg("seg-view-out", (v) => { viewModeOut = v; resetDevicesPagination(); renderDevicesView(); });
 
   // Removed Date Sort toggle
   const btnRemovedSort = document.getElementById("btn-removed-sort");
@@ -1988,6 +2042,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const first = segOut.querySelector(".seg-btn[data-view='all']");
         if (first) first.classList.add("active");
       }
+      resetDevicesPagination();
       renderDevicesView();
     });
   }

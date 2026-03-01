@@ -1484,3 +1484,39 @@ tr.kit-spacer td {
   border: none !important;
   padding: 0;
 }
+
+/* ---- Show More pagination ---- */
+.show-more-row {
+  display: flex;
+  justify-content: center;
+  padding: 14px 16px 10px;
+  margin-top: 2px;
+  border-top: 1px solid rgba(218, 227, 243, 0.6);
+}
+
+.btn-show-more {
+  background: transparent !important;
+  color: #005696; /* Skyworks branding */
+  border: 1.5px solid #005696;
+  font-weight: 500;
+}
+
+.btn-show-more:hover {
+  background: rgba(0, 86, 150, 0.06) !important;
+  border-color: #005696;
+  color: #005696;
+}
+
+/* Fade-in for newly revealed rows */
+@keyframes showMoreFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.row-reveal {
+  animation: showMoreFadeIn 0.25s ease-out;
+}
