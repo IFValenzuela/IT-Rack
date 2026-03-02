@@ -43,6 +43,7 @@
             <button class="btn danger" id="btn-enter-delete-mode">Delete</button>
           </div>
         </div>
+        <div id="category-pills-container" class="pill-list" style="margin: 0 0 16px 0; padding-top: 4px;"></div>
         <div id="models-table-container" class="table-container empty-state">
           <p>No models yet. Use “New Model” to create one.</p>
         </div>
@@ -314,6 +315,18 @@
         <h2>New Device Model</h2>
       </div>
       <form id="add-model-form" class="dialog-body">
+        <div class="form-field">
+          <label for="model-category-input">Category <span style="color:var(--danger)">*</span></label>
+          <select id="model-category-input" required>
+            <option value="">Select category…</option>
+            <option value="Laptop">Laptop</option>
+            <option value="Desktop PC">Desktop PC</option>
+            <option value="Keyboard">Keyboard</option>
+            <option value="Cellphone">Cellphone</option>
+            <option value="Mouse">Mouse</option>
+            <option value="Headset">Headset</option>
+          </select>
+        </div>
         <div class="form-field">
           <label for="model-name-input">Model name</label>
           <input id="model-name-input" type="text" placeholder="e.g. OptiPlex 7090" required />

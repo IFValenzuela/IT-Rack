@@ -24,6 +24,10 @@ let visibleIn = DEFAULT_LIMIT_INDIVIDUAL;
 let visibleOut = DEFAULT_LIMIT_INDIVIDUAL;
 let previousVisibleIn = 0;
 let previousVisibleOut = 0;
+const DEFAULT_LIMIT_HISTORY = 20;
+const INCREMENT_HISTORY = 20;
+let visibleHistory = DEFAULT_LIMIT_HISTORY;
+let previousVisibleHistory = 0;
 
 function uid() {
   return (
@@ -221,6 +225,20 @@ function getStockAgeInfo(createdAtIso) {
   return { rowClass: "", badge: "" };
 }
 
+function getCategoryBadge(category) {
+  if (!category) return "";
+  let icon = "📦";
+  switch (category) {
+    case "Laptop": icon = "💻"; break;
+    case "Desktop PC": icon = "🖥️"; break;
+    case "Keyboard": icon = "⌨️"; break;
+    case "Cellphone": icon = "📱"; break;
+    case "Mouse": icon = "🖱️"; break;
+    case "Headset": icon = "🎧"; break;
+  }
+  return `<span class="category-badge" title="${category}">${icon} <span class="cb-label">${category}</span></span>`;
+}
+
 // ---- Rendering helpers ----
 
 function setEmptyOrTable(container, htmlTable) {
@@ -363,7 +381,48 @@ function deleteSelectedModels() {
   showToast(`${deleted} model${deleted > 1 ? "s" : ""} deleted.`);
 }
 
+let currentCategoryFilter = "All";
+const CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset"];
+
+function renderCategoryPills() {
+  const container = document.getElementById("category-pills-container");
+  if (!container) return;
+  if (!state.models.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const counts = { All: state.models.length };
+  CATEGORIES.forEach(c => counts[c] = 0);
+  state.models.forEach(m => {
+    if (m.category && counts[m.category] !== undefined) {
+      counts[m.category]++;
+    }
+  });
+
+  const pills = ["All", ...CATEGORIES].map(cat => {
+    const isActive = currentCategoryFilter === cat;
+    const count = counts[cat] || 0;
+    return `
+      <button class="pill ${isActive ? 'active' : ''}" data-category="${cat}">
+        ${cat} <span class="pill-count">${count}</span>
+      </button>
+    `;
+  }).join("");
+
+  container.innerHTML = pills;
+
+  container.querySelectorAll(".pill").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentCategoryFilter = btn.dataset.category;
+      renderModelsTable();
+      renderCategoryPills(); // Update active state
+    });
+  });
+}
+
 function renderModelsTable() {
+  renderCategoryPills();
   const container = document.getElementById("models-table-container");
   if (!container) return;
   if (!state.models.length) {
@@ -374,11 +433,17 @@ function renderModelsTable() {
   const filterEl = document.getElementById("filter-models-input");
   const filter = filterEl ? filterEl.value.trim().toLowerCase() : "";
   let modelsToShow = state.models.slice();
+
+  if (currentCategoryFilter !== "All") {
+    modelsToShow = modelsToShow.filter(m => m.category === currentCategoryFilter);
+  }
+
   if (filter) {
     modelsToShow = modelsToShow.filter(
       (m) =>
         (m.name || "").toLowerCase().includes(filter) ||
-        (m.notes || "").toLowerCase().includes(filter)
+        (m.notes || "").toLowerCase().includes(filter) ||
+        (m.category || "").toLowerCase().includes(filter)
     );
   }
   if (!modelsToShow.length) {
@@ -403,7 +468,7 @@ function renderModelsTable() {
       return `
         <tr data-model-id="${m.id}" class="js-row-model${deleteMode ? " row-selectable" : ""}">
           ${checkCell}
-          <td>${m.name}</td>
+          <td>${m.name} ${getCategoryBadge(m.category)}</td>
           <td>${m.notes ? m.notes : ""}</td>
           <td>${inCount}</td>
           <td>${outCount}</td>
@@ -650,9 +715,12 @@ function renderDevicesView() {
   }
   if (textFilter) {
     inDevices = inDevices.filter((d) => {
-      const modelName = (state.models.find((m) => m.id === d.modelId)?.name || "").toLowerCase();
+      const model = state.models.find((m) => m.id === d.modelId) || {};
+      const modelName = (model.name || "").toLowerCase();
+      const modelCategory = (model.category || "").toLowerCase();
       return (
         modelName.includes(textFilter) ||
+        modelCategory.includes(textFilter) ||
         (d.serial || "").toLowerCase().includes(textFilter) ||
         (d.prNumber || "").toLowerCase().includes(textFilter) ||
         (d.destination || "").toLowerCase().includes(textFilter)
@@ -666,9 +734,12 @@ function renderDevicesView() {
   }
   if (removedTextFilter) {
     outDevices = outDevices.filter((d) => {
-      const modelName = (state.models.find((m) => m.id === d.modelId)?.name || "").toLowerCase();
+      const model = state.models.find((m) => m.id === d.modelId) || {};
+      const modelName = (model.name || "").toLowerCase();
+      const modelCategory = (model.category || "").toLowerCase();
       return (
         modelName.includes(removedTextFilter) ||
+        modelCategory.includes(removedTextFilter) ||
         (d.serial || "").toLowerCase().includes(removedTextFilter) ||
         (d.prNumber || "").toLowerCase().includes(removedTextFilter) ||
         (d.destination || "").toLowerCase().includes(removedTextFilter) ||
@@ -731,14 +802,14 @@ function renderDevicesView() {
         if (!isOut) {
           const { rowClass, badge } = getStockAgeInfo(d.createdAt);
           return `<tr class="${rowClass}${revealClass}">
-            <td>${model ? model.name : "Unknown model"}</td>
+            <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown model"}</td>
             <td>${d.department || ""}</td><td>${d.serial}</td>
             <td>${d.prNumber || ""}</td><td>${d.addedBy || ""}</td>
             <td>${formatDateTime(d.createdAt)}${badge}</td>
           </tr>`;
         } else {
           return `<tr class="${revealClass}">
-            <td>${model ? model.name : "Unknown model"}</td>
+            <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown model"}</td>
             <td>${d.department || ""}</td><td>${d.serial}</td>
             <td>${d.prNumber || ""}</td><td>${d.deliveredBy || ""}</td>
             <td>${d.reason || ""}</td><td>${d.destination || ""}</td>
@@ -750,7 +821,7 @@ function renderDevicesView() {
       const headIn = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Added by</th><th>Added</th>`;
       const headOut = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Delivered by</th><th>Reason</th><th>Destination</th><th>Removed at</th>`;
       const showMoreHtml = total > visibleCount
-        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show more (+${inc})</button></div>`
+        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show More</button></div>`
         : "";
       container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${rows}</tbody></table>${showMoreHtml}`;
 
@@ -811,7 +882,7 @@ function renderDevicesView() {
           if (!isOut) {
             const { rowClass, badge } = getStockAgeInfo(d.createdAt);
             return `<tr class="${rowClass} kit-device-row">
-              <td>${model ? model.name : "Unknown"}</td>
+              <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown"}</td>
               <td>${d.department || ""}</td>
               <td><strong>${d.serial}</strong></td>
               <td>${d.addedBy || ""}</td>
@@ -819,7 +890,7 @@ function renderDevicesView() {
             </tr>`;
           } else {
             return `<tr class="kit-device-row">
-              <td>${model ? model.name : "Unknown"}</td>
+              <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown"}</td>
               <td>${d.department || ""}</td>
               <td><strong>${d.serial}</strong></td>
               <td>${d.deliveredBy || ""}</td>
@@ -838,7 +909,7 @@ function renderDevicesView() {
       }).join("");
 
       const showMoreHtml = total > visibleCount
-        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show more (+${inc})</button></div>`
+        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show More</button></div>`
         : "";
       container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${bodyRows}</tbody></table>${showMoreHtml}`;
 
@@ -938,13 +1009,17 @@ function renderHistoryView() {
     });
   }
 
-  const rows = entries
-    .sort((a, b) =>
-      historySort === "asc"
-        ? new Date(a.at) - new Date(b.at)
-        : new Date(b.at) - new Date(a.at)
-    )
-    .map((h) => {
+  const sorted = entries.sort((a, b) =>
+    historySort === "asc"
+      ? new Date(a.at) - new Date(b.at)
+      : new Date(b.at) - new Date(a.at)
+  );
+
+  const total = sorted.length;
+  const toShow = sorted.slice(0, visibleHistory);
+
+  const rows = toShow
+    .map((h, idx) => {
       const model = state.models.find((m) => m.id === h.modelId);
       const statusClass = h.type === "in" ? "status-in" : "status-out";
       const label = h.type === "in" ? "Added to stock" : "Removed from stock";
@@ -960,10 +1035,11 @@ function renderHistoryView() {
           rowClass = info.rowClass;
         }
       }
+      const revealClass = idx >= previousVisibleHistory ? " row-reveal" : "";
       return `
-        <tr class="${rowClass}">
+        <tr class="${rowClass}${revealClass}">
           <td><span class="status-chip ${statusClass}">${label}</span></td>
-          <td>${model ? model.name : "Unknown model"}</td>
+          <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown model"}</td>
           <td>${h.serial}</td>
           <td>${technician}</td>
           <td>${reason}</td>
@@ -973,6 +1049,11 @@ function renderHistoryView() {
       `;
     })
     .join("");
+
+  const showMoreHtml = total > visibleHistory
+    ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-history-show-more">Show More</button></div>`
+    : "";
+
   container.innerHTML = `
     <table>
       <thead>
@@ -988,7 +1069,18 @@ function renderHistoryView() {
       </thead>
       <tbody>${rows}</tbody>
     </table>
+    ${showMoreHtml}
   `;
+
+  previousVisibleHistory = visibleHistory;
+
+  container.querySelectorAll(".js-history-show-more").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      previousVisibleHistory = visibleHistory;
+      visibleHistory += INCREMENT_HISTORY;
+      renderHistoryView();
+    });
+  });
 }
 
 // ---- Dialogs ----
@@ -1001,6 +1093,8 @@ function openAddModelDialog() {
 function closeAddModelDialog() {
   document.getElementById("add-model-dialog").classList.add("hidden");
   document.getElementById("add-model-form").reset();
+  const catInput = document.getElementById("model-category-input");
+  if (catInput) catInput.value = "";
 }
 
 function openRemoveSerialDialog(deviceId) {
@@ -1032,13 +1126,19 @@ function closeRemoveSerialDialog() {
 
 // ---- Data operations ----
 
-function addModel(name, notes) {
+function addModel(name, notes, category) {
   const trimmed = name.trim();
   if (!trimmed) return;
+  const cleanCategory = (category || "").trim();
+  if (!cleanCategory) {
+    showToast("Please select a category.");
+    return;
+  }
   const model = {
     id: uid(),
     name: trimmed,
     notes: (notes || "").trim(),
+    category: cleanCategory,
     createdAt: new Date().toISOString(),
   };
   state.models.push(model);
@@ -1553,7 +1653,7 @@ function renderKitDeployResults(kitId) {
       const model = state.models.find((m) => m.id === d.modelId);
       return `
         <tr>
-          <td>${model ? model.name : "Unknown"}</td>
+          <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown"}</td>
           <td>${d.serial}</td>
           <td>${d.prNumber || ""}</td>
           <td>${d.department || ""}</td>
@@ -1831,7 +1931,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("submit", (e) => {
       e.preventDefault();
       const name = document.getElementById("model-name-input").value;
-      const model = addModel(name, "");
+      const category = document.getElementById("model-category-input").value;
+      const model = addModel(name, "", category);
       if (model) {
         closeAddModelDialog();
       }
@@ -1935,13 +2036,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (historyTypeFilterEl) {
-    historyTypeFilterEl.addEventListener("change", renderHistoryView);
+    historyTypeFilterEl.addEventListener("change", () => { visibleHistory = DEFAULT_LIMIT_HISTORY; previousVisibleHistory = 0; renderHistoryView(); });
   }
   if (historyYearSelect) {
-    historyYearSelect.addEventListener("change", renderHistoryView);
+    historyYearSelect.addEventListener("change", () => { visibleHistory = DEFAULT_LIMIT_HISTORY; previousVisibleHistory = 0; renderHistoryView(); });
   }
   if (historyMonthSelect) {
-    historyMonthSelect.addEventListener("change", renderHistoryView);
+    historyMonthSelect.addEventListener("change", () => { visibleHistory = DEFAULT_LIMIT_HISTORY; previousVisibleHistory = 0; renderHistoryView(); });
   }
 
   // Sort button for history
@@ -1952,6 +2053,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       sortBtn.dataset.order = historySort;
       sortBtn.textContent =
         historySort === "desc" ? "Newest First" : "Oldest First";
+      visibleHistory = DEFAULT_LIMIT_HISTORY;
+      previousVisibleHistory = 0;
       renderHistoryView();
     });
   }
