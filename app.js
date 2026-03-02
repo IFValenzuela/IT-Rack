@@ -1252,6 +1252,7 @@ const nhkState = {
   prNumber: "",
   department: "",
   addedBy: "",
+  categoryFilter: "All",
 };
 
 function openNewHireKitDialog() {
@@ -1262,6 +1263,7 @@ function openNewHireKitDialog() {
   nhkState.prNumber = "";
   nhkState.department = "";
   nhkState.addedBy = "";
+  nhkState.categoryFilter = "All";
   document.getElementById("new-hire-kit-dialog").classList.remove("hidden");
   nhkRenderStep();
 }
@@ -1318,6 +1320,9 @@ function nhkRenderStep1(container) {
       <p style="font-size:0.7rem;color:var(--text-muted);margin:3px 0 0;">This ID links all kit devices so you can deploy them all later with one click.</p>
     </div>
     <p style="font-size:0.78rem;color:var(--text-muted);margin:10px 0 6px;">Select the models to include in this kit:</p>
+    
+    <div id="nhk-category-pills-container" class="pill-list" style="margin: 0 0 10px 0; padding-top: 4px;"></div>
+
     <input
       type="text"
       id="nhk-model-search"
@@ -1329,7 +1334,7 @@ function nhkRenderStep1(container) {
       ${models.map((m) => {
     const isSelected = nhkState.selectedModelIds.includes(m.id);
     return `
-          <label class="nhk-model-card${isSelected ? " selected" : ""}" data-model-id="${m.id}">
+          <label class="nhk-model-card${isSelected ? " selected" : ""}" data-model-id="${m.id}" data-category="${m.category || ''}">
             <input type="checkbox" class="nhk-model-cb" data-model-id="${m.id}" ${isSelected ? "checked" : ""} />
             <div>
               <div class="nhk-card-label">${m.name}</div>
@@ -1349,15 +1354,67 @@ function nhkRenderStep1(container) {
   kitIdInput.focus();
   kitIdInput.addEventListener("input", () => { nhkState.kitId = kitIdInput.value; });
 
-  // Live model search filter
   const modelSearch = document.getElementById("nhk-model-search");
-  modelSearch.addEventListener("input", () => {
+
+  function renderNhkCategoryPills() {
+    const pillsContainer = document.getElementById("nhk-category-pills-container");
+    if (!pillsContainer) return;
+
+    if (!models.length) {
+      pillsContainer.innerHTML = "";
+      return;
+    }
+
+    const counts = { All: models.length };
+    CATEGORIES.forEach(c => counts[c] = 0);
+    models.forEach(m => {
+      if (m.category && counts[m.category] !== undefined) {
+        counts[m.category]++;
+      }
+    });
+
+    const pillsHtml = ["All", ...CATEGORIES].map(cat => {
+      const isActive = nhkState.categoryFilter === cat;
+      const count = counts[cat] || 0;
+      return `
+        <button class="pill ${isActive ? 'active' : ''}" data-category="${cat}">
+          ${cat} <span class="pill-count">${count}</span>
+        </button>
+      `;
+    }).join("");
+
+    pillsContainer.innerHTML = pillsHtml;
+
+    pillsContainer.querySelectorAll(".pill").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        // Prevent event from bubbling up and triggering label clicks
+        e.preventDefault();
+        nhkState.categoryFilter = btn.dataset.category;
+        renderNhkCategoryPills();
+        nhkApplyFilters();
+      });
+    });
+  }
+
+  function nhkApplyFilters() {
     const q = modelSearch.value.toLowerCase().trim();
+    const activeCat = nhkState.categoryFilter;
+
     container.querySelectorAll(".nhk-model-card").forEach((card) => {
       const name = (card.querySelector(".nhk-card-label")?.textContent || "").toLowerCase();
-      card.style.display = !q || name.includes(q) ? "" : "none";
+      const cat = card.getAttribute("data-category") || "";
+
+      const matchesSearch = !q || name.includes(q);
+      const matchesCat = activeCat === "All" || cat === activeCat;
+
+      card.style.display = (matchesSearch && matchesCat) ? "" : "none";
     });
-  });
+  }
+
+  renderNhkCategoryPills();
+
+  // Live model search filter
+  modelSearch.addEventListener("input", nhkApplyFilters);
 
   container.querySelectorAll(".nhk-model-cb").forEach((cb) => {
     cb.addEventListener("change", () => {
