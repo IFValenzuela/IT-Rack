@@ -348,7 +348,7 @@ function updateModelsHeader() {
     actions.innerHTML = `
       ${filterHtml}
       <button class="btn ghost" id="btn-prepare-kit">Prepare Kit</button>
-      <button class="btn ghost" id="btn-open-deploy-kit">Deploy a Kit</button>
+      <button class="btn ghost" id="btn-open-deploy-kit">Remove a Kit</button>
       <button class="btn ghost" id="btn-enter-delete-mode">Delete</button>
       <button class="btn primary" id="btn-open-add-model-dialog">+ New Model</button>
     `;
@@ -407,7 +407,7 @@ function deleteSelectedModels() {
 
 let currentCategoryFilter = "All";
 let modelsVisible = 8;
-const CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset"];
+const CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset", "Dock"];
 
 function renderCategoryPills() {
   const container = document.getElementById("category-pills-container");
@@ -468,7 +468,6 @@ function renderModelsTable() {
     modelsToShow = modelsToShow.filter(
       (m) =>
         (m.name || "").toLowerCase().includes(filter) ||
-        (m.notes || "").toLowerCase().includes(filter) ||
         (m.category || "").toLowerCase().includes(filter)
     );
   }
@@ -497,7 +496,6 @@ function renderModelsTable() {
         <tr data-model-id="${m.id}" class="js-row-model${deleteMode ? " row-selectable" : ""}">
           ${checkCell}
           <td>${m.name} ${getCategoryBadge(m.category)}</td>
-          <td>${m.notes ? m.notes : ""}</td>
           <td>${inCount}</td>
           <td>${outCount}</td>
           <td>${formatDateTime(m.createdAt)}</td>
@@ -512,7 +510,6 @@ function renderModelsTable() {
         <tr>
           ${checkHeader}
           <th>Model</th>
-          <th>Notes</th>
           <th>In stock</th>
           <th>Removed</th>
           <th>Created</th>
@@ -882,7 +879,7 @@ function renderDevicesView() {
         const model = state.models.find((m) => m.id === d.modelId);
         if (!isOut) {
           const { rowClass, badge } = getStockAgeInfo(d.createdAt);
-          return `<tr class="${rowClass}${revealClass}">
+          return `<tr class="${rowClass}${revealClass} js-in-row" data-device-id="${d.id}" style="cursor:pointer;" title="Click to remove from stock">
             <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown model"}</td>
             <td>${d.department || ""}</td><td>${d.serial}</td>
             <td>${d.prNumber || ""}</td><td>${d.addedBy || ""}</td>
@@ -905,6 +902,15 @@ function renderDevicesView() {
         ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show More</button></div>`
         : "";
       container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${rows}</tbody></table>${showMoreHtml}`;
+
+      if (!isOut) {
+        container.querySelectorAll("tr.js-in-row").forEach((row) => {
+          row.addEventListener("click", () => {
+            const id = row.dataset.deviceId;
+            if (id) openRemoveSerialDialog(id);
+          });
+        });
+      }
 
       container.querySelectorAll(".js-show-more").forEach((btn) => {
         btn.addEventListener("click", () => onShowMore());
@@ -965,7 +971,7 @@ function renderDevicesView() {
           const model = state.models.find(m => m.id === d.modelId);
           if (!isOut) {
             const { rowClass, badge } = getStockAgeInfo(d.createdAt);
-            return `<tr class="${rowClass} kit-device-row">
+            return `<tr class="${rowClass} kit-device-row js-in-row" data-device-id="${d.id}" style="cursor:pointer;" title="Click to remove from stock">
               <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown"}</td>
               <td>${d.department || ""}</td>
               <td><strong>${d.serial}</strong></td>
@@ -996,6 +1002,15 @@ function renderDevicesView() {
         ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show More</button></div>`
         : "";
       container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${bodyRows}</tbody></table>${showMoreHtml}`;
+
+      if (!isOut) {
+        container.querySelectorAll("tr.js-in-row").forEach((row) => {
+          row.addEventListener("click", () => {
+            const id = row.dataset.deviceId;
+            if (id) openRemoveSerialDialog(id);
+          });
+        });
+      }
 
       container.querySelectorAll(".js-show-more").forEach((btn) => {
         btn.addEventListener("click", () => onShowMore());
@@ -1852,14 +1867,14 @@ function renderKitDeployResults(kitId) {
 
   if (deployBtn) {
     deployBtn.classList.remove("hidden");
-    deployBtn.textContent = `Deploy All (${items.length} device${items.length > 1 ? "s" : ""})`;
+    deployBtn.textContent = `Remove All (${items.length} device${items.length > 1 ? "s" : ""})`;
   }
 }
 
 function deployKit(kitId) {
   const deliveredBy = (document.getElementById("kit-deploy-delivered-by")?.value || "").trim();
   if (!deliveredBy) {
-    showToast("Please select who is deploying this kit.");
+    showToast("Please select who is removing this kit.");
     document.getElementById("kit-deploy-delivered-by")?.focus();
     return;
   }
@@ -1868,7 +1883,7 @@ function deployKit(kitId) {
     showToast("No in-stock devices found for this kit.");
     return;
   }
-  if (!confirm(`Deploy all ${items.length} device${items.length > 1 ? "s" : ""} in kit "${kitId}"?\n\nThey will be marked as Removed from stock.`)) return;
+  if (!confirm(`Remove all ${items.length} device${items.length > 1 ? "s" : ""} in kit "${kitId}"?\n\nThey will be marked as Removed from stock.`)) return;
 
   const now = new Date().toISOString();
   items.forEach((device) => {
@@ -2106,7 +2121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const logoArea = document.getElementById("app-logo-area");
   if (logoArea) {
     logoArea.addEventListener("click", () => {
-      switchView("history");
+      switchView("devices");
     });
   }
 
@@ -2277,7 +2292,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       devicesSort = devicesSort === "desc" ? "asc" : "desc";
       devicesSortBtn.dataset.order = devicesSort;
       devicesSortBtn.textContent =
-        devicesSort === "desc" ? "Newest Added" : "Oldest Added";
+        devicesSort === "desc" ? "Newest First" : "Oldest First";
       renderDevicesView();
     });
   }
@@ -2336,7 +2351,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (btnRemovedSort) {
     btnRemovedSort.addEventListener("click", () => {
       removedSort = removedSort === "desc" ? "asc" : "desc";
-      btnRemovedSort.textContent = removedSort === "desc" ? "Newest Removed" : "Oldest Removed";
+      btnRemovedSort.textContent = removedSort === "desc" ? "Newest First" : "Oldest First";
       renderDevicesView();
     });
   }

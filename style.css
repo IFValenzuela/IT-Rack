@@ -830,6 +830,7 @@ tbody tr.stock-age-critical:hover {
 
 .file-input-label {
   cursor: pointer;
+  font-weight: 550;
 }
 
 /* Tablet & narrow desktop */

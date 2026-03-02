@@ -109,13 +109,13 @@
         </div>
       </section>
 
-      <!-- Deploy a Kit Panel (Phase 2) -->
+      <!-- Remove a Kit Panel -->
       <section class="panel hidden" id="kit-deploy-panel">
         <div class="panel-header">
           <div>
-            <h2>Deploy a Kit</h2>
+            <h2>Remove a Kit</h2>
             <p class="panel-subtitle">
-              Select a kit from the dropdown to see all its devices, then deploy them in one click.
+              Select a kit from the dropdown to see all its devices, then remove them in one click.
             </p>
           </div>
           <div class="panel-header-actions">
@@ -130,7 +130,7 @@
           </select>
         </div>
         <div class="form-field" style="max-width:420px;margin-top:10px;">
-          <label for="kit-deploy-delivered-by" style="font-size:0.78rem;color:var(--text-muted);">Deployed by <span
+          <label for="kit-deploy-delivered-by" style="font-size:0.78rem;color:var(--text-muted);">Removed by <span
               style="color:var(--danger)">*</span></label>
           <select id="kit-deploy-delivered-by">
             <option value="">Select person…</option>
@@ -140,7 +140,7 @@
           <p>Enter a Kit ID above and click Search to see all devices in this kit.</p>
         </div>
         <div class="kit-deploy-action-row">
-          <button class="btn danger hidden" id="btn-deploy-kit">Deploy All</button>
+          <button class="btn danger hidden" id="btn-deploy-kit">Remove All</button>
         </div>
       </section>
     </section>
@@ -198,7 +198,7 @@
             <button type="button" class="seg-btn btn ghost" data-view="individual">Individual</button>
             <button type="button" class="seg-btn btn ghost" data-view="grouped">Grouped by Kit</button>
           </div>
-          <button type="button" class="btn ghost" id="btn-devices-sort" data-order="desc">Newest Added</button>
+          <button type="button" class="btn ghost" id="btn-devices-sort" data-order="desc">Newest First</button>
           <button type="button" class="btn ghost" id="btn-clear-filters">Clear</button>
         </form>
         <div id="devices-table-container" class="table-container empty-state">
@@ -235,7 +235,7 @@
             <button type="button" class="seg-btn btn ghost" data-view="individual">Individual</button>
             <button type="button" class="seg-btn btn ghost" data-view="grouped">Grouped by Kit</button>
           </div>
-          <button type="button" class="btn ghost" id="btn-removed-sort" data-order="desc">Newest Removed</button>
+          <button type="button" class="btn ghost" id="btn-removed-sort" data-order="desc">Newest First</button>
           <button type="button" class="btn ghost" id="btn-clear-removed-filters">Clear</button>
         </form>
         <div id="devices-removed-table-container" class="table-container empty-state">
@@ -334,6 +334,7 @@
             <option value="Cellphone">Cellphone</option>
             <option value="Mouse">Mouse</option>
             <option value="Headset">Headset</option>
+            <option value="Dock">Dock</option>
           </select>
         </div>
         <div class="form-field">
