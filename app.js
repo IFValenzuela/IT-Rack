@@ -407,7 +407,39 @@ function deleteSelectedModels() {
 
 let currentCategoryFilter = "All";
 let modelsVisible = 8;
-const CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset", "Dock"];
+const CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset", "Dock", "Monitor", "Cable", "Camera", "Other"];
+
+const KIT_ACCESSORIES = [
+  "Dell 24-Inch Monitor",
+  "Dell Optical Wired Mouse",
+  "Dell Wired Multi-Media Keyboard",
+  "DisplayPort to VGA Converter",
+  "DVI-D to DisplayPort Converter",
+  "HDMI to VGA Adapter",
+  "Laptop Docking Station",
+  "Logitech C920 HD Pro Web Camera",
+  "USB Headset",
+  "Other",
+];
+
+const NO_SERIAL_ITEMS = new Set([
+  "DisplayPort to VGA Converter",
+  "DVI-D to DisplayPort Converter",
+  "HDMI to VGA Adapter",
+]);
+
+const KIT_ACCESSORY_CATEGORIES = {
+  "Dell 24-Inch Monitor":          "Monitor",
+  "Dell Optical Wired Mouse":       "Mouse",
+  "Dell Wired Multi-Media Keyboard": "Keyboard",
+  "DisplayPort to VGA Converter":   "Cable",
+  "DVI-D to DisplayPort Converter": "Cable",
+  "HDMI to VGA Adapter":            "Cable",
+  "Laptop Docking Station":         "Dock",
+  "Logitech C920 HD Pro Web Camera": "Camera",
+  "USB Headset":                    "Headset",
+  "Other":                          "Other",
+};
 
 function renderCategoryPills() {
   const container = document.getElementById("category-pills-container");
@@ -1373,27 +1405,25 @@ function removeDeviceFromStock(deviceId, reason, deliveredBy, destination) {
 const nhkState = {
   step: 1,
   kitId: "",            // Ticket # or New Hire Name — used as kit_id tag
-  selectedModelIds: [],
-  serialInputs: {},     // modelId -> new serial string entered by user
+  selectedItems: [],    // Array of selected accessory names from KIT_ACCESSORIES
+  otherItemText: "",    // Text entered when "Other" is selected
+  otherNoSerial: false, // true = user chose N/A for "Other"
+  serialInputs: {},     // item name -> new serial string entered by user
   prNumber: "",
   department: "",
   addedBy: "",
-  categoryFilter: "",
-  modelVisible: 6,
-  modelSearchQ: "",
 };
 
 function openNewHireKitDialog() {
   nhkState.step = 1;
   nhkState.kitId = "";
-  nhkState.selectedModelIds = [];
+  nhkState.selectedItems = [];
+  nhkState.otherItemText = "";
+  nhkState.otherNoSerial = false;
   nhkState.serialInputs = {};
   nhkState.prNumber = "";
   nhkState.department = "";
   nhkState.addedBy = "";
-  nhkState.categoryFilter = "";
-  nhkState.modelVisible = 6;
-  nhkState.modelSearchQ = "";
   document.getElementById("new-hire-kit-dialog").classList.remove("hidden");
   nhkRenderStep();
 }
@@ -1425,113 +1455,20 @@ function nhkRenderStep() {
   else if (nhkState.step === 3) nhkRenderStep3(content);
 }
 
-// Step 1: Kit ID + model checklist (no stock restriction — adding NEW serials)
-function nhkRefreshModelGrid(container) {
-  const allModels = state.models
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((m) => ({
-      ...m,
-      inStockCount: state.devices.filter(
-        (d) => d.modelId === m.id && d.status === "in"
-      ).length,
-    }));
-
-  // Build pill counts from full unfiltered list
-  const counts = {};
-  CATEGORIES.forEach((c) => { counts[c] = 0; });
-  allModels.forEach((m) => {
-    if (m.category && Object.prototype.hasOwnProperty.call(counts, m.category)) counts[m.category]++;
-  });
-
-  // Render category pills
-  const pillsContainer = document.getElementById("nhk-category-pills-container");
-  if (pillsContainer) {
-    const pills = [
-      { label: "All", value: "", count: allModels.length },
-      ...CATEGORIES.map((cat) => ({ label: cat, value: cat, count: counts[cat] || 0 })),
-    ];
-    pillsContainer.innerHTML =
-      `<span class="pill-bar-label">Type:</span>` +
-      pills.map(({ label, value, count }) => {
-        const isActive = nhkState.categoryFilter === value;
-        const isEmpty = value !== "" && count === 0;
-        return `<button type="button" class="pill${isActive ? " active" : ""}${isEmpty ? " empty" : ""}" data-cat="${value}">${label} <span class="pill-count">${count}</span></button>`;
-      }).join("");
-    pillsContainer.querySelectorAll(".pill").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        nhkState.categoryFilter = btn.dataset.cat;
-        nhkState.modelVisible = 6;
-        nhkRefreshModelGrid(container);
-      });
-    });
-  }
-
-  // Apply filters
-  let filtered = allModels;
-  if (nhkState.categoryFilter) {
-    filtered = filtered.filter((m) => (m.category || "") === nhkState.categoryFilter);
-  }
-  if (nhkState.modelSearchQ) {
-    const q = nhkState.modelSearchQ.toLowerCase();
-    filtered = filtered.filter((m) => m.name.toLowerCase().includes(q));
-  }
-
-  const total = filtered.length;
-  const visible = Math.min(nhkState.modelVisible, total);
-  const showingModels = filtered.slice(0, visible);
-
-  const grid = container.querySelector(".nhk-model-list");
-  if (!grid) return;
-
-  grid.innerHTML = showingModels.map((m) => {
-    const isSelected = nhkState.selectedModelIds.includes(m.id);
-    return `
-      <label class="nhk-model-card${isSelected ? " selected" : ""}" data-model-id="${m.id}" data-category="${m.category || ''}">
-        <input type="checkbox" class="nhk-model-cb" data-model-id="${m.id}" ${isSelected ? "checked" : ""} />
-        <div>
-          <div class="nhk-card-label">${m.name}</div>
-          <span class="nhk-card-stock">${m.inStockCount} in stock</span>
-        </div>
-      </label>
-    `;
-  }).join("") + (total > visible ? `<div style="grid-column:1/-1;text-align:center;margin-top:6px;"><button type="button" class="btn ghost nhk-show-more-btn">Show More</button></div>` : "");
-
-  grid.querySelectorAll(".nhk-model-cb").forEach((cb) => {
-    cb.addEventListener("change", () => {
-      const id = cb.dataset.modelId;
-      const card = cb.closest(".nhk-model-card");
-      if (cb.checked) {
-        if (!nhkState.selectedModelIds.includes(id)) nhkState.selectedModelIds.push(id);
-        if (card) card.classList.add("selected");
-      } else {
-        nhkState.selectedModelIds = nhkState.selectedModelIds.filter((x) => x !== id);
-        if (card) card.classList.remove("selected");
-      }
-    });
-  });
-
-  grid.querySelectorAll(".nhk-model-card").forEach((card) => {
-    card.addEventListener("click", (e) => {
-      if (e.target.type === "checkbox") return;
-      const cb = card.querySelector("input[type=checkbox]");
-      if (!cb) return;
-      cb.checked = !cb.checked;
-      cb.dispatchEvent(new Event("change"));
-    });
-  });
-
-  const showMoreBtn = grid.querySelector(".nhk-show-more-btn");
-  if (showMoreBtn) {
-    showMoreBtn.addEventListener("click", () => {
-      nhkState.modelVisible += 6;
-      nhkRefreshModelGrid(container);
-    });
-  }
-}
-
+// Step 1: Kit ID + fixed accessory checklist
 function nhkRenderStep1(container) {
+  const checkboxRows = KIT_ACCESSORIES.map((item) => {
+    const isChecked = nhkState.selectedItems.includes(item);
+    const isOther = item === "Other";
+    return `
+      <label class="nhk-model-card${isChecked ? " selected" : ""}" data-item="${item}">
+        <input type="checkbox" class="nhk-acc-cb" data-item="${item}" ${isChecked ? "checked" : ""} />
+        <div class="nhk-card-label">${item}</div>
+      </label>
+      ${isOther ? `<input type="text" id="nhk-other-text" class="nhk-other-input${isChecked ? "" : " hidden"}" placeholder="Please specify…" value="${nhkState.otherItemText.replace(/"/g, "&quot;")}" autocomplete="off" />` : ""}
+    `;
+  }).join("");
+
   container.innerHTML = `
     <div class="nhk-hire-name-row">
       <label for="nhk-kit-id-input">Kit ID — Ticket # or New Hire Name <span style="color:var(--danger)">*</span></label>
@@ -1544,16 +1481,8 @@ function nhkRenderStep1(container) {
       />
       <p style="font-size:0.7rem;color:var(--text-muted);margin:3px 0 0;">This ID links all kit devices so you can deploy them all later with one click.</p>
     </div>
-    <p style="font-size:0.78rem;color:var(--text-muted);margin:10px 0 6px;">Select the models to include in this kit:</p>
-    <div id="nhk-category-pills-container" class="pill-bar-row" style="margin: 0 0 10px 0; padding-top: 4px;"></div>
-    <input
-      type="text"
-      id="nhk-model-search"
-      placeholder="Search models..."
-      autocomplete="off"
-      style="width:100%;margin-bottom:8px;box-sizing:border-box;"
-    />
-    <div class="nhk-model-list"></div>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin:10px 0 6px;">Select the accessories to include in this kit:</p>
+    <div class="nhk-model-list">${checkboxRows}</div>
     <div class="nhk-footer">
       <button class="btn ghost" id="nhk-btn-cancel-s1">Cancel</button>
       <button class="btn primary" id="nhk-btn-next-s1">Next: Add Serials →</button>
@@ -1564,15 +1493,36 @@ function nhkRenderStep1(container) {
   kitIdInput.focus();
   kitIdInput.addEventListener("input", () => { nhkState.kitId = kitIdInput.value; });
 
-  const modelSearch = document.getElementById("nhk-model-search");
-  modelSearch.value = nhkState.modelSearchQ || "";
-  modelSearch.addEventListener("input", () => {
-    nhkState.modelSearchQ = modelSearch.value.trim().toLowerCase();
-    nhkState.modelVisible = 6;
-    nhkRefreshModelGrid(container);
+  const otherTextInput = document.getElementById("nhk-other-text");
+  if (otherTextInput) {
+    otherTextInput.addEventListener("input", () => { nhkState.otherItemText = otherTextInput.value; });
+  }
+
+  container.querySelectorAll(".nhk-acc-cb").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const item = cb.dataset.item;
+      const card = cb.closest(".nhk-model-card");
+      if (cb.checked) {
+        if (!nhkState.selectedItems.includes(item)) nhkState.selectedItems.push(item);
+        if (card) card.classList.add("selected");
+        if (item === "Other" && otherTextInput) otherTextInput.classList.remove("hidden");
+      } else {
+        nhkState.selectedItems = nhkState.selectedItems.filter((x) => x !== item);
+        if (card) card.classList.remove("selected");
+        if (item === "Other" && otherTextInput) otherTextInput.classList.add("hidden");
+      }
+    });
   });
 
-  nhkRefreshModelGrid(container);
+  container.querySelectorAll(".nhk-model-card").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.type === "checkbox" || e.target === otherTextInput) return;
+      const cb = card.querySelector("input[type=checkbox]");
+      if (!cb) return;
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event("change"));
+    });
+  });
 
   document.getElementById("nhk-btn-cancel-s1").addEventListener("click", closeNewHireKitDialog);
   document.getElementById("nhk-btn-next-s1").addEventListener("click", () => {
@@ -1582,8 +1532,13 @@ function nhkRenderStep1(container) {
       document.getElementById("nhk-kit-id-input").focus();
       return;
     }
-    if (nhkState.selectedModelIds.length === 0) {
-      showToast("Select at least one model for the kit.");
+    if (nhkState.selectedItems.length === 0) {
+      showToast("Select at least one accessory for the kit.");
+      return;
+    }
+    if (nhkState.selectedItems.includes("Other") && !nhkState.otherItemText.trim()) {
+      showToast('Please specify what "Other" is.');
+      document.getElementById("nhk-other-text")?.focus();
       return;
     }
     nhkState.step = 2;
@@ -1599,19 +1554,54 @@ function nhkRenderStep2(container) {
     .map((t) => `<option value="${t}" ${t === nhkState.addedBy ? "selected" : ""}>${t}</option>`)
     .join("");
 
-  const serialCards = nhkState.selectedModelIds.map((modelId) => {
-    const model = state.models.find((m) => m.id === modelId);
-    const currentSerial = nhkState.serialInputs[modelId] || "";
+  const serialCards = nhkState.selectedItems.map((item) => {
+    const displayName = item === "Other" ? (nhkState.otherItemText || "Other") : item;
+    const noSerial = NO_SERIAL_ITEMS.has(item);
+    const isOther = item === "Other";
+    const currentSerial = nhkState.serialInputs[item] || "";
+    const otherNa = isOther && nhkState.otherNoSerial;
+
+    if (noSerial) {
+      return `
+        <div class="nhk-assign-card">
+          <div>
+            <div class="nhk-assign-model-name">${displayName}</div>
+            <div class="nhk-assign-model-count">No serial required</div>
+          </div>
+          <span class="nhk-no-serial-label">N/A</span>
+        </div>
+      `;
+    }
+
+    if (isOther) {
+      return `
+        <div class="nhk-assign-card nhk-assign-card--other" data-item="Other">
+          <div style="flex:1;min-width:0;">
+            <div class="nhk-assign-model-name">${displayName}</div>
+            <div class="nhk-assign-model-count" style="margin-bottom:6px;">Serial number</div>
+            <div class="nhk-other-serial-toggle" style="display:flex;gap:8px;margin-bottom:6px;">
+              <button type="button" class="btn ${!otherNa ? "primary" : "ghost"} btn-sm nhk-other-toggle-serial" style="font-size:0.75rem;padding:3px 10px;">Add Serial</button>
+              <button type="button" class="btn ${otherNa ? "primary" : "ghost"} btn-sm nhk-other-toggle-na" style="font-size:0.75rem;padding:3px 10px;">N/A</button>
+            </div>
+            ${!otherNa
+              ? `<input type="text" class="nhk-new-serial-input" data-item-name="Other" placeholder="e.g. SN-ABC123" value="${currentSerial.replace(/"/g, "&quot;")}" autocomplete="off" style="width:100%;box-sizing:border-box;" />`
+              : `<span class="nhk-no-serial-label">N/A — no serial</span>`
+            }
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="nhk-assign-card">
         <div>
-          <div class="nhk-assign-model-name">${model ? model.name : modelId}</div>
+          <div class="nhk-assign-model-name">${displayName}</div>
           <div class="nhk-assign-model-count">New serial</div>
         </div>
         <input
           type="text"
           class="nhk-new-serial-input"
-          data-model-id="${modelId}"
+          data-item-name="${item}"
           placeholder="e.g. SN-ABC123"
           value="${currentSerial.replace(/"/g, "&quot;")}"
           autocomplete="off"
@@ -1654,9 +1644,25 @@ function nhkRenderStep2(container) {
 
   container.querySelectorAll(".nhk-new-serial-input").forEach((inp) => {
     inp.addEventListener("input", () => {
-      nhkState.serialInputs[inp.dataset.modelId] = inp.value;
+      nhkState.serialInputs[inp.dataset.itemName] = inp.value;
     });
   });
+
+  // Other item toggle buttons
+  const toggleSerial = container.querySelector(".nhk-other-toggle-serial");
+  const toggleNa = container.querySelector(".nhk-other-toggle-na");
+  if (toggleSerial && toggleNa) {
+    toggleSerial.addEventListener("click", () => {
+      nhkState.otherNoSerial = false;
+      _nhkCollectStep2Fields(container);
+      nhkRenderStep2(container);
+    });
+    toggleNa.addEventListener("click", () => {
+      nhkState.otherNoSerial = true;
+      _nhkCollectStep2Fields(container);
+      nhkRenderStep2(container);
+    });
+  }
 
   document.getElementById("nhk-btn-back-s2").addEventListener("click", () => {
     _nhkCollectStep2Fields(container);
@@ -1666,19 +1672,24 @@ function nhkRenderStep2(container) {
 
   document.getElementById("nhk-btn-next-s2").addEventListener("click", () => {
     _nhkCollectStep2Fields(container);
-    const missingSerials = nhkState.selectedModelIds.filter(
-      (id) => !(nhkState.serialInputs[id] || "").trim()
+    const missingSerials = nhkState.selectedItems.filter(
+      (item) => !NO_SERIAL_ITEMS.has(item)
+        && !(item === "Other" && nhkState.otherNoSerial)
+        && !(nhkState.serialInputs[item] || "").trim()
     );
     if (missingSerials.length > 0) {
-      const names = missingSerials.map((id) => state.models.find((m) => m.id === id)?.name || id).join(", ");
+      const names = missingSerials.map((item) => item === "Other" ? (nhkState.otherItemText || "Other") : item).join(", ");
       showToast(`Enter a serial number for: ${names}`);
       return;
     }
     if (!nhkState.prNumber.trim()) { showToast("Please enter a PR Number / Ticket."); return; }
     if (!nhkState.department) { showToast("Please select a department."); return; }
     if (!nhkState.addedBy) { showToast("Please select who is adding these devices."); return; }
-    // Duplicate serial check within the kit
-    const serials = nhkState.selectedModelIds.map((id) => nhkState.serialInputs[id].trim().toLowerCase());
+    // Duplicate serial check within the kit (only items that need serials)
+    const serialItems = nhkState.selectedItems.filter(
+      (item) => !NO_SERIAL_ITEMS.has(item) && !(item === "Other" && nhkState.otherNoSerial)
+    );
+    const serials = serialItems.map((item) => nhkState.serialInputs[item].trim().toLowerCase());
     if (new Set(serials).size !== serials.length) {
       showToast("Each serial number must be unique within the kit.");
       return;
@@ -1690,7 +1701,7 @@ function nhkRenderStep2(container) {
 
 function _nhkCollectStep2Fields(container) {
   container.querySelectorAll(".nhk-new-serial-input").forEach((inp) => {
-    nhkState.serialInputs[inp.dataset.modelId] = inp.value;
+    nhkState.serialInputs[inp.dataset.itemName] = inp.value;
   });
   const pr = document.getElementById("nhk-pr-input");
   const dept = document.getElementById("nhk-dept-select");
@@ -1702,12 +1713,12 @@ function _nhkCollectStep2Fields(container) {
 
 // Step 3: Confirm and add to stock
 function nhkRenderStep3(container) {
-  const items = nhkState.selectedModelIds.map((modelId) => {
-    const model = state.models.find((m) => m.id === modelId);
-    const serial = nhkState.serialInputs[modelId] || "—";
+  const items = nhkState.selectedItems.map((item) => {
+    const displayName = item === "Other" ? (nhkState.otherItemText || "Other") : item;
+    const serial = nhkState.serialInputs[item] || "—";
     return `
       <div class="nhk-confirm-item">
-        <span class="nhk-ci-model">${model ? model.name : modelId}</span>
+        <span class="nhk-ci-model">${displayName}</span>
         <span class="nhk-ci-serial">${serial}</span>
       </div>
     `;
@@ -1748,19 +1759,30 @@ function submitNewHireKit() {
   const now = new Date().toISOString();
   let addedCount = 0;
 
-  nhkState.selectedModelIds.forEach((modelId) => {
-    const cleanSerial = (nhkState.serialInputs[modelId] || "").trim();
-    if (!cleanSerial) return;
-    const model = state.models.find((m) => m.id === modelId);
-    if (!model) return;
+  nhkState.selectedItems.forEach((item) => {
+    const itemName = item === "Other" ? (nhkState.otherItemText.trim() || "Other") : item;
+    const noSerial = NO_SERIAL_ITEMS.has(item) || (item === "Other" && nhkState.otherNoSerial);
+    const cleanSerial = noSerial ? "N/A" : (nhkState.serialInputs[item] || "").trim();
+    if (!noSerial && !cleanSerial) return;
 
-    // Skip duplicate in-stock serials for same model
-    const duplicate = state.devices.find(
-      (d) => d.modelId === modelId && d.serial.toLowerCase() === cleanSerial.toLowerCase() && d.status === "in"
-    );
-    if (duplicate) {
-      showToast(`"${cleanSerial}" already in stock for ${model.name}. Skipped.`);
-      return;
+    // Find existing model by name or create one
+    let model = state.models.find((m) => m.name.toLowerCase() === itemName.toLowerCase());
+    if (!model) {
+      const category = KIT_ACCESSORY_CATEGORIES[item] || "Other";
+      model = { id: uid(), name: itemName, category, description: "", createdAt: now };
+      state.models.push(model);
+    }
+    const modelId = model.id;
+
+    // Skip duplicate check for no-serial items
+    if (!noSerial) {
+      const duplicate = state.devices.find(
+        (d) => d.modelId === modelId && d.serial.toLowerCase() === cleanSerial.toLowerCase() && d.status === "in"
+      );
+      if (duplicate) {
+        showToast(`"${cleanSerial}" already in stock for ${itemName}. Skipped.`);
+        return;
+      }
     }
 
     state.devices.push({

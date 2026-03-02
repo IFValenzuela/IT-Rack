@@ -1226,6 +1226,31 @@ table {
   margin-top: 4px;
 }
 
+.nhk-other-input {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid rgba(210, 222, 242, 0.8);
+  font-size: 0.85rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.nhk-no-serial-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 6px 4px;
+  align-self: center;
+}
+
+.nhk-other-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(0, 125, 184, 0.15);
+}
+
 .nhk-model-card {
   display: flex;
   align-items: center;
