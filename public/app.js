@@ -17,8 +17,7 @@ let viewModeIn = "all"; // 'all' | 'individual' | 'grouped'
 let viewModeOut = "all";
 let devicesCategoryFilter = "";
 let historyCategoryFilter = "";
-let currentCategoryFilter = ""; // models tab
-const DEVICE_CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset", "Other"];
+let removedCategoryFilter = "";
 // Show More pagination: 10 for individual/all, 5 for grouped
 const DEFAULT_LIMIT_INDIVIDUAL = 10;
 const DEFAULT_LIMIT_GROUPED = 5;
@@ -28,6 +27,10 @@ let visibleIn = DEFAULT_LIMIT_INDIVIDUAL;
 let visibleOut = DEFAULT_LIMIT_INDIVIDUAL;
 let previousVisibleIn = 0;
 let previousVisibleOut = 0;
+const DEFAULT_LIMIT_HISTORY = 20;
+const INCREMENT_HISTORY = 20;
+let visibleHistory = DEFAULT_LIMIT_HISTORY;
+let previousVisibleHistory = 0;
 
 function uid() {
   return (
@@ -130,7 +133,7 @@ function populateTechnicianSelect() {
   // Always add the sentinel option at the bottom
   const addOpt = document.createElement("option");
   addOpt.value = "__add_new__";
-  addOpt.textContent = "＋ Add new person…";
+  addOpt.textContent = "+ Add new person…";
   sel.appendChild(addOpt);
   if (current && state.technicians.includes(current)) sel.value = current;
 }
@@ -151,7 +154,7 @@ function populateDeliveredBySelect() {
     });
   const addOpt = document.createElement("option");
   addOpt.value = "__add_new__";
-  addOpt.textContent = "＋ Add new person…";
+  addOpt.textContent = "+ Add new person…";
   sel.appendChild(addOpt);
   if (current && state.technicians.includes(current)) sel.value = current;
 }
@@ -225,6 +228,41 @@ function getStockAgeInfo(createdAtIso) {
   return { rowClass: "", badge: "" };
 }
 
+/**
+ * Generic pill bar renderer for device-type filtering on Devices and History tabs.
+ * Uses the same .pill / .pill-count classes as the Models tab.
+ */
+function renderFilterPills(containerId, items, getModelId, activeCategory, onSelect) {
+  const bar = document.getElementById(containerId);
+  if (!bar) return;
+  const counts = {};
+  CATEGORIES.forEach((cat) => { counts[cat] = 0; });
+  items.forEach((item) => {
+    const model = state.models.find((m) => m.id === getModelId(item));
+    const cat = (model && model.category) ? model.category : "";
+    if (Object.prototype.hasOwnProperty.call(counts, cat)) counts[cat]++;
+  });
+  const pills = [
+    { label: "All", value: "", count: items.length },
+    ...CATEGORIES.map((cat) => ({ label: cat, value: cat, count: counts[cat] || 0 })),
+  ];
+  bar.innerHTML =
+    `<span class="pill-bar-label">Type:</span>` +
+    pills.map(({ label, value, count }) => {
+      const isActive = value === activeCategory;
+      const isEmpty = value !== "" && count === 0;
+      return `<button type="button" class="pill${isActive ? " active" : ""}${isEmpty ? " empty" : ""}" data-cat="${value}">${label} <span class="pill-count">${count}</span></button>`;
+    }).join("");
+  bar.querySelectorAll(".pill").forEach((btn) => {
+    btn.addEventListener("click", () => onSelect(btn.dataset.cat));
+  });
+}
+
+function getCategoryBadge(category) {
+  if (!category) return "";
+  return `<span class="category-badge" title="${category}"><span class="cb-label">${category}</span></span>`;
+}
+
 // ---- Rendering helpers ----
 
 function setEmptyOrTable(container, htmlTable) {
@@ -237,59 +275,6 @@ function setEmptyOrTable(container, htmlTable) {
     container.classList.remove("empty-state");
     container.innerHTML = htmlTable;
   }
-}
-
-function getCategoryBadge(category) {
-  if (!category) return "";
-  let icon = "📦";
-  switch (category) {
-    case "Laptop": icon = "💻"; break;
-    case "Desktop PC": icon = "🖥️"; break;
-    case "Keyboard": icon = "⌨️"; break;
-    case "Cellphone": icon = "📱"; break;
-    case "Mouse": icon = "🖱️"; break;
-    case "Headset": icon = "🎧"; break;
-  }
-  return `<span class="category-badge" title="${category}">${icon} <span class="cb-label">${category}</span></span>`;
-}
-
-/**
- * Renders device-type category filter pills into a bar element.
- * @param {string} barId - DOM id of the ".category-filter-bar" container
- * @param {Array}  items - filtered list of devices or history entries to count from
- * @param {Function} getModelId - (item) => modelId
- * @param {string} activeCategory - currently selected category ("" = All)
- * @param {Function} onSelect - callback(newCategory)
- */
-function renderCategoryPills(barId, items, getModelId, activeCategory, onSelect) {
-  const bar = document.getElementById(barId);
-  if (!bar) return;
-
-  // Tally counts per category from the supplied items
-  const counts = {};
-  DEVICE_CATEGORIES.forEach((cat) => { counts[cat] = 0; });
-  items.forEach((item) => {
-    const model = state.models.find((m) => m.id === getModelId(item));
-    const cat = (model && model.category) ? model.category : "";
-    if (Object.prototype.hasOwnProperty.call(counts, cat)) counts[cat]++;
-  });
-
-  const pills = [
-    { label: "All", value: "", count: items.length },
-    ...DEVICE_CATEGORIES.map((cat) => ({ label: cat, value: cat, count: counts[cat] || 0 })),
-  ];
-
-  bar.innerHTML =
-    `<span class="cat-filter-label">Type:</span>` +
-    pills.map(({ label, value, count }) => {
-      const isActive = value === activeCategory;
-      const isEmpty = value !== "" && count === 0;
-      return `<button type="button" class="cat-pill${isActive ? " active" : ""}${isEmpty ? " empty" : ""}" data-cat="${value}">${label} <span class="cat-pill-count">${count}</span></button>`;
-    }).join("");
-
-  bar.querySelectorAll(".cat-pill").forEach((btn) => {
-    btn.addEventListener("click", () => onSelect(btn.dataset.cat));
-  });
 }
 
 function renderDashboard() {
@@ -363,7 +348,7 @@ function updateModelsHeader() {
     actions.innerHTML = `
       ${filterHtml}
       <button class="btn ghost" id="btn-prepare-kit">Prepare Kit</button>
-      <button class="btn ghost" id="btn-open-deploy-kit">Deploy a Kit</button>
+      <button class="btn ghost" id="btn-open-deploy-kit">Remove a Kit</button>
       <button class="btn ghost" id="btn-enter-delete-mode">Delete</button>
       <button class="btn primary" id="btn-open-add-model-dialog">+ New Model</button>
     `;
@@ -377,7 +362,7 @@ function updateModelsHeader() {
   }
   const newFilter = document.getElementById("filter-models-input");
   if (newFilter) {
-    newFilter.addEventListener("input", () => renderModelsTable());
+    newFilter.addEventListener("input", () => { modelsVisible = 8; renderModelsTable(); });
   }
 }
 
@@ -420,38 +405,71 @@ function deleteSelectedModels() {
   showToast(`${deleted} model${deleted > 1 ? "s" : ""} deleted.`);
 }
 
+let currentCategoryFilter = "All";
+let modelsVisible = 8;
+const CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset", "Dock"];
+
+function renderCategoryPills() {
+  const container = document.getElementById("category-pills-container");
+  if (!container) return;
+  if (!state.models.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const counts = { All: state.models.length };
+  CATEGORIES.forEach(c => counts[c] = 0);
+  state.models.forEach(m => {
+    if (m.category && counts[m.category] !== undefined) {
+      counts[m.category]++;
+    }
+  });
+
+  const pills = ["All", ...CATEGORIES].map(cat => {
+    const isActive = currentCategoryFilter === cat;
+    const count = counts[cat] || 0;
+    return `
+      <button class="pill ${isActive ? 'active' : ''}" data-category="${cat}">
+        ${cat} <span class="pill-count">${count}</span>
+      </button>
+    `;
+  }).join("");
+
+  container.innerHTML = pills;
+
+  container.querySelectorAll(".pill").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentCategoryFilter = btn.dataset.category;
+      modelsVisible = 8;
+      renderModelsTable();
+      renderCategoryPills(); // Update active state
+    });
+  });
+}
+
 function renderModelsTable() {
+  renderCategoryPills();
   const container = document.getElementById("models-table-container");
   if (!container) return;
-
+  if (!state.models.length) {
+    container.classList.add("empty-state");
+    container.innerHTML = "<p>No models yet. Use New Models to create one.</p>";
+    return;
+  }
   const filterEl = document.getElementById("filter-models-input");
   const filter = filterEl ? filterEl.value.trim().toLowerCase() : "";
   let modelsToShow = state.models.slice();
+
+  if (currentCategoryFilter !== "All") {
+    modelsToShow = modelsToShow.filter(m => m.category === currentCategoryFilter);
+  }
 
   if (filter) {
     modelsToShow = modelsToShow.filter(
       (m) =>
         (m.name || "").toLowerCase().includes(filter) ||
-        (m.notes || "").toLowerCase().includes(filter) ||
         (m.category || "").toLowerCase().includes(filter)
     );
-  }
-
-  // Render category pills (counts reflect text filter above)
-  renderCategoryPills("category-pills-container", modelsToShow, (m) => m.id, currentCategoryFilter, (cat) => {
-    currentCategoryFilter = cat;
-    renderModelsTable();
-  });
-
-  // Apply category filter after pills
-  if (currentCategoryFilter) {
-    modelsToShow = modelsToShow.filter((m) => (m.category || "") === currentCategoryFilter);
-  }
-
-  if (!state.models.length) {
-    container.classList.add("empty-state");
-    container.innerHTML = "<p>No models yet. Use New Models to create one.</p>";
-    return;
   }
   if (!modelsToShow.length) {
     container.classList.remove("empty-state");
@@ -459,9 +477,11 @@ function renderModelsTable() {
     return;
   }
   container.classList.remove("empty-state");
-  const rows = modelsToShow
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const sortedModels = modelsToShow.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const totalModels = sortedModels.length;
+  const visibleModels = Math.min(modelsVisible, totalModels);
+  const rows = sortedModels
+    .slice(0, visibleModels)
     .map((m) => {
       const inCount = state.devices.filter(
         (d) => d.modelId === m.id && d.status === "in"
@@ -476,7 +496,6 @@ function renderModelsTable() {
         <tr data-model-id="${m.id}" class="js-row-model${deleteMode ? " row-selectable" : ""}">
           ${checkCell}
           <td>${m.name} ${getCategoryBadge(m.category)}</td>
-          <td>${m.notes ? m.notes : ""}</td>
           <td>${inCount}</td>
           <td>${outCount}</td>
           <td>${formatDateTime(m.createdAt)}</td>
@@ -491,7 +510,6 @@ function renderModelsTable() {
         <tr>
           ${checkHeader}
           <th>Model</th>
-          <th>Notes</th>
           <th>In stock</th>
           <th>Removed</th>
           <th>Created</th>
@@ -499,7 +517,16 @@ function renderModelsTable() {
       </thead>
       <tbody>${rows}</tbody>
     </table>
+    ${totalModels > visibleModels ? `<div style="text-align:center;margin-top:10px;"><button type="button" class="btn ghost" id="btn-models-show-more">Show More</button></div>` : ""}
   `;
+
+  const showMoreBtn = container.querySelector("#btn-models-show-more");
+  if (showMoreBtn) {
+    showMoreBtn.addEventListener("click", () => {
+      modelsVisible += 8;
+      renderModelsTable();
+    });
+  }
 
   container.querySelectorAll(".js-row-model").forEach((row) => {
     if (deleteMode) {
@@ -532,6 +559,7 @@ function renderModelsTable() {
 
 let currentModelId = null;
 let pendingRemoveDeviceId = null;
+let modelHistoryVisible = 10;
 
 function openModelDetail(modelId) {
   // ensure Models view is visible when opening detail
@@ -558,6 +586,7 @@ function openModelDetail(modelId) {
   ).textContent = `${inCount} in stock - ${outCount} removed`;
 
   renderModelSerialsTable(model.id);
+  modelHistoryVisible = 10;
   renderModelHistoryTable(model.id);
 }
 
@@ -630,7 +659,10 @@ function renderModelSerialsTable(modelId) {
 function renderModelHistoryTable(modelId) {
   const container = document.getElementById("model-history-table-container");
   if (!container) return;
-  const entries = state.history.filter((h) => h.modelId === modelId);
+  const entries = state.history
+    .filter((h) => h.modelId === modelId)
+    .slice()
+    .sort((a, b) => new Date(b.at) - new Date(a.at));
   if (!entries.length) {
     container.classList.add("empty-state");
     container.innerHTML =
@@ -638,9 +670,10 @@ function renderModelHistoryTable(modelId) {
     return;
   }
   container.classList.remove("empty-state");
+  const total = entries.length;
+  const visible = Math.min(modelHistoryVisible, total);
   const rows = entries
-    .slice()
-    .sort((a, b) => new Date(b.at) - new Date(a.at))
+    .slice(0, visible)
     .map((h) => {
       const statusClass = h.type === "in" ? "status-in" : "status-out";
       const label = h.type === "in" ? "Added" : "Removed";
@@ -684,7 +717,16 @@ function renderModelHistoryTable(modelId) {
       </thead>
       <tbody>${rows}</tbody>
     </table>
+    ${total > visible ? `<div style="text-align:center;margin-top:10px;"><button type="button" class="btn ghost" id="btn-model-history-show-more">Show More</button></div>` : ""}
   `;
+
+  const showMoreBtn = container.querySelector("#btn-model-history-show-more");
+  if (showMoreBtn) {
+    showMoreBtn.addEventListener("click", () => {
+      modelHistoryVisible += 10;
+      renderModelHistoryTable(modelId);
+    });
+  }
 }
 
 /** Returns Set of prNumbers that appear ≥2 times in the device list. */
@@ -722,9 +764,12 @@ function renderDevicesView() {
   }
   if (textFilter) {
     inDevices = inDevices.filter((d) => {
-      const modelName = (state.models.find((m) => m.id === d.modelId)?.name || "").toLowerCase();
+      const model = state.models.find((m) => m.id === d.modelId) || {};
+      const modelName = (model.name || "").toLowerCase();
+      const modelCategory = (model.category || "").toLowerCase();
       return (
         modelName.includes(textFilter) ||
+        modelCategory.includes(textFilter) ||
         (d.serial || "").toLowerCase().includes(textFilter) ||
         (d.prNumber || "").toLowerCase().includes(textFilter) ||
         (d.destination || "").toLowerCase().includes(textFilter)
@@ -732,8 +777,8 @@ function renderDevicesView() {
     });
   }
 
-  // Render category pills — counts reflect dept+text filters applied above
-  renderCategoryPills("devices-cat-pills", inDevices, (d) => d.modelId, devicesCategoryFilter, (cat) => {
+  // Render type pills (counts reflect dept+text filters above)
+  renderFilterPills("devices-cat-pills", inDevices, (d) => d.modelId, devicesCategoryFilter, (cat) => {
     devicesCategoryFilter = cat;
     resetDevicesPagination();
     renderDevicesView();
@@ -753,9 +798,12 @@ function renderDevicesView() {
   }
   if (removedTextFilter) {
     outDevices = outDevices.filter((d) => {
-      const modelName = (state.models.find((m) => m.id === d.modelId)?.name || "").toLowerCase();
+      const model = state.models.find((m) => m.id === d.modelId) || {};
+      const modelName = (model.name || "").toLowerCase();
+      const modelCategory = (model.category || "").toLowerCase();
       return (
         modelName.includes(removedTextFilter) ||
+        modelCategory.includes(removedTextFilter) ||
         (d.serial || "").toLowerCase().includes(removedTextFilter) ||
         (d.prNumber || "").toLowerCase().includes(removedTextFilter) ||
         (d.destination || "").toLowerCase().includes(removedTextFilter) ||
@@ -769,6 +817,20 @@ function renderDevicesView() {
     outDevices = outDevices.filter(
       (d) => (d.destination || d.reason || "") === devicesRemovedDestFilter
     );
+  }
+
+  // Render type pills for removed section
+  renderFilterPills("removed-cat-pills", outDevices, (d) => d.modelId, removedCategoryFilter, (cat) => {
+    removedCategoryFilter = cat;
+    resetDevicesPagination();
+    renderDevicesView();
+  });
+  // Apply category filter to removed
+  if (removedCategoryFilter) {
+    outDevices = outDevices.filter((d) => {
+      const model = state.models.find((m) => m.id === d.modelId);
+      return model && (model.category || "") === removedCategoryFilter;
+    });
   }
 
   // Update toggle button count
@@ -817,15 +879,15 @@ function renderDevicesView() {
         const model = state.models.find((m) => m.id === d.modelId);
         if (!isOut) {
           const { rowClass, badge } = getStockAgeInfo(d.createdAt);
-          return `<tr class="${rowClass}${revealClass}">
-            <td>${model ? model.name : "Unknown model"}</td>
+          return `<tr class="${rowClass}${revealClass} js-in-row" data-device-id="${d.id}" style="cursor:pointer;" title="Click to remove from stock">
+            <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown model"}</td>
             <td>${d.department || ""}</td><td>${d.serial}</td>
             <td>${d.prNumber || ""}</td><td>${d.addedBy || ""}</td>
             <td>${formatDateTime(d.createdAt)}${badge}</td>
           </tr>`;
         } else {
           return `<tr class="${revealClass}">
-            <td>${model ? model.name : "Unknown model"}</td>
+            <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown model"}</td>
             <td>${d.department || ""}</td><td>${d.serial}</td>
             <td>${d.prNumber || ""}</td><td>${d.deliveredBy || ""}</td>
             <td>${d.reason || ""}</td><td>${d.destination || ""}</td>
@@ -837,9 +899,18 @@ function renderDevicesView() {
       const headIn = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Added by</th><th>Added</th>`;
       const headOut = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Delivered by</th><th>Reason</th><th>Destination</th><th>Removed at</th>`;
       const showMoreHtml = total > visibleCount
-        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show more (+${inc})</button></div>`
+        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show More</button></div>`
         : "";
       container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${rows}</tbody></table>${showMoreHtml}`;
+
+      if (!isOut) {
+        container.querySelectorAll("tr.js-in-row").forEach((row) => {
+          row.addEventListener("click", () => {
+            const id = row.dataset.deviceId;
+            if (id) openRemoveSerialDialog(id);
+          });
+        });
+      }
 
       container.querySelectorAll(".js-show-more").forEach((btn) => {
         btn.addEventListener("click", () => onShowMore());
@@ -883,22 +954,25 @@ function renderDevicesView() {
           ? +new Date(b[dateField]) - +new Date(a[dateField])
           : +new Date(a[dateField]) - +new Date(b[dateField]));
 
-        const dest = (items[0].destination || (isOut ? items[0].reason : "") || "");
+        const dest = isOut
+          ? (items[0].destination || items[0].reason || "")
+          : (items[0].kit_id || items[0].destination || "");
+
         const itemCount = `${items.length} item${items.length !== 1 ? "s" : ""}`;
         const revealClass = groupIdx >= previousVisibleCount ? " row-reveal" : "";
 
-        // Sub-header: full-span cell, destination inline — same format for both in-stock and archive
-        const assignedTo = dest ? ` &mdash; Assigned to: <strong>${dest}</strong>` : "";
+        // Sub-header: full-span cell, exact format: Ticket / PR: [ID] — Assigned to: [Name] [Count] items
+        const assignedTo = dest ? ` &mdash; Assigned to: <strong class="assigned-name">${dest}</strong>` : "";
         const subHeader = `<tr class="kit-sub-header${revealClass}">
-            <td colspan="${colCount}" class="kit-ticket-cell">Ticket&nbsp;/&nbsp;PR:&nbsp;<strong>${prId}</strong>${assignedTo}&nbsp;&nbsp;<span class="kit-count">${itemCount}</span></td>
+            <td colspan="${colCount}" class="kit-ticket-cell">Ticket / PR: <strong>${prId}</strong>${assignedTo} <span class="kit-count">${itemCount}</span></td>
           </tr>`;
 
         const deviceRows = items.map(d => {
           const model = state.models.find(m => m.id === d.modelId);
           if (!isOut) {
             const { rowClass, badge } = getStockAgeInfo(d.createdAt);
-            return `<tr class="${rowClass} kit-device-row">
-              <td>${model ? model.name : "Unknown"}</td>
+            return `<tr class="${rowClass} kit-device-row js-in-row" data-device-id="${d.id}" style="cursor:pointer;" title="Click to remove from stock">
+              <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown"}</td>
               <td>${d.department || ""}</td>
               <td><strong>${d.serial}</strong></td>
               <td>${d.addedBy || ""}</td>
@@ -906,7 +980,7 @@ function renderDevicesView() {
             </tr>`;
           } else {
             return `<tr class="kit-device-row">
-              <td>${model ? model.name : "Unknown"}</td>
+              <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown"}</td>
               <td>${d.department || ""}</td>
               <td><strong>${d.serial}</strong></td>
               <td>${d.deliveredBy || ""}</td>
@@ -925,9 +999,18 @@ function renderDevicesView() {
       }).join("");
 
       const showMoreHtml = total > visibleCount
-        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show more (+${inc})</button></div>`
+        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show More</button></div>`
         : "";
       container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${bodyRows}</tbody></table>${showMoreHtml}`;
+
+      if (!isOut) {
+        container.querySelectorAll("tr.js-in-row").forEach((row) => {
+          row.addEventListener("click", () => {
+            const id = row.dataset.deviceId;
+            if (id) openRemoveSerialDialog(id);
+          });
+        });
+      }
 
       container.querySelectorAll(".js-show-more").forEach((btn) => {
         btn.addEventListener("click", () => onShowMore());
@@ -997,10 +1080,12 @@ function renderHistoryView() {
   const typeFilterEl = document.getElementById("filter-history-type");
   const yearFilterEl = document.getElementById("filter-history-year");
   const monthFilterEl = document.getElementById("filter-history-month");
+  const deviceFilterEl = document.getElementById("filter-history-device");
 
   const typeFilter = typeFilterEl ? typeFilterEl.value : "";
   const yearFilter = yearFilterEl ? yearFilterEl.value : "";
   const monthFilter = monthFilterEl ? monthFilterEl.value : "";
+  const deviceFilter = deviceFilterEl ? deviceFilterEl.value.trim().toLowerCase() : "";
 
   let entries = state.history.slice();
   if (typeFilter === "in" || typeFilter === "out") {
@@ -1025,9 +1110,20 @@ function renderHistoryView() {
     });
   }
 
-  // Render category pills — counts reflect type/year/month filters applied above
-  renderCategoryPills("history-cat-pills", entries, (h) => h.modelId, historyCategoryFilter, (cat) => {
+  if (deviceFilter) {
+    entries = entries.filter((h) => {
+      const model = state.models.find((m) => m.id === h.modelId);
+      const modelName = model ? model.name.toLowerCase() : "";
+      const serial = (h.serial || "").toLowerCase();
+      return modelName.includes(deviceFilter) || serial.includes(deviceFilter);
+    });
+  }
+
+  // Render type pills (counts reflect all filters above)
+  renderFilterPills("history-cat-pills", entries, (h) => h.modelId, historyCategoryFilter, (cat) => {
     historyCategoryFilter = cat;
+    visibleHistory = DEFAULT_LIMIT_HISTORY;
+    previousVisibleHistory = 0;
     renderHistoryView();
   });
 
@@ -1039,13 +1135,17 @@ function renderHistoryView() {
     });
   }
 
-  const rows = entries
-    .sort((a, b) =>
-      historySort === "asc"
-        ? new Date(a.at) - new Date(b.at)
-        : new Date(b.at) - new Date(a.at)
-    )
-    .map((h) => {
+  const sorted = entries.sort((a, b) =>
+    historySort === "asc"
+      ? new Date(a.at) - new Date(b.at)
+      : new Date(b.at) - new Date(a.at)
+  );
+
+  const total = sorted.length;
+  const toShow = sorted.slice(0, visibleHistory);
+
+  const rows = toShow
+    .map((h, idx) => {
       const model = state.models.find((m) => m.id === h.modelId);
       const statusClass = h.type === "in" ? "status-in" : "status-out";
       const label = h.type === "in" ? "Added to stock" : "Removed from stock";
@@ -1061,10 +1161,11 @@ function renderHistoryView() {
           rowClass = info.rowClass;
         }
       }
+      const revealClass = idx >= previousVisibleHistory ? " row-reveal" : "";
       return `
-        <tr class="${rowClass}">
+        <tr class="${rowClass}${revealClass}">
           <td><span class="status-chip ${statusClass}">${label}</span></td>
-          <td>${model ? model.name : "Unknown model"}</td>
+          <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown model"}</td>
           <td>${h.serial}</td>
           <td>${technician}</td>
           <td>${reason}</td>
@@ -1074,6 +1175,11 @@ function renderHistoryView() {
       `;
     })
     .join("");
+
+  const showMoreHtml = total > visibleHistory
+    ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-history-show-more">Show More</button></div>`
+    : "";
+
   container.innerHTML = `
     <table>
       <thead>
@@ -1089,7 +1195,18 @@ function renderHistoryView() {
       </thead>
       <tbody>${rows}</tbody>
     </table>
+    ${showMoreHtml}
   `;
+
+  previousVisibleHistory = visibleHistory;
+
+  container.querySelectorAll(".js-history-show-more").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      previousVisibleHistory = visibleHistory;
+      visibleHistory += INCREMENT_HISTORY;
+      renderHistoryView();
+    });
+  });
 }
 
 // ---- Dialogs ----
@@ -1102,6 +1219,8 @@ function openAddModelDialog() {
 function closeAddModelDialog() {
   document.getElementById("add-model-dialog").classList.add("hidden");
   document.getElementById("add-model-form").reset();
+  const catInput = document.getElementById("model-category-input");
+  if (catInput) catInput.value = "";
 }
 
 function openRemoveSerialDialog(deviceId) {
@@ -1136,11 +1255,16 @@ function closeRemoveSerialDialog() {
 function addModel(name, notes, category) {
   const trimmed = name.trim();
   if (!trimmed) return;
+  const cleanCategory = (category || "").trim();
+  if (!cleanCategory) {
+    showToast("Please select a category.");
+    return;
+  }
   const model = {
     id: uid(),
     name: trimmed,
     notes: (notes || "").trim(),
-    category: (category || "").trim(),
+    category: cleanCategory,
     createdAt: new Date().toISOString(),
   };
   state.models.push(model);
@@ -1254,6 +1378,9 @@ const nhkState = {
   prNumber: "",
   department: "",
   addedBy: "",
+  categoryFilter: "",
+  modelVisible: 6,
+  modelSearchQ: "",
 };
 
 function openNewHireKitDialog() {
@@ -1264,9 +1391,9 @@ function openNewHireKitDialog() {
   nhkState.prNumber = "";
   nhkState.department = "";
   nhkState.addedBy = "";
-  nhkState.catFilter = "";
-  nhkState.modelSearchQ = "";
+  nhkState.categoryFilter = "";
   nhkState.modelVisible = 6;
+  nhkState.modelSearchQ = "";
   document.getElementById("new-hire-kit-dialog").classList.remove("hidden");
   nhkRenderStep();
 }
@@ -1299,14 +1426,112 @@ function nhkRenderStep() {
 }
 
 // Step 1: Kit ID + model checklist (no stock restriction — adding NEW serials)
+function nhkRefreshModelGrid(container) {
+  const allModels = state.models
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((m) => ({
+      ...m,
+      inStockCount: state.devices.filter(
+        (d) => d.modelId === m.id && d.status === "in"
+      ).length,
+    }));
+
+  // Build pill counts from full unfiltered list
+  const counts = {};
+  CATEGORIES.forEach((c) => { counts[c] = 0; });
+  allModels.forEach((m) => {
+    if (m.category && Object.prototype.hasOwnProperty.call(counts, m.category)) counts[m.category]++;
+  });
+
+  // Render category pills
+  const pillsContainer = document.getElementById("nhk-category-pills-container");
+  if (pillsContainer) {
+    const pills = [
+      { label: "All", value: "", count: allModels.length },
+      ...CATEGORIES.map((cat) => ({ label: cat, value: cat, count: counts[cat] || 0 })),
+    ];
+    pillsContainer.innerHTML =
+      `<span class="pill-bar-label">Type:</span>` +
+      pills.map(({ label, value, count }) => {
+        const isActive = nhkState.categoryFilter === value;
+        const isEmpty = value !== "" && count === 0;
+        return `<button type="button" class="pill${isActive ? " active" : ""}${isEmpty ? " empty" : ""}" data-cat="${value}">${label} <span class="pill-count">${count}</span></button>`;
+      }).join("");
+    pillsContainer.querySelectorAll(".pill").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        nhkState.categoryFilter = btn.dataset.cat;
+        nhkState.modelVisible = 6;
+        nhkRefreshModelGrid(container);
+      });
+    });
+  }
+
+  // Apply filters
+  let filtered = allModels;
+  if (nhkState.categoryFilter) {
+    filtered = filtered.filter((m) => (m.category || "") === nhkState.categoryFilter);
+  }
+  if (nhkState.modelSearchQ) {
+    const q = nhkState.modelSearchQ.toLowerCase();
+    filtered = filtered.filter((m) => m.name.toLowerCase().includes(q));
+  }
+
+  const total = filtered.length;
+  const visible = Math.min(nhkState.modelVisible, total);
+  const showingModels = filtered.slice(0, visible);
+
+  const grid = container.querySelector(".nhk-model-list");
+  if (!grid) return;
+
+  grid.innerHTML = showingModels.map((m) => {
+    const isSelected = nhkState.selectedModelIds.includes(m.id);
+    return `
+      <label class="nhk-model-card${isSelected ? " selected" : ""}" data-model-id="${m.id}" data-category="${m.category || ''}">
+        <input type="checkbox" class="nhk-model-cb" data-model-id="${m.id}" ${isSelected ? "checked" : ""} />
+        <div>
+          <div class="nhk-card-label">${m.name}</div>
+          <span class="nhk-card-stock">${m.inStockCount} in stock</span>
+        </div>
+      </label>
+    `;
+  }).join("") + (total > visible ? `<div style="grid-column:1/-1;text-align:center;margin-top:6px;"><button type="button" class="btn ghost nhk-show-more-btn">Show More</button></div>` : "");
+
+  grid.querySelectorAll(".nhk-model-cb").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = cb.dataset.modelId;
+      const card = cb.closest(".nhk-model-card");
+      if (cb.checked) {
+        if (!nhkState.selectedModelIds.includes(id)) nhkState.selectedModelIds.push(id);
+        if (card) card.classList.add("selected");
+      } else {
+        nhkState.selectedModelIds = nhkState.selectedModelIds.filter((x) => x !== id);
+        if (card) card.classList.remove("selected");
+      }
+    });
+  });
+
+  grid.querySelectorAll(".nhk-model-card").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.type === "checkbox") return;
+      const cb = card.querySelector("input[type=checkbox]");
+      if (!cb) return;
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event("change"));
+    });
+  });
+
+  const showMoreBtn = grid.querySelector(".nhk-show-more-btn");
+  if (showMoreBtn) {
+    showMoreBtn.addEventListener("click", () => {
+      nhkState.modelVisible += 6;
+      nhkRefreshModelGrid(container);
+    });
+  }
+}
+
 function nhkRenderStep1(container) {
-  // Local UI state (persists while the step is displayed)
-  if (nhkState.catFilter === undefined) nhkState.catFilter = "";
-  if (nhkState.modelSearchQ === undefined) nhkState.modelSearchQ = "";
-  if (nhkState.modelVisible === undefined) nhkState.modelVisible = 6;
-
-  const NHK_LIMIT = 6;
-
   container.innerHTML = `
     <div class="nhk-hire-name-row">
       <label for="nhk-kit-id-input">Kit ID — Ticket # or New Hire Name <span style="color:var(--danger)">*</span></label>
@@ -1320,6 +1545,7 @@ function nhkRenderStep1(container) {
       <p style="font-size:0.7rem;color:var(--text-muted);margin:3px 0 0;">This ID links all kit devices so you can deploy them all later with one click.</p>
     </div>
     <p style="font-size:0.78rem;color:var(--text-muted);margin:10px 0 6px;">Select the models to include in this kit:</p>
+    <div id="nhk-category-pills-container" class="pill-bar-row" style="margin: 0 0 10px 0; padding-top: 4px;"></div>
     <input
       type="text"
       id="nhk-model-search"
@@ -1327,8 +1553,7 @@ function nhkRenderStep1(container) {
       autocomplete="off"
       style="width:100%;margin-bottom:8px;box-sizing:border-box;"
     />
-    <div id="nhk-cat-pills" class="category-filter-bar" style="padding:6px 0 8px;margin-bottom:0;"></div>
-    <div id="nhk-model-grid-wrap"></div>
+    <div class="nhk-model-list"></div>
     <div class="nhk-footer">
       <button class="btn ghost" id="nhk-btn-cancel-s1">Cancel</button>
       <button class="btn primary" id="nhk-btn-next-s1">Next: Add Serials →</button>
@@ -1340,15 +1565,14 @@ function nhkRenderStep1(container) {
   kitIdInput.addEventListener("input", () => { nhkState.kitId = kitIdInput.value; });
 
   const modelSearch = document.getElementById("nhk-model-search");
-  modelSearch.value = nhkState.modelSearchQ;
+  modelSearch.value = nhkState.modelSearchQ || "";
   modelSearch.addEventListener("input", () => {
-    nhkState.modelSearchQ = modelSearch.value;
-    nhkState.modelVisible = NHK_LIMIT;
-    nhkRefreshModelGrid(container, NHK_LIMIT);
+    nhkState.modelSearchQ = modelSearch.value.trim().toLowerCase();
+    nhkState.modelVisible = 6;
+    nhkRefreshModelGrid(container);
   });
 
-  // Initial render
-  nhkRefreshModelGrid(container, NHK_LIMIT);
+  nhkRefreshModelGrid(container);
 
   document.getElementById("nhk-btn-cancel-s1").addEventListener("click", closeNewHireKitDialog);
   document.getElementById("nhk-btn-next-s1").addEventListener("click", () => {
@@ -1364,122 +1588,6 @@ function nhkRenderStep1(container) {
     }
     nhkState.step = 2;
     nhkRenderStep();
-  });
-}
-
-function nhkRefreshModelGrid(container, NHK_LIMIT) {
-  const q = nhkState.modelSearchQ.toLowerCase().trim();
-
-  // Build full sorted+filtered list
-  let models = state.models
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((m) => ({
-      ...m,
-      inStockCount: state.devices.filter((d) => d.modelId === m.id && d.status === "in").length,
-    }));
-
-  if (q) {
-    models = models.filter((m) =>
-      (m.name || "").toLowerCase().includes(q) ||
-      (m.category || "").toLowerCase().includes(q)
-    );
-  }
-
-  // Render category pills (counts from text-filtered list)
-  const pillsBar = document.getElementById("nhk-cat-pills");
-  if (pillsBar) {
-    const counts = {};
-    DEVICE_CATEGORIES.forEach((cat) => { counts[cat] = 0; });
-    models.forEach((m) => {
-      if (m.category && Object.prototype.hasOwnProperty.call(counts, m.category)) counts[m.category]++;
-    });
-    const pills = [
-      { label: "All", value: "", count: models.length },
-      ...DEVICE_CATEGORIES.map((cat) => ({ label: cat, value: cat, count: counts[cat] || 0 })),
-    ];
-    pillsBar.innerHTML =
-      `<span class="cat-filter-label">Type:</span>` +
-      pills.map(({ label, value, count }) => {
-        const isActive = value === nhkState.catFilter;
-        const isEmpty = value !== "" && count === 0;
-        return `<button type="button" class="cat-pill${isActive ? " active" : ""}${isEmpty ? " empty" : ""}" data-cat="${value}">${label} <span class="cat-pill-count">${count}</span></button>`;
-      }).join("");
-    pillsBar.querySelectorAll(".cat-pill").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        nhkState.catFilter = btn.dataset.cat;
-        nhkState.modelVisible = NHK_LIMIT;
-        nhkRefreshModelGrid(container, NHK_LIMIT);
-      });
-    });
-  }
-
-  // Apply category filter
-  if (nhkState.catFilter) {
-    models = models.filter((m) => (m.category || "") === nhkState.catFilter);
-  }
-
-  const total = models.length;
-  const visible = nhkState.modelVisible;
-  const toShow = models.slice(0, visible);
-
-  const gridHtml = toShow.map((m) => {
-    const isSelected = nhkState.selectedModelIds.includes(m.id);
-    return `
-      <label class="nhk-model-card${isSelected ? " selected" : ""}" data-model-id="${m.id}">
-        <input type="checkbox" class="nhk-model-cb" data-model-id="${m.id}" ${isSelected ? "checked" : ""} />
-        <div>
-          <div class="nhk-card-label">${m.name}</div>
-          <span class="nhk-card-stock">${m.inStockCount} in stock</span>
-        </div>
-      </label>
-    `;
-  }).join("");
-
-  const showMoreHtml = total > visible
-    ? `<div class="show-more-row" style="margin-top:6px;"><button type="button" class="btn btn-show-more" id="nhk-show-more">Show more (+${Math.min(NHK_LIMIT, total - visible)})</button></div>`
-    : "";
-
-  const noResultsHtml = total === 0
-    ? `<p style="font-size:0.8rem;color:var(--text-muted);padding:10px 0;">No models match.</p>`
-    : "";
-
-  const wrap = document.getElementById("nhk-model-grid-wrap");
-  if (!wrap) return;
-  wrap.innerHTML = `<div class="nhk-model-list">${gridHtml}${noResultsHtml}</div>${showMoreHtml}`;
-
-  // Show More
-  const showMoreBtn = document.getElementById("nhk-show-more");
-  if (showMoreBtn) {
-    showMoreBtn.addEventListener("click", () => {
-      nhkState.modelVisible += NHK_LIMIT;
-      nhkRefreshModelGrid(container, NHK_LIMIT);
-    });
-  }
-
-  // Checkbox logic
-  wrap.querySelectorAll(".nhk-model-cb").forEach((cb) => {
-    cb.addEventListener("change", () => {
-      const id = cb.dataset.modelId;
-      const card = cb.closest(".nhk-model-card");
-      if (cb.checked) {
-        if (!nhkState.selectedModelIds.includes(id)) nhkState.selectedModelIds.push(id);
-        card.classList.add("selected");
-      } else {
-        nhkState.selectedModelIds = nhkState.selectedModelIds.filter((x) => x !== id);
-        card.classList.remove("selected");
-      }
-    });
-  });
-
-  wrap.querySelectorAll(".nhk-model-card").forEach((card) => {
-    card.addEventListener("click", (e) => {
-      if (e.target.type === "checkbox") return;
-      const cb = card.querySelector("input[type=checkbox]");
-      if (!cb) return;
-      cb.checked = !cb.checked;
-      cb.dispatchEvent(new Event("change"));
-    });
   });
 }
 
@@ -1736,7 +1844,7 @@ function renderKitDeployResults(kitId) {
       const model = state.models.find((m) => m.id === d.modelId);
       return `
         <tr>
-          <td>${model ? model.name : "Unknown"}</td>
+          <td>${model ? model.name + ' ' + getCategoryBadge(model.category) : "Unknown"}</td>
           <td>${d.serial}</td>
           <td>${d.prNumber || ""}</td>
           <td>${d.department || ""}</td>
@@ -1759,14 +1867,14 @@ function renderKitDeployResults(kitId) {
 
   if (deployBtn) {
     deployBtn.classList.remove("hidden");
-    deployBtn.textContent = `Deploy All (${items.length} device${items.length > 1 ? "s" : ""})`;
+    deployBtn.textContent = `Remove All (${items.length} device${items.length > 1 ? "s" : ""})`;
   }
 }
 
 function deployKit(kitId) {
   const deliveredBy = (document.getElementById("kit-deploy-delivered-by")?.value || "").trim();
   if (!deliveredBy) {
-    showToast("Please select who is deploying this kit.");
+    showToast("Please select who is removing this kit.");
     document.getElementById("kit-deploy-delivered-by")?.focus();
     return;
   }
@@ -1775,7 +1883,7 @@ function deployKit(kitId) {
     showToast("No in-stock devices found for this kit.");
     return;
   }
-  if (!confirm(`Deploy all ${items.length} device${items.length > 1 ? "s" : ""} in kit "${kitId}"?\n\nThey will be marked as Removed from stock.`)) return;
+  if (!confirm(`Remove all ${items.length} device${items.length > 1 ? "s" : ""} in kit "${kitId}"?\n\nThey will be marked as Removed from stock.`)) return;
 
   const now = new Date().toISOString();
   items.forEach((device) => {
@@ -1970,6 +2078,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadFromFirestore();
   subscribeToRealtimeChanges();
 
+  // One-time migration: reset technicians list to canonical names
+  const CANONICAL_TECHNICIANS = [
+    "Hector Morales",
+    "Rodolfo Magaña",
+    "Ian Valenzuela",
+    "Jahaziel Gerardo",
+    "Alejandro Villa",
+  ];
+  if (!localStorage.getItem("tech_migration_v1")) {
+    state.technicians = [...CANONICAL_TECHNICIANS];
+    writeToFirestore();
+    populateTechnicianSelect();
+    localStorage.setItem("tech_migration_v1", "done");
+  }
+
   // Hidden testing feature: click "All Devices" text specifically 5 times to inject old test stock
   let testClickCount = 0;
   let testClickTimeout;
@@ -1998,7 +2121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const logoArea = document.getElementById("app-logo-area");
   if (logoArea) {
     logoArea.addEventListener("click", () => {
-      switchView("history");
+      switchView("devices");
     });
   }
 
@@ -2014,8 +2137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("submit", (e) => {
       e.preventDefault();
       const name = document.getElementById("model-name-input").value;
-      const categoryEl = document.getElementById("model-category-select");
-      const category = categoryEl ? categoryEl.value : "";
+      const category = document.getElementById("model-category-input").value;
       const model = addModel(name, "", category);
       if (model) {
         closeAddModelDialog();
@@ -2121,13 +2243,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (historyTypeFilterEl) {
-    historyTypeFilterEl.addEventListener("change", renderHistoryView);
+    historyTypeFilterEl.addEventListener("change", () => { visibleHistory = DEFAULT_LIMIT_HISTORY; previousVisibleHistory = 0; renderHistoryView(); });
   }
   if (historyYearSelect) {
-    historyYearSelect.addEventListener("change", renderHistoryView);
+    historyYearSelect.addEventListener("change", () => { visibleHistory = DEFAULT_LIMIT_HISTORY; previousVisibleHistory = 0; renderHistoryView(); });
   }
   if (historyMonthSelect) {
-    historyMonthSelect.addEventListener("change", renderHistoryView);
+    historyMonthSelect.addEventListener("change", () => { visibleHistory = DEFAULT_LIMIT_HISTORY; previousVisibleHistory = 0; renderHistoryView(); });
+  }
+
+  const historyDeviceFilter = document.getElementById("filter-history-device");
+  if (historyDeviceFilter) {
+    historyDeviceFilter.addEventListener("input", () => { visibleHistory = DEFAULT_LIMIT_HISTORY; previousVisibleHistory = 0; renderHistoryView(); });
+  }
+
+  const btnClearHistory = document.getElementById("btn-clear-history-filters");
+  if (btnClearHistory) {
+    btnClearHistory.addEventListener("click", () => {
+      if (historyTypeFilterEl) historyTypeFilterEl.value = "";
+      if (historyYearSelect) historyYearSelect.value = "";
+      if (historyMonthSelect) historyMonthSelect.value = "";
+      if (historyDeviceFilter) historyDeviceFilter.value = "";
+      historyCategoryFilter = "";
+      visibleHistory = DEFAULT_LIMIT_HISTORY;
+      previousVisibleHistory = 0;
+      renderHistoryView();
+    });
   }
 
   // Sort button for history
@@ -2138,6 +2279,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       sortBtn.dataset.order = historySort;
       sortBtn.textContent =
         historySort === "desc" ? "Newest First" : "Oldest First";
+      visibleHistory = DEFAULT_LIMIT_HISTORY;
+      previousVisibleHistory = 0;
       renderHistoryView();
     });
   }
@@ -2149,7 +2292,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       devicesSort = devicesSort === "desc" ? "asc" : "desc";
       devicesSortBtn.dataset.order = devicesSort;
       devicesSortBtn.textContent =
-        devicesSort === "desc" ? "Newest Added" : "Oldest Added";
+        devicesSort === "desc" ? "Newest First" : "Oldest First";
       renderDevicesView();
     });
   }
@@ -2208,7 +2351,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (btnRemovedSort) {
     btnRemovedSort.addEventListener("click", () => {
       removedSort = removedSort === "desc" ? "asc" : "desc";
-      btnRemovedSort.textContent = removedSort === "desc" ? "Newest Removed" : "Oldest Removed";
+      btnRemovedSort.textContent = removedSort === "desc" ? "Newest First" : "Oldest First";
       renderDevicesView();
     });
   }
@@ -2218,6 +2361,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       removedTextFilter = "";
       removedDeptFilter = "";
       devicesRemovedDestFilter = "";
+      removedCategoryFilter = "";
       viewModeOut = "all";
       if (removedSearchInput) removedSearchInput.value = "";
       if (removedDeptSelect) removedDeptSelect.value = "";
