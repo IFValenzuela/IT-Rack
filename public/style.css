@@ -1520,3 +1520,88 @@ tr.kit-spacer td {
 .row-reveal {
   animation: showMoreFadeIn 0.25s ease-out;
 }
+
+/* ---- Category Badge (identifier next to model name) ---- */
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--blue-soft);
+  border: 1px solid rgba(0, 125, 184, 0.18);
+  border-radius: 999px;
+  padding: 2px 8px 2px 5px;
+  vertical-align: middle;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.cb-label {
+  font-size: 0.7rem;
+}
+
+/* ---- Category Filter Pills ---- */
+.category-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+
+.cat-filter-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.14s, color 0.14s, background 0.14s, opacity 0.14s;
+  line-height: 1.4;
+}
+
+.cat-pill:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.cat-pill.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  font-weight: 600;
+}
+
+.cat-pill.empty {
+  opacity: 0.45;
+}
+
+.cat-pill.active .cat-pill-count {
+  opacity: 0.85;
+}
+
+.cat-pill-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.7;
+}

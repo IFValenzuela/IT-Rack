@@ -42,8 +42,7 @@
             <button class="btn primary" id="btn-open-add-model-dialog">+ New Model</button>
             <button class="btn danger" id="btn-enter-delete-mode">Delete</button>
           </div>
-        </div>
-        <div id="models-table-container" class="table-container empty-state">
+        </div>        <div id="category-pills-container" class="category-filter-bar" style="margin-bottom:6px;"></div>        <div id="models-table-container" class="table-container empty-state">
           <p>No models yet. Use “New Model” to create one.</p>
         </div>
       </section>
@@ -178,6 +177,7 @@
             <button type="button" class="btn primary" id="btn-toggle-removed">View Removed (0)</button>
           </div>
         </div>
+        <div id="devices-cat-pills" class="category-filter-bar"></div>
         <form id="device-filters-form" class="form-inline">
           <div class="form-field">
             <label for="filter-department">Department</label>
@@ -263,6 +263,7 @@
           </div>
         </div>
 
+        <div id="history-cat-pills" class="category-filter-bar"></div>
         <form id="history-filters-form" class="form-inline">
           <div class="form-field">
             <label for="filter-history-type">Type</label>
@@ -317,6 +318,19 @@
         <div class="form-field">
           <label for="model-name-input">Model name</label>
           <input id="model-name-input" type="text" placeholder="e.g. OptiPlex 7090" required />
+        </div>
+        <div class="form-field">
+          <label for="model-category-select">Device type</label>
+          <select id="model-category-select" required>
+            <option value="">Select type…</option>
+            <option value="Laptop">Laptop</option>
+            <option value="Desktop PC">Desktop PC</option>
+            <option value="Keyboard">Keyboard</option>
+            <option value="Cellphone">Cellphone</option>
+            <option value="Mouse">Mouse</option>
+            <option value="Headset">Headset</option>
+            <option value="Other">Other</option>
+          </select>
         </div>
         <div class="dialog-footer">
           <button type="button" class="btn ghost" id="btn-cancel-add-model">

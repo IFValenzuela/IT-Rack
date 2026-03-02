@@ -179,6 +179,7 @@
             <button type="button" class="btn primary" id="btn-toggle-removed">View Removed (0)</button>
           </div>
         </div>
+        <div id="devices-cat-pills" class="pill-bar-row"></div>
         <form id="device-filters-form" class="form-inline">
           <div class="form-field">
             <label for="filter-department">Department</label>
@@ -215,6 +216,7 @@
             <button type="button" class="btn-link" id="btn-close-removed">Close Archive &#10005;</button>
           </div>
         </div>
+        <div id="removed-cat-pills" class="pill-bar-row"></div>
         <form id="removed-filters-form" class="form-inline">
           <div class="form-field">
             <label for="filter-removed-dept">Department</label>
@@ -263,7 +265,7 @@
             <button class="btn ghost" id="btn-clear-all-data">Clear all data</button>
           </div>
         </div>
-
+        <div id="history-cat-pills" class="pill-bar-row"></div>
         <form id="history-filters-form" class="form-inline">
           <div class="form-field">
             <label for="filter-history-type">Type</label>
@@ -296,6 +298,13 @@
               <option value="11">November</option>
               <option value="12">December</option>
             </select>
+          </div>
+          <div class="form-field">
+            <label for="filter-history-device">Device / Model</label>
+            <input id="filter-history-device" type="text" placeholder="e.g. Latitude, 123ABC" />
+          </div>
+          <div class="form-field" style="align-self:flex-end;">
+            <button type="button" class="btn ghost" id="btn-clear-history-filters">Clear</button>
           </div>
         </form>
 
