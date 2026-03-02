@@ -407,7 +407,7 @@ function deleteSelectedModels() {
 
 let currentCategoryFilter = "All";
 let modelsVisible = 8;
-const CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset", "Dock", "Monitor", "Cable", "Camera", "Other"];
+const CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset", "Dock", "Monitor", "Cable", "Camera", "Tablet", "Other"];
 
 const KIT_ACCESSORIES = [
   "Dell 24-Inch Monitor",
