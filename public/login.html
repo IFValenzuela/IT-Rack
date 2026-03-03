@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login – IT Rack Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css?v=2" />
+  <style>
+    /* Login-specific layout — reuses all site CSS variables */
+    .login-wrap {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 16px;
+    }
+
+    .login-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      padding: 44px 40px 40px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .login-card-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-card-header h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0 0 6px;
+    }
+
+    .login-card-header p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .login-form .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+
+    .login-form .form-field label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .login-form .form-field input {
+      padding: 11px 14px;
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      font-size: 0.95rem;
+      color: var(--text-main);
+      background: var(--bg);
+      transition: border-color 0.15s;
+    }
+
+    .login-form .form-field input:focus {
+      outline: none;
+      border-color: var(--blue);
+      background: #fff;
+    }
+
+    .login-form .btn-submit {
+      width: 100%;
+      margin-top: 8px;
+      padding: 13px;
+      font-size: 0.97rem;
+      font-weight: 700;
+    }
+
+    .login-error {
+      background: #fff0f0;
+      color: var(--danger);
+      border: 1px solid #f5c0c0;
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    .login-error.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Same header shell as the main app (no nav tabs on login) -->
+  <header class="app-header">
+    <div class="logo-area" style="cursor: default;">
+      <img src="skyworks-logo.png" alt="Skyworks" class="header-logo" />
+      <div class="logo-text">
+        <span class="logo-main">IT Rack Inventory</span>
+        <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-card-header">
+        <h2>Sign in to your account</h2>
+        <p>Enter your credentials to continue</p>
+      </div>
+
+      <div id="error-message" class="login-error"></div>
+
+      <form id="login-form" class="login-form">
+        <div class="form-field">
+          <label for="username">Username</label>
+          <input type="text" id="username" placeholder="your username" required autofocus />
+        </div>
+        <div class="form-field">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn primary btn-submit">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>

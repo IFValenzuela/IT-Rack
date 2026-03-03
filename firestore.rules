@@ -1,9 +1,0 @@
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Allow read/write to inventory (no auth - internal use only)
-    match /inventory/{document=**} {
-      allow read, write: if true;
-    }
-  }
-}

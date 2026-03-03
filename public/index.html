@@ -17,11 +17,15 @@
         <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
       </div>
     </div>
-    <nav class="nav-tabs">
-      <button class="nav-tab active" data-view="devices">All Devices</button>
-      <button class="nav-tab" data-view="models">Models</button>
-      <button class="nav-tab" data-view="history">Activity Log</button>
-    </nav>
+    <div class="header-right">
+      <div id="user-menu"></div>
+      <nav class="nav-tabs">
+        <button class="nav-tab active" data-view="devices">All Devices</button>
+        <button class="nav-tab" data-view="models">Models</button>
+        <button class="nav-tab" data-view="history">Activity Log</button>
+        <button class="nav-tab admin-only hidden" data-view="admin">⚙ Admin</button>
+      </nav>
+    </div>
   </header>
 
   <main class="app-main">
@@ -40,7 +44,7 @@
             <input type="text" id="filter-models-input" class="filter-input" placeholder="Search models…"
               aria-label="Search device models" />
             <button class="btn primary" id="btn-open-add-model-dialog">+ New Model</button>
-            <button class="btn danger" id="btn-enter-delete-mode">Delete</button>
+            <button class="btn danger admin-only hidden" id="btn-enter-delete-mode">Delete</button>
           </div>
         </div>
         <div id="category-pills-container" class="pill-list" style="margin: 0 0 16px 0; padding-top: 4px;"></div>
@@ -262,7 +266,7 @@
               Import
               <input type="file" id="file-import-data" accept="application/json" hidden />
             </label>
-            <button class="btn ghost" id="btn-clear-all-data">Clear all data</button>
+            <button class="btn ghost admin-only hidden" id="btn-clear-all-data">Clear all data</button>
           </div>
         </div>
         <div id="history-cat-pills" class="pill-bar-row"></div>
@@ -313,9 +317,64 @@
         </div>
       </section>
     </section>
+
+    <!-- ADMIN VIEW -->
+    <section id="view-admin" class="view">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>User Management</h2>
+            <p class="panel-subtitle">Create accounts, assign roles, and manage access.</p>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn primary" id="btn-open-add-user-dialog">+ New User</button>
+          </div>
+        </div>
+        <div id="admin-users-table-container" class="table-container empty-state">
+          <p>Loading users…</p>
+        </div>
+      </section>
+    </section>
   </main>
 
   <div id="toast" class="toast hidden"></div>
+
+  <!-- Add / Edit User Dialog -->
+  <div id="add-user-dialog" class="dialog-backdrop hidden">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h2 id="add-user-dialog-title">New User</h2>
+      </div>
+      <form id="add-user-form" class="dialog-body" autocomplete="off">
+        <input type="hidden" id="edit-user-id" value="" />
+        <div class="form-field">
+          <label for="new-user-username">Username <span style="color:var(--danger)">*</span></label>
+          <input id="new-user-username" type="text" placeholder="e.g. jsmith" required />
+        </div>
+        <div class="form-field">
+          <label for="new-user-email">Email</label>
+          <input id="new-user-email" type="email" placeholder="e.g. jsmith@company.com" />
+        </div>
+        <div class="form-field" id="password-field-wrap">
+          <label id="password-field-label" for="new-user-password">Password <span style="color:var(--danger)">*</span></label>
+          <input id="new-user-password" type="password" placeholder="Min 6 characters" />
+        </div>
+        <div class="form-field">
+          <label for="new-user-role">Role <span style="color:var(--danger)">*</span></label>
+          <select id="new-user-role" required>
+            <option value="technician">Technician — can add &amp; edit devices</option>
+            <option value="delivery">Delivery Window — full person list, no adding people</option>
+            <option value="viewer">Viewer — read-only access</option>
+            <option value="admin">Admin — full access + admin panel</option>
+          </select>
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="btn ghost" id="btn-cancel-add-user">Cancel</button>
+          <button type="submit" class="btn primary" id="btn-save-user">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Add Model Dialog -->
   <div id="add-model-dialog" class="dialog-backdrop hidden">

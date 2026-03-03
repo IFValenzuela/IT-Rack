@@ -1,4 +1,206 @@
-// IT Rack Inventory - uses Firebase Firestore for sync across devices
+const API_URL = 'http://localhost:3000/api';
+let currentUser = null;
+
+// Check authentication on page load
+(async function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/auth/verify`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) throw new Error('Invalid token');
+    
+    const data = await response.json();
+    currentUser = data.user;
+    addLogoutButton();
+  } catch (e) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login.html';
+  }
+})();
+
+// C) Logout functionality
+function addLogoutButton() {
+  const userMenu = document.getElementById('user-menu');
+  if (!userMenu) return;
+  userMenu.innerHTML = `
+    <span class="user-name">👤 ${currentUser.username}</span>
+    <span style="opacity:0.3">|</span>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  `;
+  // Show admin-only elements only for admin role
+  if (currentUser.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+  }
+}
+
+function logout() {
+  if (confirm('Are you sure you want to logout?')) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login.html';
+  }
+}
+
+// ── Admin Panel ──────────────────────────────────────────────────
+let adminUsers = [];
+let editingUserId = null;
+
+async function loadAdminUsers() {
+  const token = localStorage.getItem('token');
+  try {
+    const res = await fetch(`${API_URL}/admin/users`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    adminUsers = await res.json();
+    renderAdminUsers();
+  } catch (e) {
+    showToast('Failed to load users.');
+  }
+}
+
+const ROLE_LABELS = {
+  admin: { label: 'Admin', cls: 'role-admin' },
+  technician: { label: 'Technician', cls: 'role-tech' },
+  delivery: { label: 'Delivery Window', cls: 'role-delivery' },
+  viewer: { label: 'Viewer', cls: 'role-viewer' },
+};
+
+function renderAdminUsers() {
+  const container = document.getElementById('admin-users-table-container');
+  if (!container) return;
+  if (!adminUsers.length) {
+    container.innerHTML = '<p>No users found.</p>';
+    return;
+  }
+  container.classList.remove('empty-state');
+  container.innerHTML = `
+    <table class="inv-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Last Login</th>
+          <th>Created</th>
+          <th style="width:120px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${adminUsers.map(u => `
+          <tr>
+            <td><strong>${u.username}</strong>${u.id === currentUser.id ? ' <span class="badge-you">you</span>' : ''}</td>
+            <td style="color:var(--text-muted)">${u.email || '—'}</td>
+            <td><span class="role-badge ${(ROLE_LABELS[u.role] || {}).cls || ''}">${(ROLE_LABELS[u.role] || {}).label || u.role}</span></td>
+            <td style="color:var(--text-muted);font-size:.8rem">${u.lastLogin ? formatDateTime(u.lastLogin) : 'Never'}</td>
+            <td style="color:var(--text-muted);font-size:.8rem">${u.createdAt ? formatDate(u.createdAt) : '—'}</td>
+            <td class="row-actions">
+              <span class="action-link" onclick="openEditUser(${u.id})">Edit</span>
+              ${u.id !== currentUser.id ? `<span class="action-link action-link-danger" onclick="deleteUser(${u.id}, '${u.username}')">Delete</span>` : ''}
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function openAddUserDialog() {
+  editingUserId = null;
+  document.getElementById('add-user-dialog-title').textContent = 'New User';
+  document.getElementById('btn-save-user').textContent = 'Create User';
+  document.getElementById('add-user-form').reset();
+  document.getElementById('edit-user-id').value = '';
+  document.getElementById('new-user-username').disabled = false;
+  document.getElementById('new-user-password').required = true;
+  document.getElementById('password-field-label').innerHTML = 'Password <span style="color:var(--danger)">*</span>';
+  document.getElementById('add-user-dialog').classList.remove('hidden');
+}
+
+function openEditUser(id) {
+  const u = adminUsers.find(x => x.id === id);
+  if (!u) return;
+  editingUserId = id;
+  document.getElementById('add-user-dialog-title').textContent = 'Edit User';
+  document.getElementById('btn-save-user').textContent = 'Save Changes';
+  document.getElementById('edit-user-id').value = id;
+  document.getElementById('new-user-username').value = u.username;
+  document.getElementById('new-user-username').disabled = true;
+  document.getElementById('new-user-email').value = u.email || '';
+  document.getElementById('new-user-password').value = '';
+  document.getElementById('new-user-password').required = false;
+  document.getElementById('password-field-label').innerHTML = 'New Password <span style="color:var(--text-muted);font-size:.8em">(leave blank to keep)</span>';
+  document.getElementById('new-user-role').value = u.role;
+  document.getElementById('add-user-dialog').classList.remove('hidden');
+}
+
+function closeAddUserDialog() {
+  document.getElementById('add-user-dialog').classList.add('hidden');
+  document.getElementById('add-user-form').reset();
+  editingUserId = null;
+}
+
+async function saveUser(e) {
+  e.preventDefault();
+  const token = localStorage.getItem('token');
+  const username = document.getElementById('new-user-username').value.trim();
+  const email = document.getElementById('new-user-email').value.trim();
+  const password = document.getElementById('new-user-password').value;
+  const role = document.getElementById('new-user-role').value;
+
+  try {
+    if (editingUserId) {
+      const body = { role, email };
+      if (password) body.password = password;
+      const res = await fetch(`${API_URL}/admin/users/${editingUserId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast('User updated.');
+    } else {
+      if (password.length < 6) { showToast('Password must be at least 6 characters.'); return; }
+      const res = await fetch(`${API_URL}/admin/users`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password, role })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast(`User "${username}" created.`);
+    }
+    closeAddUserDialog();
+    await loadAdminUsers();
+  } catch (e) {
+    showToast(e.message);
+  }
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+  const token = localStorage.getItem('token');
+  try {
+    const res = await fetch(`${API_URL}/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showToast(`"${username}" deleted.`);
+    await loadAdminUsers();
+  } catch (e) {
+    showToast(e.message);
+  }
+}
 
 const state = {
   models: [],
@@ -13,12 +215,12 @@ let removedSort = "desc";
 let devicesRemovedDestFilter = "";
 let removedTextFilter = "";
 let removedDeptFilter = "";
-let viewModeIn = "all"; // 'all' | 'individual' | 'grouped'
+let viewModeIn = "all";
 let viewModeOut = "all";
 let devicesCategoryFilter = "";
 let historyCategoryFilter = "";
 let removedCategoryFilter = "";
-// Show More pagination: 10 for individual/all, 5 for grouped
+
 const DEFAULT_LIMIT_INDIVIDUAL = 10;
 const DEFAULT_LIMIT_GROUPED = 5;
 const INCREMENT_INDIVIDUAL = 10;
@@ -33,85 +235,106 @@ let visibleHistory = DEFAULT_LIMIT_HISTORY;
 let previousVisibleHistory = 0;
 
 function uid() {
-  return (
-    Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8)
-  );
+  return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
 }
 
-async function loadFromFirestore() {
+// Get auth token
+function getToken() {
+  return localStorage.getItem('token');
+}
+
+// API helper
+async function apiCall(method, endpoint, body = null) {
+  const token = getToken();
+  const options = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  };
+  if (body) options.body = JSON.stringify(body);
+  
+  const response = await fetch(`${API_URL}${endpoint}`, options);
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || `API error: ${response.status}`);
+  }
+  return response.json();
+}
+
+// Load data from backend
+async function loadFromBackend() {
   try {
-    const storage = window.__inventoryStorage;
-    if (!storage) {
-      console.warn("Firebase not ready, using empty state");
-      return;
-    }
-    let parsed = await storage.load();
-    // One-time migration from localStorage if Firestore is empty
-    if (!parsed && typeof localStorage !== "undefined") {
-      const raw = localStorage.getItem("rackInventoryData_v1");
-      if (raw) {
-        try {
-          parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object") {
-            await storage.save({
-              models: parsed.models || [],
-              devices: parsed.devices || [],
-              history: parsed.history || [],
-            });
-          }
-        } catch (_) { }
+    const [models, devices, technicians] = await Promise.all([
+      apiCall('GET', '/models'),
+      apiCall('GET', '/devices'),
+      apiCall('GET', '/technicians')
+    ]);
+    
+    state.models = Array.isArray(models) ? models : [];
+    state.devices = Array.isArray(devices) ? devices : [];
+    state.technicians = Array.isArray(technicians) ? technicians.map(t => t.name) : [];
+
+    // Rebuild history from devices
+    const history = [];
+    state.devices.forEach(d => {
+      // "Added to stock" entry
+      history.push({
+        id: d.id + '-in',
+        type: 'in',
+        at: d.createdAt,
+        modelId: d.modelId,
+        serial: d.serial,
+        prNumber: d.prNumber,
+        department: d.department,
+        addedBy: d.addedBy,
+      });
+      // "Removed from stock" entry
+      if (d.status === 'out' && d.removedAt) {
+        history.push({
+          id: d.id + '-out',
+          type: 'out',
+          at: d.removedAt,
+          modelId: d.modelId,
+          serial: d.serial,
+          prNumber: d.prNumber,
+          department: d.department,
+          addedBy: d.addedBy,
+          reason: d.reason,
+          deliveredBy: d.deliveredBy,
+          destination: d.destination,
+        });
       }
-    }
-    if (parsed && typeof parsed === "object") {
-      state.models = Array.isArray(parsed.models) ? parsed.models : [];
-      state.devices = Array.isArray(parsed.devices) ? parsed.devices : [];
-      state.history = Array.isArray(parsed.history) ? parsed.history : [];
-      state.technicians = Array.isArray(parsed.technicians) ? parsed.technicians : [];
-    }
+    });
+    // Sort newest first
+    history.sort((a, b) => new Date(b.at) - new Date(a.at));
+    state.history = history;
+
   } catch (e) {
-    console.error("Error loading inventory from Firestore", e);
+    console.error("Error loading from backend:", e);
+    showToast("Could not load data from server");
   }
 }
 
-function subscribeToRealtimeChanges() {
-  const storage = window.__inventoryStorage;
-  if (!storage || !storage.subscribe) return;
-  storage.subscribe((data) => {
-    if (data && typeof data === "object") {
-      state.models = Array.isArray(data.models) ? data.models : [];
-      state.devices = Array.isArray(data.devices) ? data.devices : [];
-      state.history = Array.isArray(data.history) ? data.history : [];
-      state.technicians = Array.isArray(data.technicians) ? data.technicians : [];
-      renderAll();
-      populateTechnicianSelect();
-    }
-  });
+// Write to backend (replaces Firestore write)
+async function writeToBackend() {
+  // Data is saved via individual API calls in add/update/delete functions
+  // This function is kept for compatibility but doesn't do bulk writes
 }
 
-function writeToFirestore() {
-  const storage = window.__inventoryStorage;
-  if (!storage) return;
-  const payload = {
-    models: state.models,
-    devices: state.devices,
-    history: state.history,
-    technicians: state.technicians,
-  };
-  storage.save(payload).catch((e) => {
-    console.error("Error saving inventory to Firestore", e);
-    showToast("Could not sync to cloud. Check console.");
-  });
-}
-
-function clearAllData() {
+async function clearAllData() {
   if (!confirm("Delete all models, devices, and history? This cannot be undone.\nNote: the people list will NOT be cleared.")) return;
-  state.models = [];
-  state.devices = [];
-  state.history = [];
-  writeToFirestore();
-  if (typeof localStorage !== "undefined") localStorage.removeItem("rackInventoryData_v1");
-  renderAll();
-  showToast("All data cleared. Fresh start.");
+  try {
+    await apiCall('DELETE', '/admin/clear-all');
+    state.models = [];
+    state.devices = [];
+    state.history = [];
+    renderAll();
+    showToast("All data cleared. Fresh start.");
+  } catch (e) {
+    showToast("Error clearing data: " + e.message);
+  }
 }
 
 // ---- Technician helpers ----
@@ -119,6 +342,13 @@ function clearAllData() {
 function populateTechnicianSelect() {
   const sel = document.getElementById("serial-added-by-select");
   if (!sel) return;
+  if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'delivery') {
+    sel.innerHTML = `<option value="${currentUser.username}">${currentUser.username}</option>`;
+    sel.value = currentUser.username;
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
   const current = sel.value;
   sel.innerHTML = '<option value="">Select person…</option>';
   state.technicians
@@ -130,17 +360,25 @@ function populateTechnicianSelect() {
       opt.textContent = name;
       sel.appendChild(opt);
     });
-  // Always add the sentinel option at the bottom
-  const addOpt = document.createElement("option");
-  addOpt.value = "__add_new__";
-  addOpt.textContent = "+ Add new person…";
-  sel.appendChild(addOpt);
+  if (currentUser && currentUser.role === 'admin') {
+    const addOpt = document.createElement("option");
+    addOpt.value = "__add_new__";
+    addOpt.textContent = "+ Add new person…";
+    sel.appendChild(addOpt);
+  }
   if (current && state.technicians.includes(current)) sel.value = current;
 }
 
 function populateDeliveredBySelect() {
   const sel = document.getElementById("remove-delivered-by-select");
   if (!sel) return;
+  if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'delivery') {
+    sel.innerHTML = `<option value="${currentUser.username}">${currentUser.username}</option>`;
+    sel.value = currentUser.username;
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
   const current = sel.value;
   sel.innerHTML = '<option value="">Select person…</option>';
   state.technicians
@@ -152,28 +390,34 @@ function populateDeliveredBySelect() {
       opt.textContent = name;
       sel.appendChild(opt);
     });
-  const addOpt = document.createElement("option");
-  addOpt.value = "__add_new__";
-  addOpt.textContent = "+ Add new person…";
-  sel.appendChild(addOpt);
+  if (currentUser && currentUser.role === 'admin') {
+    const addOpt = document.createElement("option");
+    addOpt.value = "__add_new__";
+    addOpt.textContent = "+ Add new person…";
+    sel.appendChild(addOpt);
+  }
   if (current && state.technicians.includes(current)) sel.value = current;
 }
 
-function addTechnician(name) {
+async function addTechnician(name) {
   const trimmed = name.trim();
   if (!trimmed) return false;
   if (state.technicians.includes(trimmed)) {
     showToast("That person is already in the list.");
     return false;
   }
-  state.technicians.push(trimmed);
-  writeToFirestore();
-  populateTechnicianSelect();
-  // Auto-select the new person
-  const sel = document.getElementById("serial-added-by-select");
-  if (sel) sel.value = trimmed;
-  showToast(`"${trimmed}" added to the team list.`);
-  return true;
+  try {
+    await apiCall('POST', '/technicians', { name: trimmed });
+    state.technicians.push(trimmed);
+    populateTechnicianSelect();
+    const sel = document.getElementById("serial-added-by-select");
+    if (sel) sel.value = trimmed;
+    showToast(`"${trimmed}" added to the team list.`);
+    return true;
+  } catch (e) {
+    showToast(`Error adding technician: ${e.message}`);
+    return false;
+  }
 }
 
 function showToast(message) {
@@ -207,7 +451,12 @@ function formatDateTime(isoString) {
   );
 }
 
-// Returns stock age CSS class and badge label based on how long a device has been in stock
+function formatDate(isoString) {
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
+}
+
 function getStockAgeInfo(createdAtIso) {
   const now = Date.now();
   const added = new Date(createdAtIso).getTime();
@@ -228,10 +477,6 @@ function getStockAgeInfo(createdAtIso) {
   return { rowClass: "", badge: "" };
 }
 
-/**
- * Generic pill bar renderer for device-type filtering on Devices and History tabs.
- * Uses the same .pill / .pill-count classes as the Models tab.
- */
 function renderFilterPills(containerId, items, getModelId, activeCategory, onSelect) {
   const bar = document.getElementById(containerId);
   if (!bar) return;
@@ -263,14 +508,11 @@ function getCategoryBadge(category) {
   return `<span class="category-badge" title="${category}"><span class="cb-label">${category}</span></span>`;
 }
 
-// ---- Rendering helpers ----
-
 function setEmptyOrTable(container, htmlTable) {
   if (!container) return;
   if (!htmlTable) {
     container.classList.add("empty-state");
-    container.innerHTML =
-      '<p style="margin:0;font-size:0.8rem;color:#6c7a96;">No data.</p>';
+    container.innerHTML = '<p style="margin:0;font-size:0.8rem;color:#6c7a96;">No data.</p>';
   } else {
     container.classList.remove("empty-state");
     container.innerHTML = htmlTable;
@@ -345,11 +587,12 @@ function updateModelsHeader() {
     document.getElementById("btn-confirm-delete-models").addEventListener("click", deleteSelectedModels);
     document.getElementById("btn-cancel-delete-mode").addEventListener("click", exitDeleteMode);
   } else {
+    const isAdmin = currentUser && currentUser.role === 'admin';
     actions.innerHTML = `
       ${filterHtml}
       <button class="btn ghost" id="btn-prepare-kit">Prepare Kit</button>
       <button class="btn ghost" id="btn-open-deploy-kit">Remove a Kit</button>
-      <button class="btn ghost" id="btn-enter-delete-mode">Delete</button>
+      ${isAdmin ? '<button class="btn ghost" id="btn-enter-delete-mode">Delete</button>' : ''}
       <button class="btn primary" id="btn-open-add-model-dialog">+ New Model</button>
     `;
     document.getElementById("btn-prepare-kit").addEventListener("click", openNewHireKitDialog);
@@ -357,7 +600,7 @@ function updateModelsHeader() {
       const panel = document.getElementById("kit-deploy-panel");
       if (panel) panel.classList.toggle("hidden");
     });
-    document.getElementById("btn-enter-delete-mode").addEventListener("click", enterDeleteMode);
+    if (isAdmin) document.getElementById("btn-enter-delete-mode").addEventListener("click", enterDeleteMode);
     document.getElementById("btn-open-add-model-dialog").addEventListener("click", openAddModelDialog);
   }
   const newFilter = document.getElementById("filter-models-input");
@@ -380,7 +623,7 @@ function exitDeleteMode() {
   updateModelsHeader();
 }
 
-function deleteSelectedModels() {
+async function deleteSelectedModels() {
   if (selectedModelIds.size === 0) {
     showToast("Select at least one model to delete.");
     return;
@@ -390,25 +633,26 @@ function deleteSelectedModels() {
     .filter((m) => selectedModelIds.has(m.id))
     .map((m) => `• ${m.name}`)
     .join("\n");
-  if (!confirm(`Delete ${count} model${count > 1 ? "s" : ""}?\n${names}\n\nAll their devices and history will also be removed. This cannot be undone.`)) return;
+  if (!confirm(`Delete ${count} model${count > 1 ? "s" : ""}?\n${names}\n\nAll their devices will also be removed.`)) return;
 
-  selectedModelIds.forEach((id) => {
-    if (currentModelId === id) closeModelDetail();
-    state.models = state.models.filter((m) => m.id !== id);
-    state.devices = state.devices.filter((d) => d.modelId !== id);
-    state.history = state.history.filter((h) => h.modelId !== id);
-  });
-  writeToFirestore();
-  const deleted = count;
-  exitDeleteMode();
-  renderAll();
-  showToast(`${deleted} model${deleted > 1 ? "s" : ""} deleted.`);
+  try {
+    for (const id of selectedModelIds) {
+      await apiCall('DELETE', `/models/${id}`);
+      if (currentModelId === id) closeModelDetail();
+      state.models = state.models.filter((m) => m.id !== id);
+      state.devices = state.devices.filter((d) => d.modelId !== id);
+    }
+    exitDeleteMode();
+    renderAll();
+    showToast(`${count} model${count > 1 ? "s" : ""} deleted.`);
+  } catch (e) {
+    showToast(`Error deleting models: ${e.message}`);
+  }
 }
 
 let currentCategoryFilter = "All";
 let modelsVisible = 8;
 const CATEGORIES = ["Laptop", "Desktop PC", "Keyboard", "Cellphone", "Mouse", "Headset", "Dock", "Monitor", "Cable", "Camera", "Printer", "Tablet", "Scanner", "Other"];
-
 const KIT_ACCESSORIES = [
   "Dell 24-Inch Monitor",
   "Dell Optical Wired Mouse",
@@ -421,24 +665,22 @@ const KIT_ACCESSORIES = [
   "USB Headset",
   "Other",
 ];
-
 const NO_SERIAL_ITEMS = new Set([
   "DisplayPort to VGA Converter",
   "DVI-D to DisplayPort Converter",
   "HDMI to VGA Adapter",
 ]);
-
 const KIT_ACCESSORY_CATEGORIES = {
-  "Dell 24-Inch Monitor":          "Monitor",
-  "Dell Optical Wired Mouse":       "Mouse",
+  "Dell 24-Inch Monitor": "Monitor",
+  "Dell Optical Wired Mouse": "Mouse",
   "Dell Wired Multi-Media Keyboard": "Keyboard",
-  "DisplayPort to VGA Converter":   "Cable",
+  "DisplayPort to VGA Converter": "Cable",
   "DVI-D to DisplayPort Converter": "Cable",
-  "HDMI to VGA Adapter":            "Cable",
-  "Laptop Docking Station":         "Dock",
+  "HDMI to VGA Adapter": "Cable",
+  "Laptop Docking Station": "Dock",
   "Logitech C920 HD Pro Web Camera": "Camera",
-  "USB Headset":                    "Headset",
-  "Other":                          "Other",
+  "USB Headset": "Headset",
+  "Other": "Other",
 };
 
 function renderCategoryPills() {
@@ -448,7 +690,6 @@ function renderCategoryPills() {
     container.innerHTML = "";
     return;
   }
-
   const counts = { All: state.models.length };
   CATEGORIES.forEach(c => counts[c] = 0);
   state.models.forEach(m => {
@@ -456,7 +697,6 @@ function renderCategoryPills() {
       counts[m.category]++;
     }
   });
-
   const pills = ["All", ...CATEGORIES].map(cat => {
     const isActive = currentCategoryFilter === cat;
     const count = counts[cat] || 0;
@@ -466,15 +706,13 @@ function renderCategoryPills() {
       </button>
     `;
   }).join("");
-
   container.innerHTML = pills;
-
   container.querySelectorAll(".pill").forEach(btn => {
     btn.addEventListener("click", () => {
       currentCategoryFilter = btn.dataset.category;
       modelsVisible = 8;
       renderModelsTable();
-      renderCategoryPills(); // Update active state
+      renderCategoryPills();
     });
   });
 }
@@ -491,11 +729,9 @@ function renderModelsTable() {
   const filterEl = document.getElementById("filter-models-input");
   const filter = filterEl ? filterEl.value.trim().toLowerCase() : "";
   let modelsToShow = state.models.slice();
-
   if (currentCategoryFilter !== "All") {
     modelsToShow = modelsToShow.filter(m => m.category === currentCategoryFilter);
   }
-
   if (filter) {
     modelsToShow = modelsToShow.filter(
       (m) =>
@@ -551,7 +787,6 @@ function renderModelsTable() {
     </table>
     ${totalModels > visibleModels ? `<div style="text-align:center;margin-top:10px;"><button type="button" class="btn ghost" id="btn-models-show-more">Show More</button></div>` : ""}
   `;
-
   const showMoreBtn = container.querySelector("#btn-models-show-more");
   if (showMoreBtn) {
     showMoreBtn.addEventListener("click", () => {
@@ -559,14 +794,12 @@ function renderModelsTable() {
       renderModelsTable();
     });
   }
-
   container.querySelectorAll(".js-row-model").forEach((row) => {
     if (deleteMode) {
-      // Clicking the row toggles the checkbox
       row.addEventListener("click", (e) => {
         const cb = row.querySelector(".js-model-checkbox");
         if (!cb) return;
-        if (e.target === cb) return; // checkbox handles itself
+        if (e.target === cb) return;
         cb.checked = !cb.checked;
         const id = row.getAttribute("data-model-id");
         if (cb.checked) selectedModelIds.add(id);
@@ -594,29 +827,17 @@ let pendingRemoveDeviceId = null;
 let modelHistoryVisible = 10;
 
 function openModelDetail(modelId) {
-  // ensure Models view is visible when opening detail
   switchView("models");
   const model = state.models.find((m) => m.id === modelId);
   if (!model) return;
   currentModelId = modelId;
-
   const detailSection = document.getElementById("model-detail");
   detailSection.classList.remove("hidden");
-
   document.getElementById("model-detail-title").textContent = model.name;
-  document.getElementById("model-detail-subtitle").textContent =
-    model.notes || "Manage serial numbers and deliveries for this model.";
-
-  const inCount = state.devices.filter(
-    (d) => d.modelId === model.id && d.status === "in"
-  ).length;
-  const outCount = state.devices.filter(
-    (d) => d.modelId === model.id && d.status === "out"
-  ).length;
-  document.getElementById(
-    "model-detail-counts"
-  ).textContent = `${inCount} in stock - ${outCount} removed`;
-
+  document.getElementById("model-detail-subtitle").textContent = model.notes || "Manage serial numbers and deliveries for this model.";
+  const inCount = state.devices.filter((d) => d.modelId === model.id && d.status === "in").length;
+  const outCount = state.devices.filter((d) => d.modelId === model.id && d.status === "out").length;
+  document.getElementById("model-detail-counts").textContent = `${inCount} in stock - ${outCount} removed`;
   renderModelSerialsTable(model.id);
   modelHistoryVisible = 10;
   renderModelHistoryTable(model.id);
@@ -628,13 +849,9 @@ function closeModelDetail() {
 }
 
 function renderModelSerialsTable(modelId) {
-  const container = document.getElementById(
-    "model-serials-table-container"
-  );
+  const container = document.getElementById("model-serials-table-container");
   if (!container) return;
-  const serials = state.devices.filter(
-    (d) => d.modelId === modelId && d.status === "in"
-  );
+  const serials = state.devices.filter((d) => d.modelId === modelId && d.status === "in");
   if (!serials.length) {
     container.classList.add("empty-state");
     container.innerHTML = "<p>No serials yet for this model.</p>";
@@ -654,15 +871,12 @@ function renderModelSerialsTable(modelId) {
           <td>${d.addedBy || ""}</td>
           <td>${formatDateTime(d.createdAt)}${badge}</td>
           <td style="text-align:right;">
-            <button class="btn ghost js-remove-serial" type="button">
-              Remove from stock
-            </button>
+            <button class="btn ghost js-remove-serial" type="button">Remove from stock</button>
           </td>
         </tr>
       `;
     })
     .join("");
-
   container.innerHTML = `
     <table>
       <thead>
@@ -678,7 +892,6 @@ function renderModelSerialsTable(modelId) {
       <tbody>${rows}</tbody>
     </table>
   `;
-
   container.querySelectorAll(".js-remove-serial").forEach((btn) => {
     btn.addEventListener("click", () => {
       const row = btn.closest("tr");
@@ -697,8 +910,7 @@ function renderModelHistoryTable(modelId) {
     .sort((a, b) => new Date(b.at) - new Date(a.at));
   if (!entries.length) {
     container.classList.add("empty-state");
-    container.innerHTML =
-      "<p>No history yet. Add or remove serials to see activity.</p>";
+    container.innerHTML = "<p>No history yet. Add or remove serials to see activity.</p>";
     return;
   }
   container.classList.remove("empty-state");
@@ -751,7 +963,6 @@ function renderModelHistoryTable(modelId) {
     </table>
     ${total > visible ? `<div style="text-align:center;margin-top:10px;"><button type="button" class="btn ghost" id="btn-model-history-show-more">Show More</button></div>` : ""}
   `;
-
   const showMoreBtn = container.querySelector("#btn-model-history-show-more");
   if (showMoreBtn) {
     showMoreBtn.addEventListener("click", () => {
@@ -761,11 +972,10 @@ function renderModelHistoryTable(modelId) {
   }
 }
 
-/** Returns Set of prNumbers that appear ≥2 times in the device list. */
 function getKitIds(devices) {
-  const counts = {};
-  devices.forEach((d) => { if (d.prNumber) counts[d.prNumber] = (counts[d.prNumber] || 0) + 1; });
-  return new Set(Object.keys(counts).filter((k) => counts[k] > 1));
+  const ids = new Set();
+  devices.forEach((d) => { if (d.kit_id) ids.add(d.kit_id); });
+  return ids;
 }
 
 function resetDevicesPagination() {
@@ -777,20 +987,15 @@ function resetDevicesPagination() {
 
 function renderDevicesView() {
   const inContainer = document.getElementById("devices-table-container");
-  const outContainer = document.getElementById(
-    "devices-removed-table-container"
-  );
+  const outContainer = document.getElementById("devices-removed-table-container");
   const deptFilterEl = document.getElementById("filter-department");
   const textFilterEl = document.getElementById("filter-location-owner");
   const deptFilter = deptFilterEl ? deptFilterEl.value : "";
-  const textFilter = textFilterEl
-    ? textFilterEl.value.trim().toLowerCase()
-    : "";
+  const textFilter = textFilterEl ? textFilterEl.value.trim().toLowerCase() : "";
 
   let inDevices = state.devices.filter((d) => d.status === "in");
   let outDevices = state.devices.filter((d) => d.status === "out");
 
-  // In-stock filters only (main search bar is decoupled from removed table)
   if (deptFilter) {
     inDevices = inDevices.filter((d) => (d.department || "") === deptFilter);
   }
@@ -809,14 +1014,12 @@ function renderDevicesView() {
     });
   }
 
-  // Render type pills (counts reflect dept+text filters above)
   renderFilterPills("devices-cat-pills", inDevices, (d) => d.modelId, devicesCategoryFilter, (cat) => {
     devicesCategoryFilter = cat;
     resetDevicesPagination();
     renderDevicesView();
   });
 
-  // Apply category filter
   if (devicesCategoryFilter) {
     inDevices = inDevices.filter((d) => {
       const model = state.models.find((m) => m.id === d.modelId);
@@ -824,7 +1027,6 @@ function renderDevicesView() {
     });
   }
 
-  // Removed table — independent filters
   if (removedDeptFilter) {
     outDevices = outDevices.filter((d) => (d.department || "") === removedDeptFilter);
   }
@@ -844,20 +1046,16 @@ function renderDevicesView() {
     });
   }
 
-  // Apply destination filter to removed table
   if (devicesRemovedDestFilter) {
-    outDevices = outDevices.filter(
-      (d) => (d.destination || d.reason || "") === devicesRemovedDestFilter
-    );
+    outDevices = outDevices.filter((d) => (d.destination || d.reason || "") === devicesRemovedDestFilter);
   }
 
-  // Render type pills for removed section
   renderFilterPills("removed-cat-pills", outDevices, (d) => d.modelId, removedCategoryFilter, (cat) => {
     removedCategoryFilter = cat;
     resetDevicesPagination();
     renderDevicesView();
   });
-  // Apply category filter to removed
+
   if (removedCategoryFilter) {
     outDevices = outDevices.filter((d) => {
       const model = state.models.find((m) => m.id === d.modelId);
@@ -865,19 +1063,15 @@ function renderDevicesView() {
     });
   }
 
-  // Update toggle button count
   const totalRemoved = state.devices.filter((d) => d.status === "out").length;
   const toggleBtn = document.getElementById("btn-toggle-removed");
   if (toggleBtn) toggleBtn.textContent = `View Removed (${totalRemoved})`;
 
-  // Update archive record count
   const countLabel = document.getElementById("removed-count-label");
   if (countLabel) countLabel.textContent = `${outDevices.length} record${outDevices.length !== 1 ? "s" : ""}`;
 
-  // Refresh stat cards
   renderDashboard();
 
-  // ---- Unified render helper with Show More pagination ----
   const increment = (viewMode) => viewMode === "grouped" ? INCREMENT_GROUPED : INCREMENT_INDIVIDUAL;
 
   const renderList = (devices, container, isOut, viewMode, sortDir, visibleCount, previousVisibleCount, onShowMore) => {
@@ -892,13 +1086,10 @@ function renderDevicesView() {
     container.classList.remove("empty-state");
 
     if (viewMode === "all" || viewMode === "individual") {
-      // 'individual': only solo devices (not in a kit); 'all': everything
       let listDevices = devices;
       if (viewMode === "individual") {
-        const kitIds = getKitIds(devices);
-        listDevices = devices.filter(d => !d.prNumber || !kitIds.has(d.prNumber));
+        listDevices = devices.filter(d => !d.kit_id);
       }
-      // --- Flat sorted list ---
       const sorted = listDevices.slice().sort((a, b) =>
         sortDir === "desc"
           ? new Date(b[dateField]) - new Date(a[dateField])
@@ -949,23 +1140,20 @@ function renderDevicesView() {
       });
 
     } else {
-      // --- Grouped by Kit (structural cards) ---
-      const kitIds = getKitIds(devices);
-      const kitDevices = devices.filter(d => d.prNumber && kitIds.has(d.prNumber));
+      // Grouped by Kit
+      const kitDevices = devices.filter(d => d.kit_id);
 
       if (!kitDevices.length) {
-        container.innerHTML = `<div class="empty-state" style="padding:32px;"><p>No complete kits found in current filters.<br>Switch to <strong>Individual</strong> to see all devices.</p></div>`;
+        container.innerHTML = `<div class="empty-state" style="padding:32px;"><p>No kits found in current filters.<br>Switch to <strong>Individual</strong> to see all devices.</p></div>`;
         return;
       }
 
-      // Build group Map
       const groups = new Map();
       kitDevices.forEach(d => {
-        if (!groups.has(d.prNumber)) groups.set(d.prNumber, []);
-        groups.get(d.prNumber).push(d);
+        if (!groups.has(d.kit_id)) groups.set(d.kit_id, []);
+        groups.get(d.kit_id).push(d);
       });
 
-      // Sort groups by most-recent item in group
       const groupArr = [...groups.entries()].sort((a, b) => {
         const ta = Math.max(...a[1].map(d => +new Date(d[dateField]) || 0));
         const tb = Math.max(...b[1].map(d => +new Date(d[dateField]) || 0));
@@ -974,29 +1162,22 @@ function renderDevicesView() {
 
       const total = groupArr.length;
       const toShow = groupArr.slice(0, visibleCount);
-
-      // Number of columns in grouped mode
-      const colCount = isOut ? 6 : 5; // grouped removes PR/Ticket col; archive has 6 cols
+      const colCount = isOut ? 6 : 5;
       const headIn = `<th>Model</th><th>Department</th><th>Serial</th><th>Added by</th><th>Added</th>`;
       const headOut = `<th>Model</th><th>Department</th><th>Serial</th><th>Delivered by</th><th>Reason</th><th>Removed at</th>`;
 
-      const bodyRows = toShow.map(([prId, items], groupIdx) => {
-        // Sort items within group
+      const bodyRows = toShow.map(([kitId, items], groupIdx) => {
         items.sort((a, b) => sortDir === "desc"
           ? +new Date(b[dateField]) - +new Date(a[dateField])
           : +new Date(a[dateField]) - +new Date(b[dateField]));
 
-        const dest = isOut
-          ? (items[0].destination || items[0].reason || "")
-          : (items[0].kit_id || items[0].destination || "");
-
+        const prNums = [...new Set(items.map(d => d.prNumber).filter(Boolean))].join(", ");
         const itemCount = `${items.length} item${items.length !== 1 ? "s" : ""}`;
         const revealClass = groupIdx >= previousVisibleCount ? " row-reveal" : "";
 
-        // Sub-header: full-span cell, exact format: Ticket / PR: [ID] — Assigned to: [Name] [Count] items
-        const assignedTo = dest ? ` &mdash; Assigned to: <strong class="assigned-name">${dest}</strong>` : "";
+        const prLabel = prNums ? ` &mdash; PR / Ticket: <span style="opacity:.7">${prNums}</span>` : "";
         const subHeader = `<tr class="kit-sub-header${revealClass}">
-            <td colspan="${colCount}" class="kit-ticket-cell">Ticket / PR: <strong>${prId}</strong>${assignedTo} <span class="kit-count">${itemCount}</span></td>
+            <td colspan="${colCount}" class="kit-ticket-cell">Kit: <strong>${kitId}</strong>${prLabel} <span class="kit-count">${itemCount}</span></td>
           </tr>`;
 
         const deviceRows = items.map(d => {
@@ -1022,7 +1203,6 @@ function renderDevicesView() {
           }
         }).join("");
 
-        // Spacer row between groups (not after last)
         const spacer = groupIdx < toShow.length - 1
           ? `<tr class="kit-spacer"><td colspan="${colCount}"></td></tr>`
           : "";
@@ -1070,8 +1250,7 @@ function renderHistoryView() {
   if (!container) return;
   if (!state.history.length) {
     container.classList.add("empty-state");
-    container.innerHTML =
-      "<p>No activity yet. Add or remove devices to see history.</p>";
+    container.innerHTML = "<p>No activity yet. Add or remove devices to see history.</p>";
     return;
   }
   container.classList.remove("empty-state");
@@ -1151,7 +1330,6 @@ function renderHistoryView() {
     });
   }
 
-  // Render type pills (counts reflect all filters above)
   renderFilterPills("history-cat-pills", entries, (h) => h.modelId, historyCategoryFilter, (cat) => {
     historyCategoryFilter = cat;
     visibleHistory = DEFAULT_LIMIT_HISTORY;
@@ -1159,7 +1337,6 @@ function renderHistoryView() {
     renderHistoryView();
   });
 
-  // Apply category filter
   if (historyCategoryFilter) {
     entries = entries.filter((h) => {
       const model = state.models.find((m) => m.id === h.modelId);
@@ -1241,8 +1418,6 @@ function renderHistoryView() {
   });
 }
 
-// ---- Dialogs ----
-
 function openAddModelDialog() {
   document.getElementById("add-model-dialog").classList.remove("hidden");
   document.getElementById("model-name-input").focus();
@@ -1259,20 +1434,6 @@ function openRemoveSerialDialog(deviceId) {
   pendingRemoveDeviceId = deviceId;
   document.getElementById("remove-serial-dialog").classList.remove("hidden");
   populateDeliveredBySelect();
-  // Wire the add-new sentinel for the delivered-by select
-  const sel = document.getElementById("remove-delivered-by-select");
-  if (sel) {
-    sel.addEventListener("change", function handler() {
-      if (sel.value !== "__add_new__") return;
-      const name = prompt("Enter the new person's name:");
-      if (name && name.trim()) {
-        addTechnician(name.trim());
-        populateDeliveredBySelect();
-      } else {
-        sel.value = "";
-      }
-    });
-  }
   document.getElementById("remove-reason-input").focus();
 }
 
@@ -1282,9 +1443,7 @@ function closeRemoveSerialDialog() {
   document.getElementById("remove-serial-form").reset();
 }
 
-// ---- Data operations ----
-
-function addModel(name, notes, category) {
+async function addModel(name, notes, category) {
   const trimmed = name.trim();
   if (!trimmed) return;
   const cleanCategory = (category || "").trim();
@@ -1292,21 +1451,26 @@ function addModel(name, notes, category) {
     showToast("Please select a category.");
     return;
   }
-  const model = {
-    id: uid(),
-    name: trimmed,
-    notes: (notes || "").trim(),
-    category: cleanCategory,
-    createdAt: new Date().toISOString(),
-  };
-  state.models.push(model);
-  writeToFirestore();
-  renderAll();
-  showToast(`Model ${model.name} created.`);
-  return model;
+  try {
+    const newModelId = uid();
+    await apiCall('POST', '/models', {
+      id: newModelId,
+      name: trimmed,
+      notes: (notes || "").trim(),
+      category: cleanCategory,
+      createdAt: new Date().toISOString()
+    });
+    const model = { id: newModelId, name: trimmed, notes, category: cleanCategory, createdAt: new Date().toISOString() };
+    state.models.push(model);
+    renderAll();
+    showToast(`Model ${model.name} created.`);
+    return model;
+  } catch (e) {
+    showToast(`Error creating model: ${e.message}`);
+  }
 }
 
-function addDeviceSerial(modelId, serial, department, prNumber, addedBy) {
+async function addDeviceSerial(modelId, serial, department, prNumber, addedBy) {
   const model = state.models.find((m) => m.id === modelId);
   if (!model) return;
   const cleanSerial = serial.trim();
@@ -1328,87 +1492,79 @@ function addDeviceSerial(modelId, serial, department, prNumber, addedBy) {
   }
 
   const existing = state.devices.find(
-    (d) =>
-      d.modelId === modelId &&
-      d.serial.toLowerCase() === cleanSerial.toLowerCase() &&
-      d.status === "in"
+    (d) => d.modelId === modelId && d.serial.toLowerCase() === cleanSerial.toLowerCase() && d.status === "in"
   );
   if (existing) {
     showToast("This serial is already in stock for this model.");
     return;
   }
 
-  const now = new Date().toISOString();
-  const device = {
-    id: uid(),
-    modelId,
-    serial: cleanSerial,
-    prNumber: cleanPr,
-    status: "in",
-    department: cleanDepartment,
-    addedBy: cleanAddedBy,
-    createdAt: now,
-    removedAt: null,
-    reason: "",
-    destination: "",
-  };
-  state.devices.push(device);
-  state.history.push({
-    id: uid(),
-    type: "in",
-    modelId,
-    serial: cleanSerial,
-    prNumber: cleanPr,
-    addedBy: cleanAddedBy,
-    at: now,
-    reason: "Added to stock",
-    destination: "",
-  });
-  writeToFirestore();
-  renderAll();
-  showToast(`Serial added to ${model.name}.`);
+  try {
+    await apiCall('POST', '/devices', {
+      id: uid(),
+      modelId,
+      serial: cleanSerial,
+      prNumber: cleanPr,
+      status: "in",
+      department: cleanDepartment,
+      addedBy: cleanAddedBy,
+      createdAt: new Date().toISOString()
+    });
+
+    const device = {
+      id: uid(),
+      modelId,
+      serial: cleanSerial,
+      prNumber: cleanPr,
+      status: "in",
+      department: cleanDepartment,
+      addedBy: cleanAddedBy,
+      createdAt: new Date().toISOString(),
+      removedAt: null,
+      reason: "",
+      destination: ""
+    };
+    state.devices.push(device);
+    renderAll();
+    showToast(`Serial added to ${model.name}.`);
+  } catch (e) {
+    showToast(`Error adding serial: ${e.message}`);
+  }
 }
 
-function removeDeviceFromStock(deviceId, reason, deliveredBy, destination) {
+async function removeDeviceFromStock(deviceId, reason, deliveredBy, destination) {
   const device = state.devices.find((d) => d.id === deviceId);
   if (!device || device.status !== "in") return;
   const model = state.models.find((m) => m.id === device.modelId);
-  const now = new Date().toISOString();
 
-  device.status = "out";
-  device.removedAt = now;
-  device.reason = (reason || "").trim();
-  device.deliveredBy = (deliveredBy || "").trim();
-  device.destination = (destination || "").trim();
+  try {
+    await apiCall('PUT', `/devices/${deviceId}`, {
+      status: "out",
+      reason: (reason || "").trim(),
+      deliveredBy: (deliveredBy || "").trim(),
+      destination: (destination || "").trim()
+    });
 
-  state.history.push({
-    id: uid(),
-    type: "out",
-    modelId: device.modelId,
-    serial: device.serial,
-    prNumber: device.prNumber || "",
-    at: now,
-    reason: device.reason,
-    deliveredBy: device.deliveredBy,
-    destination: device.destination,
-  });
+    device.status = "out";
+    device.removedAt = new Date().toISOString();
+    device.reason = (reason || "").trim();
+    device.deliveredBy = (deliveredBy || "").trim();
+    device.destination = (destination || "").trim();
 
-  writeToFirestore();
-  renderAll();
-  showToast(
-    `Serial removed from stock${model ? " for " + model.name + "" : ""}.`
-  );
+    renderAll();
+    showToast(`Serial removed from stock${model ? " for " + model.name : ""}.`);
+  } catch (e) {
+    showToast(`Error removing device: ${e.message}`);
+  }
 }
-
-// ---- New Hire Kit — Models-First (Phase 1: Add to Stock | Phase 2: Deploy) ----
 
 const nhkState = {
   step: 1,
-  kitId: "",            // Ticket # or New Hire Name — used as kit_id tag
-  selectedItems: [],    // Array of selected accessory names from KIT_ACCESSORIES
-  otherItemText: "",    // Text entered when "Other" is selected
-  otherNoSerial: false, // true = user chose N/A for "Other"
-  serialInputs: {},     // item name -> new serial string entered by user
+  kitId: "",
+  selectedItems: [],
+  otherItemText: "",
+  otherNoSerial: false,
+  serialInputs: {},
   prNumber: "",
   department: "",
   addedBy: "",
@@ -1423,7 +1579,7 @@ function openNewHireKitDialog() {
   nhkState.serialInputs = {};
   nhkState.prNumber = "";
   nhkState.department = "";
-  nhkState.addedBy = "";
+  nhkState.addedBy = (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'delivery') ? currentUser.username : "";
   document.getElementById("new-hire-kit-dialog").classList.remove("hidden");
   nhkRenderStep();
 }
@@ -1455,7 +1611,6 @@ function nhkRenderStep() {
   else if (nhkState.step === 3) nhkRenderStep3(content);
 }
 
-// Step 1: Kit ID + fixed accessory checklist
 function nhkRenderStep1(container) {
   const otherModelOptions = state.models
     .filter((m) => m.category === "Other")
@@ -1481,13 +1636,7 @@ function nhkRenderStep1(container) {
   container.innerHTML = `
     <div class="nhk-hire-name-row">
       <label for="nhk-kit-id-input">Kit ID — Ticket # or New Hire Name <span style="color:var(--danger)">*</span></label>
-      <input
-        id="nhk-kit-id-input"
-        type="text"
-        placeholder="e.g. Jane-Smith-2026 or PR-20345"
-        value="${nhkState.kitId.replace(/"/g, "&quot;")}"
-        autocomplete="off"
-      />
+      <input id="nhk-kit-id-input" type="text" placeholder="e.g. Jane-Smith-2026 or PR-20345" value="${nhkState.kitId.replace(/"/g, "&quot;")}" autocomplete="off" />
       <p style="font-size:0.7rem;color:var(--text-muted);margin:3px 0 0;">This ID links all kit devices so you can deploy them all later with one click.</p>
     </div>
     <p style="font-size:0.78rem;color:var(--text-muted);margin:10px 0 6px;">Select the accessories to include in this kit:</p>
@@ -1555,13 +1704,15 @@ function nhkRenderStep1(container) {
   });
 }
 
-// Step 2: Enter new serial numbers + shared PR/Dept/AddedBy fields
 function nhkRenderStep2(container) {
-  const techOptions = state.technicians
-    .slice()
-    .sort((a, b) => a.localeCompare(b))
-    .map((t) => `<option value="${t}" ${t === nhkState.addedBy ? "selected" : ""}>${t}</option>`)
-    .join("");
+  const isNhkAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'delivery');
+  const techOptions = isNhkAdmin
+    ? state.technicians
+        .slice()
+        .sort((a, b) => a.localeCompare(b))
+        .map((t) => `<option value="${t}" ${t === nhkState.addedBy ? "selected" : ""}>${t}</option>`)
+        .join("")
+    : `<option value="${currentUser.username}" selected>${currentUser.username}</option>`;
 
   const serialCards = nhkState.selectedItems.map((item) => {
     const displayName = item === "Other" ? (nhkState.otherItemText || "Other") : item;
@@ -1639,8 +1790,8 @@ function nhkRenderStep2(container) {
       </div>
       <div class="form-field">
         <label>Added by <span style="color:var(--danger)">*</span></label>
-        <select id="nhk-addedby-select">
-          <option value="">Select person…</option>
+        <select id="nhk-addedby-select" ${isNhkAdmin ? '' : 'disabled'}>
+          ${isNhkAdmin ? '<option value="">Select person…</option>' : ''}
           ${techOptions}
         </select>
       </div>
@@ -1657,7 +1808,6 @@ function nhkRenderStep2(container) {
     });
   });
 
-  // Other item toggle buttons
   const toggleSerial = container.querySelector(".nhk-other-toggle-serial");
   const toggleNa = container.querySelector(".nhk-other-toggle-na");
   if (toggleSerial && toggleNa) {
@@ -1694,7 +1844,6 @@ function nhkRenderStep2(container) {
     if (!nhkState.prNumber.trim()) { showToast("Please enter a PR Number / Ticket."); return; }
     if (!nhkState.department) { showToast("Please select a department."); return; }
     if (!nhkState.addedBy) { showToast("Please select who is adding these devices."); return; }
-    // Duplicate serial check within the kit (only items that need serials)
     const serialItems = nhkState.selectedItems.filter(
       (item) => !NO_SERIAL_ITEMS.has(item) && !(item === "Other" && nhkState.otherNoSerial)
     );
@@ -1720,7 +1869,6 @@ function _nhkCollectStep2Fields(container) {
   if (by) nhkState.addedBy = by.value;
 }
 
-// Step 3: Confirm and add to stock
 function nhkRenderStep3(container) {
   const items = nhkState.selectedItems.map((item) => {
     const displayName = item === "Other" ? (nhkState.otherItemText || "Other") : item;
@@ -1760,92 +1908,97 @@ function nhkRenderStep3(container) {
   document.getElementById("nhk-btn-submit").addEventListener("click", submitNewHireKit);
 }
 
-// Submit: bulk add to stock with kit_id tag
-function submitNewHireKit() {
+async function submitNewHireKit() {
   const kitId = nhkState.kitId.trim();
   if (!kitId) { showToast("Kit ID is missing."); return; }
 
   const now = new Date().toISOString();
   let addedCount = 0;
 
-  nhkState.selectedItems.forEach((item) => {
+  for (const item of nhkState.selectedItems) {
     const itemName = item === "Other" ? (nhkState.otherItemText.trim() || "Other") : item;
     const noSerial = NO_SERIAL_ITEMS.has(item) || (item === "Other" && nhkState.otherNoSerial);
     const cleanSerial = noSerial ? "N/A" : (nhkState.serialInputs[item] || "").trim();
-    if (!noSerial && !cleanSerial) return;
+    if (!noSerial && !cleanSerial) continue;
 
-    // Find existing model by name or create one
     let model = state.models.find((m) => m.name.toLowerCase() === itemName.toLowerCase());
     if (!model) {
       const category = KIT_ACCESSORY_CATEGORIES[item] || "Other";
-      model = { id: uid(), name: itemName, category, description: "", createdAt: now };
-      state.models.push(model);
+      try {
+        const newModelId = uid();
+        await apiCall('POST', '/models', {
+          id: newModelId,
+          name: itemName,
+          category,
+          notes: "",
+          createdAt: now
+        });
+        model = { id: newModelId, name: itemName, category, createdAt: now };
+        state.models.push(model);
+      } catch (e) {
+        console.error("Error creating model:", e);
+        continue;
+      }
     }
     const modelId = model.id;
 
-    // Skip duplicate check for no-serial items
     if (!noSerial) {
       const duplicate = state.devices.find(
         (d) => d.modelId === modelId && d.serial.toLowerCase() === cleanSerial.toLowerCase() && d.status === "in"
       );
       if (duplicate) {
         showToast(`"${cleanSerial}" already in stock for ${itemName}. Skipped.`);
-        return;
+        continue;
       }
     }
 
-    state.devices.push({
-      id: uid(),
-      modelId,
-      serial: cleanSerial,
-      prNumber: nhkState.prNumber.trim(),
-      status: "in",
-      department: nhkState.department,
-      addedBy: nhkState.addedBy,
-      kit_id: kitId,
-      createdAt: now,
-      removedAt: null,
-      reason: "",
-      destination: "",
-    });
+    try {
+      const newDeviceId = uid();
+      await apiCall('POST', '/devices', {
+        id: newDeviceId,
+        modelId,
+        serial: cleanSerial,
+        prNumber: nhkState.prNumber.trim(),
+        status: "in",
+        department: nhkState.department,
+        addedBy: nhkState.addedBy,
+        kit_id: kitId,
+        createdAt: now
+      });
 
-    state.history.push({
-      id: uid(),
-      type: "in",
-      modelId,
-      serial: cleanSerial,
-      prNumber: nhkState.prNumber.trim(),
-      addedBy: nhkState.addedBy,
-      kit_id: kitId,
-      at: now,
-      reason: `Kit: ${kitId}`,
-      destination: "",
-    });
+      state.devices.push({
+        id: newDeviceId,
+        modelId,
+        serial: cleanSerial,
+        prNumber: nhkState.prNumber.trim(),
+        status: "in",
+        department: nhkState.department,
+        addedBy: nhkState.addedBy,
+        kit_id: kitId,
+        createdAt: now,
+        removedAt: null,
+        reason: "",
+        destination: "",
+      });
 
-    addedCount++;
-  });
+      addedCount++;
+    } catch (e) {
+      console.error("Error adding device:", e);
+    }
+  }
 
   if (addedCount === 0) {
     showToast("No devices were added. Check for duplicate serials.");
     return;
   }
 
-  writeToFirestore();
   renderAll();
   closeNewHireKitDialog();
   showToast(`${addedCount} device${addedCount > 1 ? "s" : ""} added to stock under Kit "${kitId}".`);
 }
 
-// ---- Kit Deploy — Phase 2: Search & Bulk Remove ----
-
-/**
- * Returns all in-stock devices tagged with a given kit_id.
- * @param {string} kitId
- */
 function getKitItems(kitId) {
-  return state.devices.filter(
-    (d) => d.kit_id === kitId && d.status === "in"
-  );
+  return state.devices.filter((d) => d.kit_id === kitId && d.status === "in");
 }
 
 function renderKitDeployResults(kitId) {
@@ -1902,7 +2055,7 @@ function renderKitDeployResults(kitId) {
   }
 }
 
-function deployKit(kitId) {
+async function deployKit(kitId) {
   const deliveredBy = (document.getElementById("kit-deploy-delivered-by")?.value || "").trim();
   if (!deliveredBy) {
     showToast("Please select who is removing this kit.");
@@ -1917,31 +2070,28 @@ function deployKit(kitId) {
   if (!confirm(`Remove all ${items.length} device${items.length > 1 ? "s" : ""} in kit "${kitId}"?\n\nThey will be marked as Removed from stock.`)) return;
 
   const now = new Date().toISOString();
-  items.forEach((device) => {
-    device.status = "out";
-    device.removedAt = now;
-    device.reason = "New Hire Kit Deployment";
-    device.deliveredBy = deliveredBy;
-    device.destination = kitId;
+  
+  for (const device of items) {
+    try {
+      await apiCall('PUT', `/devices/${device.id}`, {
+        status: "out",
+        reason: "New Hire Kit Deployment",
+        deliveredBy: deliveredBy,
+        destination: kitId
+      });
 
-    state.history.push({
-      id: uid(),
-      type: "out",
-      modelId: device.modelId,
-      serial: device.serial,
-      prNumber: device.prNumber || "",
-      at: now,
-      reason: "New Hire Kit Deployment",
-      deliveredBy: deliveredBy,
-      destination: kitId,
-      kit_id: kitId,
-    });
-  });
+      device.status = "out";
+      device.removedAt = now;
+      device.reason = "New Hire Kit Deployment";
+      device.deliveredBy = deliveredBy;
+      device.destination = kitId;
+    } catch (e) {
+      console.error("Error removing device:", e);
+    }
+  }
 
-  writeToFirestore();
   renderAll();
 
-  // Clear the results panel
   const resultsEl = document.getElementById("kit-deploy-results");
   const deployBtn = document.getElementById("btn-deploy-kit");
   if (resultsEl) {
@@ -1952,26 +2102,8 @@ function deployKit(kitId) {
   showToast(`Kit "${kitId}" deployed by ${deliveredBy} — ${items.length} device${items.length > 1 ? "s" : ""} removed.`);
 }
 
-// ---- Import / Export ----
-
 function exportData() {
-  const blob = new Blob(
-    [
-      JSON.stringify(
-        {
-          exportedAt: new Date().toISOString(),
-          data: {
-            models: state.models,
-            devices: state.devices,
-            history: state.history,
-          },
-        },
-        null,
-        2
-      ),
-    ],
-    { type: "application/json" }
-  );
+  const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), data: { models: state.models, devices: state.devices, history: state.history } }, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -1990,19 +2122,13 @@ function importDataFromFile(file) {
       const text = event.target.result;
       const parsed = JSON.parse(text);
       const payload = parsed.data || parsed;
-      if (
-        !payload ||
-        !Array.isArray(payload.models) ||
-        !Array.isArray(payload.devices) ||
-        !Array.isArray(payload.history)
-      ) {
+      if (!payload || !Array.isArray(payload.models) || !Array.isArray(payload.devices) || !Array.isArray(payload.history)) {
         showToast("Invalid backup file.");
         return;
       }
       state.models = payload.models;
       state.devices = payload.devices;
       state.history = payload.history;
-      writeToFirestore();
       renderAll();
       showToast("Inventory imported.");
     } catch (e) {
@@ -2013,17 +2139,12 @@ function importDataFromFile(file) {
   reader.readAsText(file);
 }
 
-// ---- Navigation ----
-
 function switchView(viewId) {
-  document
-    .querySelectorAll(".view")
-    .forEach((el) => el.classList.remove("active"));
+  document.querySelectorAll(".view").forEach((el) => el.classList.remove("active"));
   const selected = document.getElementById("view-" + viewId);
   if (selected) {
     selected.classList.add("active");
   }
-
   document.querySelectorAll(".nav-tab").forEach((btn) => {
     if (btn.dataset.view === viewId) {
       btn.classList.add("active");
@@ -2031,15 +2152,14 @@ function switchView(viewId) {
       btn.classList.remove("active");
     }
   });
+  if (viewId === 'admin') loadAdminUsers();
 }
 
-/** Populates the kit-deploy select with all kit_ids that have at least one device in stock. */
 function renderKitDeployDropdown() {
   const sel = document.getElementById("kit-deploy-select");
   if (!sel) return;
   const prevVal = sel.value;
 
-  // All unique kit_ids with at least one in-stock device
   const kitIds = [...new Set(
     state.devices
       .filter((d) => d.kit_id && d.status === "in")
@@ -2058,11 +2178,9 @@ function renderKitDeployDropdown() {
     sel.appendChild(opt);
   });
 
-  // Restore previous selection if still valid
   if (prevVal && kitIds.includes(prevVal)) {
     sel.value = prevVal;
   } else if (prevVal) {
-    // Kit was deployed — clear results
     const resultsEl = document.getElementById("kit-deploy-results");
     const deployBtn = document.getElementById("btn-deploy-kit");
     if (resultsEl) {
@@ -2072,25 +2190,53 @@ function renderKitDeployDropdown() {
     if (deployBtn) deployBtn.classList.add("hidden");
   }
 
-  // Also populate the Deployed-by technician select
   const bySelect = document.getElementById("kit-deploy-delivered-by");
   if (bySelect) {
-    const prevBy = bySelect.value;
-    bySelect.innerHTML = '<option value="">Select person\u2026</option>';
-    state.technicians
-      .slice()
-      .sort((a, b) => a.localeCompare(b))
-      .forEach((name) => {
-        const opt = document.createElement("option");
-        opt.value = name;
-        opt.textContent = name;
-        bySelect.appendChild(opt);
-      });
-    if (prevBy && state.technicians.includes(prevBy)) bySelect.value = prevBy;
+    if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'delivery') {
+      bySelect.innerHTML = `<option value="${currentUser.username}">${currentUser.username}</option>`;
+      bySelect.value = currentUser.username;
+      bySelect.disabled = true;
+    } else {
+      bySelect.disabled = false;
+      const prevBy = bySelect.value;
+      bySelect.innerHTML = '<option value="">Select person…</option>';
+      state.technicians
+        .slice()
+        .sort((a, b) => a.localeCompare(b))
+        .forEach((name) => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          bySelect.appendChild(opt);
+        });
+      if (prevBy && state.technicians.includes(prevBy)) bySelect.value = prevBy;
+    }
   }
 }
 
+function rebuildHistory() {
+  const history = [];
+  state.devices.forEach(d => {
+    history.push({
+      id: d.id + '-in', type: 'in', at: d.createdAt,
+      modelId: d.modelId, serial: d.serial, prNumber: d.prNumber,
+      department: d.department, addedBy: d.addedBy,
+    });
+    if (d.status === 'out' && d.removedAt) {
+      history.push({
+        id: d.id + '-out', type: 'out', at: d.removedAt,
+        modelId: d.modelId, serial: d.serial, prNumber: d.prNumber,
+        department: d.department, addedBy: d.addedBy,
+        reason: d.reason, deliveredBy: d.deliveredBy, destination: d.destination,
+      });
+    }
+  });
+  history.sort((a, b) => new Date(b.at) - new Date(a.at));
+  state.history = history;
+}
+
 function renderAll() {
+  rebuildHistory();
   renderDashboard();
   renderModelsTable();
   renderDevicesView();
@@ -2102,44 +2248,10 @@ function renderAll() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // Wait for Firebase to be ready
-  while (!window.__inventoryStorage) {
-    await new Promise((r) => setTimeout(r, 50));
-  }
-  await loadFromFirestore();
-  subscribeToRealtimeChanges();
+  await loadFromBackend();
 
-  // One-time migration: reset technicians list to canonical names
-  const CANONICAL_TECHNICIANS = [
-    "Hector Morales",
-    "Rodolfo Magaña",
-    "Ian Valenzuela",
-    "Jahaziel Gerardo",
-    "Alejandro Villa",
-  ];
-  if (!localStorage.getItem("tech_migration_v1")) {
-    state.technicians = [...CANONICAL_TECHNICIANS];
-    writeToFirestore();
-    populateTechnicianSelect();
-    localStorage.setItem("tech_migration_v1", "done");
-  }
-
-  // Hidden testing feature: click "All Devices" text specifically 5 times to inject old test stock
-  let testClickCount = 0;
-  let testClickTimeout;
-  document.querySelectorAll(".nav-tab").forEach((btn) => {
-    if (btn.dataset.view === "devices") {
-      btn.addEventListener("click", () => {
-        testClickCount++;
-        clearTimeout(testClickTimeout);
-        testClickTimeout = setTimeout(() => { testClickCount = 0; }, 2000);
-        if (testClickCount >= 5) {
-          testClickCount = 0;
-          injectTestStock();
-        }
-      });
-    }
-  });
+  // Populate initial selects
+  populateTechnicianSelect();
 
   // Nav
   document.querySelectorAll(".nav-tab").forEach((btn) => {
@@ -2156,31 +2268,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Quick-add form removed from dashboard — Models tab is now the sole write point.
-
-  // Models header (Delete / New Model buttons — managed dynamically)
+  // Models
   updateModelsHeader();
-  document
-    .getElementById("btn-cancel-add-model")
-    .addEventListener("click", closeAddModelDialog);
-  document
-    .getElementById("add-model-form")
-    .addEventListener("submit", (e) => {
-      e.preventDefault();
-      const name = document.getElementById("model-name-input").value;
-      const category = document.getElementById("model-category-input").value;
-      const model = addModel(name, "", category);
-      if (model) {
-        closeAddModelDialog();
-      }
-    });
+  document.getElementById("btn-cancel-add-model").addEventListener("click", closeAddModelDialog);
+
+  // Admin panel
+  const btnOpenAddUser = document.getElementById('btn-open-add-user-dialog');
+  if (btnOpenAddUser) btnOpenAddUser.addEventListener('click', openAddUserDialog);
+  const btnCloseAddUser = document.getElementById('btn-close-add-user-dialog');
+  if (btnCloseAddUser) btnCloseAddUser.addEventListener('click', closeAddUserDialog);
+  const btnCancelAddUser = document.getElementById('btn-cancel-add-user');
+  if (btnCancelAddUser) btnCancelAddUser.addEventListener('click', closeAddUserDialog);
+  const addUserForm = document.getElementById('add-user-form');
+  if (addUserForm) addUserForm.addEventListener('submit', saveUser);
+  document.getElementById("add-model-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = document.getElementById("model-name-input").value;
+    const category = document.getElementById("model-category-input").value;
+    const model = addModel(name, "", category);
+    if (model) {
+      closeAddModelDialog();
+    }
+  });
 
   // Close model detail
-  document
-    .getElementById("btn-close-model-detail")
-    .addEventListener("click", closeModelDetail);
+  document.getElementById("btn-close-model-detail").addEventListener("click", closeModelDetail);
 
-  // Add serial to current model
+  // Add serial form
   const addSerialForm = document.getElementById("add-serial-form");
   addSerialForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -2194,12 +2308,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const addedBy = document.getElementById("serial-added-by-select").value;
     addDeviceSerial(currentModelId, serial, department, prNumber, addedBy);
     addSerialForm.reset();
-    // Re-select the person after form reset so they don't have to pick again
     const sel = document.getElementById("serial-added-by-select");
     if (sel && addedBy) sel.value = addedBy;
   });
 
-  // Add person to team list
+  // Add technician
   const addedBySelect = document.getElementById("serial-added-by-select");
   if (addedBySelect) {
     addedBySelect.addEventListener("change", () => {
@@ -2208,46 +2321,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (name && name.trim()) {
         addTechnician(name.trim());
       } else {
-        // Revert to empty if cancelled
         addedBySelect.value = "";
       }
     });
   }
 
   // Remove serial dialog
-  document
-    .getElementById("btn-cancel-remove-serial")
-    .addEventListener("click", closeRemoveSerialDialog);
-
-  document
-    .getElementById("remove-serial-form")
-    .addEventListener("submit", (e) => {
-      e.preventDefault();
-      if (!pendingRemoveDeviceId) {
-        closeRemoveSerialDialog();
-        return;
-      }
-      const reason = document.getElementById("remove-reason-input").value;
-      const deliveredBy = document.getElementById("remove-delivered-by-select").value;
-      const destination = document.getElementById("remove-destination-input").value;
-      removeDeviceFromStock(pendingRemoveDeviceId, reason, deliveredBy, destination);
+  document.getElementById("btn-cancel-remove-serial").addEventListener("click", closeRemoveSerialDialog);
+  document.getElementById("remove-serial-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!pendingRemoveDeviceId) {
       closeRemoveSerialDialog();
-    });
+      return;
+    }
+    const reason = document.getElementById("remove-reason-input").value;
+    const deliveredBy = document.getElementById("remove-delivered-by-select").value;
+    const destination = document.getElementById("remove-destination-input").value;
+    removeDeviceFromStock(pendingRemoveDeviceId, reason, deliveredBy, destination);
+    closeRemoveSerialDialog();
+  });
 
   // Export / Import
-  document
-    .getElementById("btn-export-data")
-    .addEventListener("click", exportData);
-  document
-    .getElementById("file-import-data")
-    .addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      importDataFromFile(file);
-      e.target.value = "";
-    });
-  document
-    .getElementById("btn-clear-all-data")
-    .addEventListener("click", clearAllData);
+  document.getElementById("btn-export-data").addEventListener("click", exportData);
+  document.getElementById("file-import-data").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    importDataFromFile(file);
+    e.target.value = "";
+  });
+  document.getElementById("btn-clear-all-data").addEventListener("click", clearAllData);
 
   // Device filters
   const deptFilterEl = document.getElementById("filter-department");
@@ -2302,33 +2403,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Sort button for history
+  // Sort buttons
   const sortBtn = document.getElementById("btn-history-sort");
   if (sortBtn) {
     sortBtn.addEventListener("click", () => {
       historySort = historySort === "desc" ? "asc" : "desc";
       sortBtn.dataset.order = historySort;
-      sortBtn.textContent =
-        historySort === "desc" ? "Newest First" : "Oldest First";
+      sortBtn.textContent = historySort === "desc" ? "Newest First" : "Oldest First";
       visibleHistory = DEFAULT_LIMIT_HISTORY;
       previousVisibleHistory = 0;
       renderHistoryView();
     });
   }
 
-  // Sort button for devices
   const devicesSortBtn = document.getElementById("btn-devices-sort");
   if (devicesSortBtn) {
     devicesSortBtn.addEventListener("click", () => {
       devicesSort = devicesSort === "desc" ? "asc" : "desc";
       devicesSortBtn.dataset.order = devicesSort;
-      devicesSortBtn.textContent =
-        devicesSort === "desc" ? "Newest First" : "Oldest First";
+      devicesSortBtn.textContent = devicesSort === "desc" ? "Newest First" : "Oldest First";
       renderDevicesView();
     });
   }
 
-  // View Removed toggle (opens) + Close Archive (closes)
+  // View Removed toggle
   const btnToggleRemoved = document.getElementById("btn-toggle-removed");
   const btnCloseRemoved = document.getElementById("btn-close-removed");
   const removedPanel = document.getElementById("removed-devices-panel");
@@ -2343,10 +2441,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Removed section independent filters
+  // Removed filters
   const removedSearchInput = document.getElementById("filter-removed-search");
   const removedDeptSelect = document.getElementById("filter-removed-dept");
-  const removedDestSelect2 = document.getElementById("filter-removed-destination");
   const btnClearRemoved = document.getElementById("btn-clear-removed-filters");
   if (removedSearchInput) {
     removedSearchInput.addEventListener("input", () => {
@@ -2362,7 +2459,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderDevicesView();
     });
   }
-  // Segmented controls (View Mode)
+
+  // Segmented controls
   const setupSeg = (containerId, onSelect) => {
     const el = document.getElementById(containerId);
     if (!el) return;
@@ -2377,7 +2475,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupSeg("seg-view-in", (v) => { viewModeIn = v; resetDevicesPagination(); renderDevicesView(); });
   setupSeg("seg-view-out", (v) => { viewModeOut = v; resetDevicesPagination(); renderDevicesView(); });
 
-  // Removed Date Sort toggle
+  // Removed Date Sort
   const btnRemovedSort = document.getElementById("btn-removed-sort");
   if (btnRemovedSort) {
     btnRemovedSort.addEventListener("click", () => {
@@ -2396,7 +2494,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       viewModeOut = "all";
       if (removedSearchInput) removedSearchInput.value = "";
       if (removedDeptSelect) removedDeptSelect.value = "";
-      // Reset seg-view-out to All
       const segOut = document.getElementById("seg-view-out");
       if (segOut) {
         segOut.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
@@ -2408,13 +2505,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // New Hire Kit — close button
+  // NHK
   const btnCloseNhk = document.getElementById("btn-close-nhk-dialog");
   if (btnCloseNhk) {
     btnCloseNhk.addEventListener("click", closeNewHireKitDialog);
   }
 
-  // Kit Deploy — dropdown
+  // Kit Deploy
   const kitDeploySelect = document.getElementById("kit-deploy-select");
   const btnDeployKit = document.getElementById("btn-deploy-kit");
   if (kitDeploySelect) {
@@ -2429,73 +2526,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   renderAll();
-  populateTechnicianSelect();
   switchView("devices");
 });
-
-function injectTestStock() {
-  if (!state.models.length) {
-    showToast("Add at least one model first to run this test.");
-    return;
-  }
-  const modelId = state.models[0].id;
-  const now = Date.now();
-
-  // Device 1: 15 days old (Yellow)
-  const dateYellow = new Date(now - (15 * 24 * 60 * 60 * 1000)).toISOString();
-  state.devices.push({
-    id: uid(),
-    modelId,
-    serial: "TEST-YELLOW-14D",
-    prNumber: "PR-TEST-1",
-    status: "in",
-    department: "Planta Oeste",
-    addedBy: "System Test",
-    createdAt: dateYellow,
-    removedAt: null,
-    reason: "",
-    destination: "",
-  });
-  state.history.push({
-    id: uid(),
-    type: "in",
-    modelId,
-    serial: "TEST-YELLOW-14D",
-    prNumber: "PR-TEST-1",
-    addedBy: "System Test",
-    at: dateYellow,
-    reason: "Added to stock",
-    destination: "",
-  });
-
-  // Device 2: 35 days old (Red)
-  const dateRed = new Date(now - (35 * 24 * 60 * 60 * 1000)).toISOString();
-  state.devices.push({
-    id: uid(),
-    modelId,
-    serial: "TEST-RED-30D",
-    prNumber: "PR-TEST-2",
-    status: "in",
-    department: "Planta Este",
-    addedBy: "System Test",
-    createdAt: dateRed,
-    removedAt: null,
-    reason: "",
-    destination: "",
-  });
-  state.history.push({
-    id: uid(),
-    type: "in",
-    modelId,
-    serial: "TEST-RED-30D",
-    prNumber: "PR-TEST-2",
-    addedBy: "System Test",
-    at: dateRed,
-    reason: "Added to stock",
-    destination: "",
-  });
-
-  writeToFirestore();
-  renderAll();
-  showToast("Test devices injected! Check All Devices view.");
-}

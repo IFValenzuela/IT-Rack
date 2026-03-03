@@ -92,6 +92,13 @@ body {
   color: var(--text-muted);
 }
 
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
 .nav-tabs {
   display: flex;
   gap: 4px;
@@ -99,6 +106,37 @@ body {
   border-radius: 999px;
   background: rgba(244, 247, 252, 0.95);
   box-shadow: inset 0 0 0 1px rgba(205, 216, 235, 0.9);
+}
+
+#user-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+#user-menu .user-name {
+  font-weight: 550;
+  color: var(--text-main);
+  opacity: 0.7;
+}
+
+#user-menu .btn-logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+  font-weight: 540;
+}
+
+#user-menu .btn-logout:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
 }
 
 .nav-tab {
@@ -468,6 +506,8 @@ body {
 input[type="text"],
 textarea,
 input[type="number"],
+input[type="email"],
+input[type="password"],
 select {
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
@@ -487,10 +527,20 @@ textarea {
 input[type="text"]:focus,
 textarea:focus,
 input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
 select:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 1px rgba(0, 125, 184, 0.2);
   background: #ffffff;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #f9fbff inset;
+  -webkit-text-fill-color: var(--text-main);
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 .table-container {
@@ -1641,6 +1691,83 @@ tr.kit-spacer td {
   background: transparent !important;
   border: none !important;
   padding: 0;
+}
+
+/* ── Admin Panel ─────────────────────────────────────── */
+.role-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.role-admin {
+  background: rgba(0, 92, 155, 0.12);
+  color: var(--blue-strong);
+}
+
+.role-tech {
+  background: rgba(34, 160, 90, 0.12);
+  color: #166534;
+}
+
+.role-viewer {
+  background: rgba(120, 120, 140, 0.12);
+  color: #555;
+}
+
+.role-delivery {
+  background: rgba(147, 51, 234, 0.1);
+  color: #6b21a8;
+}
+
+.badge-you {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(0,92,155,0.1);
+  color: var(--blue);
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.btn-sm {
+  padding: 3px 10px !important;
+  font-size: 0.75rem !important;
+}
+
+.admin-only {
+  opacity: 0.85;
+}
+
+.action-link {
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0.45;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  user-select: none;
+}
+
+tr:hover .action-link {
+  opacity: 1;
+}
+
+.action-link:hover {
+  color: var(--blue);
+  background: rgba(0, 92, 155, 0.07);
+}
+
+.action-link-danger:hover {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.07);
 }
 
 /* ---- Show More pagination ---- */
