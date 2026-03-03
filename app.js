@@ -1457,6 +1457,12 @@ function nhkRenderStep() {
 
 // Step 1: Kit ID + fixed accessory checklist
 function nhkRenderStep1(container) {
+  const otherModelOptions = state.models
+    .filter((m) => m.category === "Other")
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((m) => `<option value="${m.name.replace(/"/g, "&quot;")}"></option>`)
+    .join("");
+
   const checkboxRows = KIT_ACCESSORIES.map((item) => {
     const isChecked = nhkState.selectedItems.includes(item);
     const isOther = item === "Other";
@@ -1465,7 +1471,10 @@ function nhkRenderStep1(container) {
         <input type="checkbox" class="nhk-acc-cb" data-item="${item}" ${isChecked ? "checked" : ""} />
         <div class="nhk-card-label">${item}</div>
       </label>
-      ${isOther ? `<input type="text" id="nhk-other-text" class="nhk-other-input${isChecked ? "" : " hidden"}" placeholder="Please specify…" value="${nhkState.otherItemText.replace(/"/g, "&quot;")}" autocomplete="off" />` : ""}
+      ${isOther ? `
+        <datalist id="nhk-other-datalist">${otherModelOptions}</datalist>
+        <input type="text" id="nhk-other-text" class="nhk-other-input${isChecked ? "" : " hidden"}" placeholder="Please specify…" value="${nhkState.otherItemText.replace(/"/g, "&quot;")}" list="nhk-other-datalist" autocomplete="off" />
+      ` : ""}
     `;
   }).join("");
 
