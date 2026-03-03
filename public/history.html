@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Activity Log — IT Rack Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css?v=2" />
+</head>
+
+<body>
+  <header class="app-header">
+    <a class="logo-area" href="dashboard.html" id="app-logo-area" title="Go to Dashboard">
+      <img src="skyworks-logo.png" alt="Skyworks" class="header-logo" />
+      <div class="logo-text">
+        <span class="logo-main">IT Rack Inventory</span>
+        <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <div id="user-menu"></div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="dashboard.html">All Devices</a>
+        <a class="nav-tab" href="models.html">Models</a>
+        <a class="nav-tab" href="history.html">Activity Log</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section id="view-history" class="view active">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Activity Log</h2>
+            <p class="panel-subtitle">
+              Every change to your rack inventory. This is your accountability
+              trail for stock coming in and out.
+            </p>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn ghost" id="btn-history-sort" data-order="desc">Newest First</button>
+            <button class="btn ghost" id="btn-export-data">Export</button>
+            <label class="btn ghost file-input-label">
+              Import
+              <input type="file" id="file-import-data" accept="application/json" hidden />
+            </label>
+            <button class="btn ghost admin-only hidden" id="btn-clear-all-data">Clear all data</button>
+          </div>
+        </div>
+        <div id="history-cat-pills" class="pill-bar-row"></div>
+        <form id="history-filters-form" class="form-inline">
+          <div class="form-field">
+            <label for="filter-history-type">Type</label>
+            <select id="filter-history-type">
+              <option value="">All activity</option>
+              <option value="in">Added to stock</option>
+              <option value="out">Removed from stock</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="filter-history-year">Year</label>
+            <select id="filter-history-year">
+              <option value="">All years</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="filter-history-month">Month</label>
+            <select id="filter-history-month">
+              <option value="">All months</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="filter-history-device">Device / Model</label>
+            <input id="filter-history-device" type="text" placeholder="e.g. Latitude, 123ABC" />
+          </div>
+          <div class="form-field" style="align-self:flex-end;">
+            <button type="button" class="btn ghost" id="btn-clear-history-filters">Clear</button>
+          </div>
+        </form>
+
+        <div id="history-table-container" class="table-container empty-state">
+          <p>No activity yet. Add or remove devices to see history.</p>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Module scripts -->
+  <script src="js/config.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/ui/pills.js" defer></script>
+  <script src="js/features/history.js" defer></script>
+  <script src="js/features/export.js" defer></script>
+  <script src="js/ui/auth.js" defer></script>
+  <script src="js/pages/history.js" defer></script>
+</body>
+
+</html>

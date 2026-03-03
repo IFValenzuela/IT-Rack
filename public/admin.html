@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin — IT Rack Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css?v=2" />
+</head>
+
+<body>
+  <header class="app-header">
+    <a class="logo-area" href="dashboard.html" id="app-logo-area" title="Go to Dashboard">
+      <img src="skyworks-logo.png" alt="Skyworks" class="header-logo" />
+      <div class="logo-text">
+        <span class="logo-main">IT Rack Inventory</span>
+        <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <div id="user-menu"></div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="dashboard.html">All Devices</a>
+        <a class="nav-tab" href="models.html">Models</a>
+        <a class="nav-tab" href="history.html">Activity Log</a>
+        <a class="nav-tab admin-only" href="admin.html">⚙ Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section id="view-admin" class="view active">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>User Management</h2>
+            <p class="panel-subtitle">Create accounts, assign roles, and manage access.</p>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn primary" id="btn-open-add-user-dialog">+ New User</button>
+          </div>
+        </div>
+        <div id="admin-users-table-container" class="table-container empty-state">
+          <p>Loading users…</p>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Add / Edit User Dialog -->
+  <div id="add-user-dialog" class="dialog-backdrop hidden">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h2 id="add-user-dialog-title">New User</h2>
+      </div>
+      <form id="add-user-form" class="dialog-body" autocomplete="off">
+        <input type="hidden" id="edit-user-id" value="" />
+        <div class="form-field">
+          <label for="new-user-username">Username <span style="color:var(--danger)">*</span></label>
+          <input id="new-user-username" type="text" placeholder="e.g. jsmith" required />
+        </div>
+        <div class="form-field">
+          <label for="new-user-email">Email</label>
+          <input id="new-user-email" type="email" placeholder="e.g. jsmith@company.com" />
+        </div>
+        <div class="form-field" id="password-field-wrap">
+          <label id="password-field-label" for="new-user-password">Password <span style="color:var(--danger)">*</span></label>
+          <input id="new-user-password" type="password" placeholder="Min 6 characters" />
+        </div>
+        <div class="form-field">
+          <label for="new-user-role">Role <span style="color:var(--danger)">*</span></label>
+          <select id="new-user-role" required>
+            <option value="technician">Technician — can add &amp; edit devices</option>
+            <option value="delivery">Delivery Window — full person list, no adding people</option>
+            <option value="viewer">Viewer — read-only access</option>
+            <option value="admin">Admin — full access + admin panel</option>
+          </select>
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="btn ghost" id="btn-cancel-add-user">Cancel</button>
+          <button type="submit" class="btn primary" id="btn-save-user">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Module scripts -->
+  <script src="js/config.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/features/admin.js" defer></script>
+  <script src="js/ui/auth.js" defer></script>
+  <script src="js/pages/admin.js" defer></script>
+</body>
+
+</html>

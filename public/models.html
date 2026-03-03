@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Models — IT Rack Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css?v=2" />
+</head>
+
+<body>
+  <header class="app-header">
+    <a class="logo-area" href="dashboard.html" id="app-logo-area" title="Go to Dashboard">
+      <img src="skyworks-logo.png" alt="Skyworks" class="header-logo" />
+      <div class="logo-text">
+        <span class="logo-main">IT Rack Inventory</span>
+        <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <div id="user-menu"></div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="dashboard.html">All Devices</a>
+        <a class="nav-tab" href="models.html">Models</a>
+        <a class="nav-tab" href="history.html">Activity Log</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section id="view-models" class="view active">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Device Models</h2>
+            <p class="panel-subtitle">
+              All models you track in the rack. Each has its own space for serial numbers.
+            </p>
+          </div>
+          <div class="panel-header-actions models-header-row" id="models-header-actions">
+            <input type="text" id="filter-models-input" class="filter-input" placeholder="Search models…"
+              aria-label="Search device models" />
+            <button class="btn primary" id="btn-open-add-model-dialog">+ New Model</button>
+            <button class="btn danger admin-only hidden" id="btn-enter-delete-mode">Delete</button>
+          </div>
+        </div>
+        <div id="category-pills-container" class="pill-list" style="margin: 0 0 16px 0; padding-top: 4px;"></div>
+        <div id="models-table-container" class="table-container empty-state">
+          <p>No models yet. Use "New Model" to create one.</p>
+        </div>
+      </section>
+
+      <section id="model-detail" class="panel panel-detail hidden">
+        <div class="panel-header">
+          <div>
+            <h2 id="model-detail-title">Model detail</h2>
+            <p class="panel-subtitle" id="model-detail-subtitle">
+              Manage serial numbers and deliveries for this model.
+            </p>
+          </div>
+          <div class="panel-header-actions">
+            <span id="model-detail-counts" class="badge"></span>
+            <button class="btn ghost" id="btn-close-model-detail">
+              Close
+            </button>
+          </div>
+        </div>
+
+        <div class="split-layout">
+          <div class="split-column">
+            <h3>Serials in Stock</h3>
+            <form id="add-serial-form" class="form-inline">
+              <div class="form-field">
+                <label for="serial-number-input">Serial number</label>
+                <input id="serial-number-input" type="text" placeholder="e.g. ABC123XYZ" required />
+              </div>
+              <div class="form-field">
+                <label for="serial-pr-input">PR Number / Ticket</label>
+                <input id="serial-pr-input" type="text" placeholder="e.g. PR-12345 or Ticket-678" required />
+              </div>
+              <div class="form-field">
+                <label for="serial-department-select">Department</label>
+                <select id="serial-department-select" required>
+                  <option value="">Select department…</option>
+                  <option value="Planta Oeste">Planta Oeste</option>
+                  <option value="Planta Este">Planta Este</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="serial-added-by-select">Added by</label>
+                <select id="serial-added-by-select" required>
+                  <option value="">Select person…</option>
+                </select>
+              </div>
+              <button class="btn primary" type="submit">Add Serial</button>
+            </form>
+
+            <div id="model-serials-table-container" class="table-container table-small empty-state">
+              <p>No serials yet for this model.</p>
+            </div>
+          </div>
+
+          <div class="split-column">
+            <h3>History for This Model</h3>
+            <div id="model-history-table-container" class="table-container table-small empty-state">
+              <p>No history yet. Add or remove serials to see activity.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Remove a Kit Panel -->
+      <section class="panel hidden" id="kit-deploy-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Remove a Kit</h2>
+            <p class="panel-subtitle">
+              Select a kit from the dropdown to see all its devices, then remove them in one click.
+            </p>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn ghost"
+              onclick="document.getElementById('kit-deploy-panel').classList.add('hidden')">Close</button>
+          </div>
+        </div>
+        <div class="form-field" style="max-width:420px;">
+          <label for="kit-deploy-select" style="font-size:0.78rem;color:var(--text-muted);">Kit in Stock</label>
+          <select id="kit-deploy-select">
+            <option value="">— No kits prepared yet —</option>
+          </select>
+        </div>
+        <div class="form-field" style="max-width:420px;margin-top:10px;">
+          <label for="kit-deploy-delivered-by" style="font-size:0.78rem;color:var(--text-muted);">Removed by <span
+              style="color:var(--danger)">*</span></label>
+          <select id="kit-deploy-delivered-by">
+            <option value="">Select person…</option>
+          </select>
+        </div>
+        <div id="kit-deploy-results" class="table-container empty-state" style="margin-top:10px;">
+          <p>Enter a Kit ID above and click Search to see all devices in this kit.</p>
+        </div>
+        <div class="kit-deploy-action-row">
+          <button class="btn danger hidden" id="btn-deploy-kit">Remove All</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Add Model Dialog -->
+  <div id="add-model-dialog" class="dialog-backdrop hidden">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h2>New Device Model</h2>
+      </div>
+      <form id="add-model-form" class="dialog-body">
+        <div class="form-field">
+          <label for="model-category-input">Category <span style="color:var(--danger)">*</span></label>
+          <select id="model-category-input" required>
+            <option value="">Select category…</option>
+            <option value="Laptop">Laptop</option>
+            <option value="Desktop PC">Desktop PC</option>
+            <option value="Keyboard">Keyboard</option>
+            <option value="Cellphone">Cellphone</option>
+            <option value="Mouse">Mouse</option>
+            <option value="Headset">Headset</option>
+            <option value="Dock">Dock</option>
+            <option value="Monitor">Monitor</option>
+            <option value="Cable">Cable</option>
+            <option value="Camera">Camera</option>
+            <option value="Printer">Printer</option>
+            <option value="Tablet">Tablet</option>
+            <option value="Scanner">Scanner</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="model-name-input">Model name</label>
+          <input id="model-name-input" type="text" placeholder="e.g. OptiPlex 7090" required />
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="btn ghost" id="btn-cancel-add-model">
+            Cancel
+          </button>
+          <button type="submit" class="btn primary">Create Model</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Remove from Stock Dialog -->
+  <div id="remove-serial-dialog" class="dialog-backdrop hidden">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h2>Remove from Stock</h2>
+      </div>
+      <form id="remove-serial-form" class="dialog-body">
+        <p class="dialog-description">
+          This serial will leave active stock but stay recorded under
+          "Removed / Assigned" and in the activity log.
+        </p>
+        <div class="form-field">
+          <label for="remove-delivered-by-select">Delivered by</label>
+          <select id="remove-delivered-by-select" required>
+            <option value="">Select person…</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="remove-reason-input">Reason</label>
+          <input id="remove-reason-input" type="text" placeholder="e.g. Assigned to user, scrapped, sold" required />
+        </div>
+        <div class="form-field">
+          <label for="remove-destination-input">Destination (optional)</label>
+          <input id="remove-destination-input" type="text" placeholder="e.g. Recycling, IT Storage" />
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="btn ghost" id="btn-cancel-remove-serial">
+            Cancel
+          </button>
+          <button type="submit" class="btn danger">
+            Confirm Remove from Stock
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- New Hire Kit Dialog -->
+  <div id="new-hire-kit-dialog" class="dialog-backdrop hidden">
+    <div class="dialog dialog-wide">
+      <div class="dialog-header nhk-dialog-header">
+        <div>
+          <h2>Prepare New Hire Kit</h2>
+          <p class="dialog-description" style="margin-top:4px;">Add new devices to stock and tag them with a Kit ID for
+            one-click deployment later.</p>
+        </div>
+        <button class="btn ghost" id="btn-close-nhk-dialog" style="flex-shrink:0;">Cancel</button>
+      </div>
+      <!-- Stepper indicator -->
+      <div class="nhk-stepper" id="nhk-stepper">
+        <div class="nhk-step active" id="nhk-step-dot-1"><span>1</span><label>Kit Details</label></div>
+        <div class="nhk-step-connector"></div>
+        <div class="nhk-step" id="nhk-step-dot-2"><span>2</span><label>Add Serials</label></div>
+        <div class="nhk-step-connector"></div>
+        <div class="nhk-step" id="nhk-step-dot-3"><span>3</span><label>Confirm Entry</label></div>
+      </div>
+      <!-- Dynamic step content rendered by JS -->
+      <div class="dialog-body nhk-body" id="nhk-step-content"></div>
+    </div>
+  </div>
+
+  <!-- Module scripts -->
+  <script src="js/config.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/ui/pills.js" defer></script>
+  <script src="js/features/models.js" defer></script>
+  <script src="js/features/devices.js" defer></script>
+  <script src="js/features/kit.js" defer></script>
+  <script src="js/ui/auth.js" defer></script>
+  <script src="js/pages/models.js" defer></script>
+</body>
+
+</html>

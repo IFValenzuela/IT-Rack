@@ -57,6 +57,8 @@ body {
   align-items: center;
   gap: 14px;
   cursor: pointer;
+  text-decoration: none;
+  color: inherit;
   transition: opacity 0.15s ease-out;
 }
 
@@ -148,6 +150,7 @@ body {
   font-size: 0.82rem;
   font-weight: 540;
   cursor: pointer;
+  text-decoration: none;
   transition: all 0.18s ease-out;
 }
 
@@ -1806,4 +1809,97 @@ tr:hover .action-link {
 
 .row-reveal {
   animation: showMoreFadeIn 0.25s ease-out;
+}
+
+/* ===== Login page ===================================================
+   These rules are login-specific. They live here (not inline) so
+   login.html can stay markup-only and inherit all CSS variables.
+   ================================================================== */
+.login-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 16px;
+}
+
+.login-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 44px 40px 40px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.login-card-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-card-header h2 {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 6px;
+}
+
+.login-card-header p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.login-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.login-form .form-field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.login-form .form-field input {
+  padding: 11px 14px;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  color: var(--text-main);
+  background: var(--bg);
+  transition: border-color 0.15s;
+}
+
+.login-form .form-field input:focus {
+  outline: none;
+  border-color: var(--blue);
+  background: #fff;
+}
+
+.login-form .btn-submit {
+  width: 100%;
+  margin-top: 8px;
+  padding: 13px;
+  font-size: 0.97rem;
+  font-weight: 700;
+}
+
+.login-error {
+  background: #fff0f0;
+  color: var(--danger);
+  border: 1px solid #f5c0c0;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  margin-bottom: 18px;
+  display: none;
+}
+
+.login-error.show {
+  display: block;
 }

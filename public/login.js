@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000/api';
+const API_URL = '/api';
 
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();

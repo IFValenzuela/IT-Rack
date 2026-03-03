@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>All Devices — IT Rack Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css?v=2" />
+</head>
+
+<body>
+  <header class="app-header">
+    <a class="logo-area" href="dashboard.html" id="app-logo-area" title="Go to Dashboard">
+      <img src="skyworks-logo.png" alt="Skyworks" class="header-logo" />
+      <div class="logo-text">
+        <span class="logo-main">IT Rack Inventory</span>
+        <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <div id="user-menu"></div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="dashboard.html">All Devices</a>
+        <a class="nav-tab" href="models.html">Models</a>
+        <a class="nav-tab" href="history.html">Activity Log</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section id="view-devices" class="view active">
+      <!-- Stat Cards -->
+      <div class="cards-row">
+        <div class="summary-card">
+          <h3>Total Models</h3>
+          <p class="summary-number" id="summary-total-models">0</p>
+        </div>
+        <div class="summary-card">
+          <h3>In Stock</h3>
+          <p class="summary-number" id="summary-in-stock">0</p>
+        </div>
+        <div class="summary-card">
+          <h3>Removed / Assigned</h3>
+          <p class="summary-number" id="summary-removed">0</p>
+        </div>
+      </div>
+      <!-- Age legend -->
+      <div class="age-legend">
+        <span class="age-legend-item warning">2+ weeks in stock</span>
+        <span class="age-legend-item critical">1+ month in stock</span>
+      </div>
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>All Devices</h2>
+            <p class="panel-subtitle">
+              Every serial currently in stock, across all models.
+            </p>
+          </div>
+          <div class="panel-header-actions">
+            <button type="button" class="btn primary" id="btn-toggle-removed">View Removed (0)</button>
+          </div>
+        </div>
+        <div id="devices-cat-pills" class="pill-bar-row"></div>
+        <form id="device-filters-form" class="form-inline">
+          <div class="form-field">
+            <label for="filter-department">Department</label>
+            <select id="filter-department">
+              <option value="">All departments</option>
+              <option value="Planta Oeste">Planta Oeste</option>
+              <option value="Planta Este">Planta Este</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="filter-location-owner">Search (model, serial, person)</label>
+            <input id="filter-location-owner" type="text" placeholder="e.g. Latitude, 123ABC, John" />
+          </div>
+          <div class="segmented-control" id="seg-view-in" style="align-self:flex-end;">
+            <button type="button" class="seg-btn btn ghost active" data-view="all">All</button>
+            <button type="button" class="seg-btn btn ghost" data-view="individual">Individual</button>
+            <button type="button" class="seg-btn btn ghost" data-view="grouped">Grouped by Kit</button>
+          </div>
+          <button type="button" class="btn ghost" id="btn-devices-sort" data-order="desc">Newest First</button>
+          <button type="button" class="btn ghost" id="btn-clear-filters">Clear</button>
+        </form>
+        <div id="devices-table-container" class="table-container empty-state">
+          <p>No devices in stock yet.</p>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="removed-devices-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Removed / Assigned &mdash; <span id="removed-count-label">0 records</span></h2>
+            <p class="panel-subtitle">Archived inventory. Filters here are independent from the active stock above.</p>
+          </div>
+          <div class="panel-header-actions">
+            <button type="button" class="btn-link" id="btn-close-removed">Close Archive &#10005;</button>
+          </div>
+        </div>
+        <div id="removed-cat-pills" class="pill-bar-row"></div>
+        <form id="removed-filters-form" class="form-inline">
+          <div class="form-field">
+            <label for="filter-removed-dept">Department</label>
+            <select id="filter-removed-dept">
+              <option value="">All departments</option>
+              <option value="Planta Oeste">Planta Oeste</option>
+              <option value="Planta Este">Planta Este</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="filter-removed-search">Search (model, serial, person)</label>
+            <input id="filter-removed-search" type="text" placeholder="e.g. Latitude, 123ABC, John" />
+          </div>
+          <div class="segmented-control" id="seg-view-out" style="align-self:flex-end;">
+            <button type="button" class="seg-btn btn ghost active" data-view="all">All</button>
+            <button type="button" class="seg-btn btn ghost" data-view="individual">Individual</button>
+            <button type="button" class="seg-btn btn ghost" data-view="grouped">Grouped by Kit</button>
+          </div>
+          <button type="button" class="btn ghost" id="btn-removed-sort" data-order="desc">Newest First</button>
+          <button type="button" class="btn ghost" id="btn-clear-removed-filters">Clear</button>
+        </form>
+        <div id="devices-removed-table-container" class="table-container empty-state">
+          <p>No removed devices yet.</p>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Remove from Stock Dialog -->
+  <div id="remove-serial-dialog" class="dialog-backdrop hidden">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h2>Remove from Stock</h2>
+      </div>
+      <form id="remove-serial-form" class="dialog-body">
+        <p class="dialog-description">
+          This serial will leave active stock but stay recorded under
+          "Removed / Assigned" and in the activity log.
+        </p>
+        <div class="form-field">
+          <label for="remove-delivered-by-select">Delivered by</label>
+          <select id="remove-delivered-by-select" required>
+            <option value="">Select person…</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="remove-reason-input">Reason</label>
+          <input id="remove-reason-input" type="text" placeholder="e.g. Assigned to user, scrapped, sold" required />
+        </div>
+        <div class="form-field">
+          <label for="remove-destination-input">Destination (optional)</label>
+          <input id="remove-destination-input" type="text" placeholder="e.g. Recycling, IT Storage" />
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="btn ghost" id="btn-cancel-remove-serial">
+            Cancel
+          </button>
+          <button type="submit" class="btn danger">
+            Confirm Remove from Stock
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Module scripts -->
+  <script src="js/config.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/ui/pills.js" defer></script>
+  <script src="js/features/models.js" defer></script>
+  <script src="js/features/devices.js" defer></script>
+  <script src="js/ui/auth.js" defer></script>
+  <script src="js/pages/dashboard.js" defer></script>
+</body>
+
+</html>
