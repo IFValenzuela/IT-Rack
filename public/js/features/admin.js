@@ -180,7 +180,7 @@ async function loadKitAccessoriesAdmin() {
   }
 }
 
-/** Render the kit accessories table. */
+/** Render the kit accessories table with drag-and-drop reordering. */
 function renderKitAccessories() {
   const container = document.getElementById('admin-kit-accessories-container');
   if (!container) return;
@@ -189,24 +189,33 @@ function renderKitAccessories() {
     return;
   }
   container.classList.remove('empty-state');
+
+  // Pin "Other" to the bottom always
+  const rest   = kitAccessories.filter(a => a.name !== 'Other');
+  const pinned = kitAccessories.filter(a => a.name === 'Other');
+  const sorted = [...rest, ...pinned];
+
   container.innerHTML = `
     <table class="inv-table">
       <thead>
         <tr>
+          <th style="width:28px"></th>
           <th>Name</th>
           <th>Category</th>
           <th>No Serial</th>
-          <th>Sort Order</th>
           <th style="width:120px"></th>
         </tr>
       </thead>
-      <tbody>
-        ${kitAccessories.map(a => `
-          <tr>
+      <tbody id="kit-acc-tbody">
+        ${sorted.map(a => `
+          <tr data-id="${a.id}" data-pinned="${a.name === 'Other' ? '1' : '0'}"
+              draggable="${a.name !== 'Other'}" class="kit-acc-row">
+            <td style="text-align:center;color:var(--text-muted);cursor:${a.name !== 'Other' ? 'grab' : 'default'};user-select:none;font-size:1.1rem">
+              ${a.name !== 'Other' ? '⠿' : ''}
+            </td>
             <td><strong>${escHtml(a.name)}</strong></td>
             <td style="color:var(--text-muted)">${escHtml(a.category)}</td>
             <td>${a.no_serial ? '<span class="role-badge role-viewer">N/A</span>' : '—'}</td>
-            <td style="color:var(--text-muted);font-size:.8rem">${a.sort_order}</td>
             <td class="row-actions">
               <span class="action-link js-edit-accessory" data-id="${a.id}">Edit</span>
               ${a.name !== 'Other' ? `<span class="action-link action-link-danger js-delete-accessory" data-id="${a.id}" data-name="${escHtml(a.name)}">Delete</span>` : ''}
@@ -217,6 +226,47 @@ function renderKitAccessories() {
     </table>
   `;
 
+  // ── Drag-and-drop ────────────────────────────────────────
+  const tbody = document.getElementById('kit-acc-tbody');
+  let dragSrc = null;
+
+  tbody.addEventListener('dragstart', (e) => {
+    const row = e.target.closest('tr[draggable="true"]');
+    if (!row) return;
+    dragSrc = row;
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => row.style.opacity = '0.4', 0);
+  });
+
+  tbody.addEventListener('dragend', (e) => {
+    const row = e.target.closest('tr');
+    if (row) row.style.opacity = '';
+    dragSrc = null;
+  });
+
+  tbody.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const row = e.target.closest('tr.kit-acc-row');
+    if (!row || row === dragSrc || row.dataset.pinned === '1') return;
+    e.dataTransfer.dropEffect = 'move';
+    const rect = row.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) {
+      tbody.insertBefore(dragSrc, row);
+    } else {
+      tbody.insertBefore(dragSrc, row.nextSibling);
+    }
+  });
+
+  tbody.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    // Ensure pinned rows stay at the bottom
+    tbody.querySelectorAll('tr[data-pinned="1"]').forEach(r => tbody.appendChild(r));
+    // Persist new order
+    const order = [...tbody.querySelectorAll('tr[data-pinned="0"]')].map(r => Number(r.dataset.id));
+    await reorderAccessories(order);
+  });
+
+  // ── Click handlers ───────────────────────────────────────
   container.addEventListener('click', (e) => {
     const editBtn = e.target.closest('.js-edit-accessory');
     if (editBtn) { openEditAccessory(Number(editBtn.dataset.id)); return; }
@@ -225,13 +275,31 @@ function renderKitAccessories() {
   });
 }
 
+/** Persist a new drag-and-drop order to the backend. */
+async function reorderAccessories(order) {
+  const token = localStorage.getItem('token');
+  try {
+    await fetch(`${API_URL}/admin/kit-accessories/reorder`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order }),
+    });
+    // Update local sort_order values
+    order.forEach((id, idx) => {
+      const item = kitAccessories.find(a => a.id === id);
+      if (item) item.sort_order = (idx + 1) * 10;
+    });
+  } catch (err) {
+    showToast('Failed to save order.');
+  }
+}
+
 /** Open the New Accessory dialog. */
 function openAddAccessoryDialog() {
   document.getElementById('add-accessory-dialog-title').textContent = 'New Kit Item';
   document.getElementById('btn-save-accessory').textContent = 'Add Item';
   document.getElementById('add-accessory-form').reset();
   document.getElementById('edit-accessory-id').value = '';
-  document.getElementById('acc-sort-order').value = (kitAccessories.length + 1) * 10;
   document.getElementById('add-accessory-dialog').classList.remove('hidden');
 }
 
@@ -244,7 +312,6 @@ function openEditAccessory(id) {
   document.getElementById('edit-accessory-id').value = id;
   document.getElementById('acc-name').value = a.name;
   document.getElementById('acc-category').value = a.category;
-  document.getElementById('acc-sort-order').value = a.sort_order;
   document.getElementById('acc-no-serial').checked = !!a.no_serial;
   document.getElementById('add-accessory-dialog').classList.remove('hidden');
 }
@@ -260,17 +327,16 @@ async function saveAccessory(e) {
   e.preventDefault();
   const token      = localStorage.getItem('token');
   const editId     = document.getElementById('edit-accessory-id').value;
-  const name       = document.getElementById('acc-name').value.trim();
-  const category   = document.getElementById('acc-category').value;
-  const sort_order = Number(document.getElementById('acc-sort-order').value) || 0;
-  const no_serial  = document.getElementById('acc-no-serial').checked ? 1 : 0;
+  const name      = document.getElementById('acc-name').value.trim();
+  const category  = document.getElementById('acc-category').value;
+  const no_serial = document.getElementById('acc-no-serial').checked ? 1 : 0;
 
   try {
     if (editId) {
       const res = await fetch(`${API_URL}/admin/kit-accessories/${editId}`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, category, sort_order, no_serial }),
+        body: JSON.stringify({ name, category, no_serial }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -279,7 +345,7 @@ async function saveAccessory(e) {
       const res = await fetch(`${API_URL}/admin/kit-accessories`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, category, sort_order, no_serial }),
+        body: JSON.stringify({ name, category, no_serial }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
