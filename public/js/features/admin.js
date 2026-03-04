@@ -31,7 +31,6 @@ function renderAdminUsers() {
       <thead>
         <tr>
           <th>Username</th>
-          <th>Email</th>
           <th>Role</th>
           <th>Department</th>
           <th>Last Login</th>
@@ -43,7 +42,6 @@ function renderAdminUsers() {
         ${adminUsers.map(u => `
           <tr>
             <td><strong>${escHtml(u.username)}</strong>${u.id === currentUser.id ? ' <span class="badge-you">you</span>' : ''}</td>
-            <td style="color:var(--text-muted)">${escHtml(u.email || '—')}</td>
             <td><span class="role-badge ${(ROLE_LABELS[u.role] || {}).cls || ''}">${(ROLE_LABELS[u.role] || {}).label || escHtml(u.role)}</span></td>
             <td style="color:var(--text-muted)">${escHtml(u.department || '—')}</td>
             <td style="color:var(--text-muted);font-size:.8rem">${u.lastLogin ? formatDateTime(u.lastLogin) : 'Never'}</td>
@@ -109,14 +107,13 @@ async function saveUser(e) {
   e.preventDefault();
   const token    = localStorage.getItem('token');
   const username   = document.getElementById('new-user-username').value.trim();
-  const email      = document.getElementById('new-user-email').value.trim();
   const password   = document.getElementById('new-user-password').value;
   const role       = document.getElementById('new-user-role').value;
   const department = document.getElementById('new-user-department').value || null;
 
   try {
     if (editingUserId) {
-      const body = { role, email, department };
+      const body = { role, department };
       if (password) body.password = password;
       const res = await fetch(`${API_URL}/admin/users/${editingUserId}`, {
         method: 'PUT',
@@ -131,7 +128,7 @@ async function saveUser(e) {
       const res = await fetch(`${API_URL}/admin/users`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password, role, department }),
+        body: JSON.stringify({ username, password, role, department }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);

@@ -32,8 +32,8 @@ let removedCategoryFilter    = '';
 
 // ── Pagination ────────────────────────────────────────────────
 // (DEFAULT_LIMIT_* and INCREMENT_* constants live in config.js)
-let visibleIn              = DEFAULT_LIMIT_INDIVIDUAL;
-let visibleOut             = DEFAULT_LIMIT_INDIVIDUAL;
+let visibleIn              = DEFAULT_LIMIT_ALL;
+let visibleOut             = DEFAULT_LIMIT_ALL;
 let previousVisibleIn      = 0;
 let previousVisibleOut     = 0;
 let visibleHistory         = DEFAULT_LIMIT_HISTORY;

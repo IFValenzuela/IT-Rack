@@ -58,7 +58,9 @@ const ROLE_LABELS = {
 // Pagination defaults
 const DEFAULT_LIMIT_INDIVIDUAL = 10;
 const DEFAULT_LIMIT_GROUPED    = 5;
+const DEFAULT_LIMIT_ALL        = 5;
 const INCREMENT_INDIVIDUAL     = 10;
 const INCREMENT_GROUPED        = 5;
+const INCREMENT_ALL            = 5;
 const DEFAULT_LIMIT_HISTORY    = 20;
 const INCREMENT_HISTORY        = 20;

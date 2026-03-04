@@ -52,8 +52,8 @@ function renderDashboard() {
 
 /** Reset both in-stock and removed pagination to their defaults. */
 function resetDevicesPagination() {
-  visibleIn  = viewModeIn  === 'grouped' ? DEFAULT_LIMIT_GROUPED   : DEFAULT_LIMIT_INDIVIDUAL;
-  visibleOut = viewModeOut === 'grouped' ? DEFAULT_LIMIT_GROUPED   : DEFAULT_LIMIT_INDIVIDUAL;
+  visibleIn  = viewModeIn  === 'grouped' ? DEFAULT_LIMIT_GROUPED  : viewModeIn  === 'all' ? DEFAULT_LIMIT_ALL : DEFAULT_LIMIT_INDIVIDUAL;
+  visibleOut = viewModeOut === 'grouped' ? DEFAULT_LIMIT_GROUPED  : viewModeOut === 'all' ? DEFAULT_LIMIT_ALL : DEFAULT_LIMIT_INDIVIDUAL;
   previousVisibleIn  = visibleIn;
   previousVisibleOut = visibleOut;
 }
@@ -142,7 +142,7 @@ function renderDevicesView() {
 
   renderDashboard();
 
-  const increment = (viewMode) => viewMode === 'grouped' ? INCREMENT_GROUPED : INCREMENT_INDIVIDUAL;
+  const increment = (viewMode) => viewMode === 'grouped' ? INCREMENT_GROUPED : viewMode === 'all' ? INCREMENT_ALL : INCREMENT_INDIVIDUAL;
 
   const renderList = (devices, container, isOut, viewMode, sortDir, visibleCount, previousVisibleCount, onShowMore) => {
     const dateField = isOut ? 'removedAt' : 'createdAt';
@@ -153,10 +153,8 @@ function renderDevicesView() {
     }
     container.classList.remove('empty-state');
 
-    if (viewMode === 'all' || viewMode === 'individual') {
-      let listDevices = devices;
-      if (viewMode === 'individual') listDevices = devices.filter(d => !d.kit_id);
-
+    if (viewMode === 'individual') {
+      const listDevices = devices.filter(d => !d.kit_id);
       const sorted = listDevices.slice().sort((a, b) =>
         sortDir === 'desc'
           ? new Date(b[dateField]) - new Date(a[dateField])
@@ -188,6 +186,132 @@ function renderDevicesView() {
 
       const headIn  = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Added by</th><th>Added</th>`;
       const headOut = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Delivered by</th><th>Reason</th><th>Destination</th><th>Removed at</th>`;
+      const showMoreHtml = total > visibleCount
+        ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show More</button></div>`
+        : '';
+      container.innerHTML = `<table><thead><tr>${isOut ? headOut : headIn}</tr></thead><tbody>${rows}</tbody></table>${showMoreHtml}`;
+
+      if (!isOut) {
+        container.querySelectorAll('tr.js-in-row').forEach((row) => {
+          row.addEventListener('click', () => {
+            const id = row.dataset.deviceId;
+            if (id) openRemoveSerialDialog(id);
+          });
+        });
+      }
+      container.querySelectorAll('.js-show-more').forEach((btn) => {
+        btn.addEventListener('click', () => onShowMore());
+      });
+
+    } else if (viewMode === 'all') {
+      // Combined: individual devices and kit groups interleaved by date.
+      // Each individual device is its own entry in the sort order.
+      // Each kit is one grouped entry (sub-header + device rows).
+      const colCount = isOut ? 8 : 6;
+      const headIn  = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Added by</th><th>Added</th>`;
+      const headOut = `<th>Model</th><th>Department</th><th>Serial</th><th>PR / Ticket</th><th>Delivered by</th><th>Reason</th><th>Destination</th><th>Removed at</th>`;
+
+      // Build kit groups map
+      const kitGroups = new Map();
+      devices.filter(d => d.kit_id).forEach(d => {
+        if (!kitGroups.has(d.kit_id)) kitGroups.set(d.kit_id, []);
+        kitGroups.get(d.kit_id).push(d);
+      });
+
+      // Build one flat sortable list: 1 entry per individual device, 1 entry per kit
+      const entries = [
+        ...devices.filter(d => !d.kit_id).map(d => ({
+          type: 'individual',
+          date: +new Date(d[dateField]) || 0,
+          device: d
+        })),
+        ...[...kitGroups.entries()].map(([kitId, kitItems]) => ({
+          type: 'kit',
+          date: Math.max(...kitItems.map(d => +new Date(d[dateField]) || 0)),
+          kitId,
+          items: kitItems
+        }))
+      ];
+      entries.sort((a, b) => sortDir === 'desc' ? b.date - a.date : a.date - b.date);
+
+      const total  = entries.length;
+      const toShow = entries.slice(0, visibleCount);
+
+      const spacer = `<tr class="kit-spacer"><td colspan="${colCount}"></td></tr>`;
+
+      const rows = toShow.map((entry, idx) => {
+        const revealClass = idx >= previousVisibleCount ? ' row-reveal' : '';
+        const addSpacer   = idx < toShow.length - 1 ? spacer : '';
+        if (entry.type === 'individual') {
+          const d     = entry.device;
+          const model = state.models.find(m => m.id === d.modelId);
+          const modelName = model ? escHtml(model.name) + ' ' + getCategoryBadge(model.category) : 'Unknown model';
+          const subHeader = `<tr class="kit-sub-header${revealClass}">
+            <td colspan="${colCount}" class="kit-ticket-cell">Individual: <strong>${modelName}</strong></td>
+          </tr>`;
+          if (!isOut) {
+            const { rowClass, badge } = getStockAgeInfo(d.createdAt);
+            return `${subHeader}<tr class="${rowClass} kit-device-row js-in-row" data-device-id="${d.id}" style="cursor:pointer;" title="Click to remove from stock">
+              <td>${modelName}</td>
+              <td>${escHtml(d.department || '')}</td>
+              <td><strong>${escHtml(d.serial)}</strong></td>
+              <td>${escHtml(d.prNumber || '')}</td>
+              <td>${escHtml(d.addedBy || '')}</td>
+              <td>${formatDateTime(d.createdAt)}${badge}</td>
+            </tr>${addSpacer}`;
+          } else {
+            return `${subHeader}<tr class="kit-device-row">
+              <td>${modelName}</td>
+              <td>${escHtml(d.department || '')}</td>
+              <td><strong>${escHtml(d.serial)}</strong></td>
+              <td>${escHtml(d.prNumber || '')}</td>
+              <td>${escHtml(d.deliveredBy || '')}</td>
+              <td>${escHtml(d.reason || '')}</td>
+              <td>${escHtml(d.destination || '')}</td>
+              <td>${formatDateTime(d.removedAt)}</td>
+            </tr>${addSpacer}`;
+          }
+        } else {
+          // Kit group: sub-header row followed by its device rows
+          const { kitId, items: kitItems } = entry;
+          kitItems.sort((a, b) => sortDir === 'desc'
+            ? +new Date(b[dateField]) - +new Date(a[dateField])
+            : +new Date(a[dateField]) - +new Date(b[dateField]));
+          const prNums    = [...new Set(kitItems.map(d => d.prNumber).filter(Boolean))].join(', ');
+          const itemCount = `${kitItems.length} item${kitItems.length !== 1 ? 's' : ''}`;
+          const prLabel   = prNums ? ` &mdash; PR / Ticket: <span style="opacity:.7">${escHtml(prNums)}</span>` : '';
+          const subHeader = `<tr class="kit-sub-header${revealClass}">
+            <td colspan="${colCount}" class="kit-ticket-cell">Kit: <strong>${escHtml(kitId)}</strong>${prLabel} <span class="kit-count">${itemCount}</span></td>
+          </tr>`;
+          const deviceRows = kitItems.map(d => {
+            const model = state.models.find(m => m.id === d.modelId);
+            if (!isOut) {
+              const { rowClass, badge } = getStockAgeInfo(d.createdAt);
+              return `<tr class="${rowClass} kit-device-row js-in-row" data-device-id="${d.id}" style="cursor:pointer;" title="Click to remove from stock">
+                <td>${model ? escHtml(model.name) + ' ' + getCategoryBadge(model.category) : 'Unknown'}</td>
+                <td>${escHtml(d.department || '')}</td>
+                <td><strong>${escHtml(d.serial)}</strong></td>
+                <td>${escHtml(d.prNumber || '')}</td>
+                <td>${escHtml(d.addedBy || '')}</td>
+                <td>${formatDateTime(d.createdAt)}${badge}</td>
+              </tr>`;
+            } else {
+              return `<tr class="kit-device-row">
+                <td>${model ? escHtml(model.name) + ' ' + getCategoryBadge(model.category) : 'Unknown'}</td>
+                <td>${escHtml(d.department || '')}</td>
+                <td><strong>${escHtml(d.serial)}</strong></td>
+                <td>${escHtml(d.prNumber || '')}</td>
+                <td>${escHtml(d.deliveredBy || '')}</td>
+                <td>${escHtml(d.reason || '')}</td>
+                <td>${escHtml(d.destination || '')}</td>
+                <td>${formatDateTime(d.removedAt)}</td>
+              </tr>`;
+            }
+          }).join('');
+          return `${subHeader}${deviceRows}${addSpacer}`;
+        }
+      }).join('');
+
       const showMoreHtml = total > visibleCount
         ? `<div class="show-more-row"><button type="button" class="btn btn-show-more js-show-more" data-is-out="${isOut}">Show More</button></div>`
         : '';

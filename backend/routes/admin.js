@@ -12,7 +12,7 @@ router.use(authenticateToken, requireAdmin);
 router.get('/users', async (_req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT id, username, email, role, department, createdAt, lastLogin FROM users
+      SELECT id, username, role, department, createdAt, lastLogin FROM users
       ORDER BY
         FIELD(role, 'admin', 'technician', 'delivery', 'viewer'),
         username ASC
@@ -25,7 +25,7 @@ router.get('/users', async (_req, res) => {
 
 // POST /api/admin/users
 router.post('/users', async (req, res) => {
-  const { username, email, password, role, department } = req.body;
+  const { username, password, role, department } = req.body;
   if (!username || !password || !role) {
     return res.status(400).json({ error: 'username, password and role are required' });
   }
@@ -35,8 +35,8 @@ router.post('/users', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     await pool.query(
-      'INSERT INTO users (username, email, password, role, department, createdAt) VALUES (?, ?, ?, ?, ?, NOW())',
-      [username, email || null, hash, role, department || null]
+      'INSERT INTO users (username, password, role, department, createdAt) VALUES (?, ?, ?, ?, NOW())',
+      [username, hash, role, department || null]
     );
     res.json({ ok: true });
   } catch (e) {
@@ -46,18 +46,18 @@ router.post('/users', async (req, res) => {
 
 // PUT /api/admin/users/:id
 router.put('/users/:id', async (req, res) => {
-  const { role, email, password, department } = req.body;
+  const { role, password, department } = req.body;
   try {
     if (password) {
       const hash = await bcrypt.hash(password, 10);
       await pool.query(
-        'UPDATE users SET role=?, email=?, password=?, department=? WHERE id=?',
-        [role, email || null, hash, department || null, req.params.id]
+        'UPDATE users SET role=?, password=?, department=? WHERE id=?',
+        [role, hash, department || null, req.params.id]
       );
     } else {
       await pool.query(
-        'UPDATE users SET role=?, email=?, department=? WHERE id=?',
-        [role, email || null, department || null, req.params.id]
+        'UPDATE users SET role=?, department=? WHERE id=?',
+        [role, department || null, req.params.id]
       );
     }
     res.json({ ok: true });
