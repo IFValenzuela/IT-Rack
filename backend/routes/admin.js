@@ -11,9 +11,12 @@ router.use(authenticateToken, requireAdmin);
 // GET /api/admin/users
 router.get('/users', async (_req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT id, username, email, role, createdAt, lastLogin FROM users ORDER BY createdAt DESC'
-    );
+    const [rows] = await pool.query(`
+      SELECT id, username, email, role, department, createdAt, lastLogin FROM users
+      ORDER BY
+        FIELD(role, 'admin', 'technician', 'delivery', 'viewer'),
+        username ASC
+    `);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -22,7 +25,7 @@ router.get('/users', async (_req, res) => {
 
 // POST /api/admin/users
 router.post('/users', async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const { username, email, password, role, department } = req.body;
   if (!username || !password || !role) {
     return res.status(400).json({ error: 'username, password and role are required' });
   }
@@ -32,8 +35,8 @@ router.post('/users', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     await pool.query(
-      'INSERT INTO users (username, email, password, role, createdAt) VALUES (?, ?, ?, ?, NOW())',
-      [username, email || null, hash, role]
+      'INSERT INTO users (username, email, password, role, department, createdAt) VALUES (?, ?, ?, ?, ?, NOW())',
+      [username, email || null, hash, role, department || null]
     );
     res.json({ ok: true });
   } catch (e) {
@@ -43,18 +46,18 @@ router.post('/users', async (req, res) => {
 
 // PUT /api/admin/users/:id
 router.put('/users/:id', async (req, res) => {
-  const { role, email, password } = req.body;
+  const { role, email, password, department } = req.body;
   try {
     if (password) {
       const hash = await bcrypt.hash(password, 10);
       await pool.query(
-        'UPDATE users SET role=?, email=?, password=? WHERE id=?',
-        [role, email || null, hash, req.params.id]
+        'UPDATE users SET role=?, email=?, password=?, department=? WHERE id=?',
+        [role, email || null, hash, department || null, req.params.id]
       );
     } else {
       await pool.query(
-        'UPDATE users SET role=?, email=? WHERE id=?',
-        [role, email || null, req.params.id]
+        'UPDATE users SET role=?, email=?, department=? WHERE id=?',
+        [role, email || null, department || null, req.params.id]
       );
     }
     res.json({ ok: true });
@@ -162,6 +165,79 @@ router.delete('/clear-all', async (_req, res) => {
     await pool.query('DELETE FROM devices');
     await pool.query('DELETE FROM models');
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Demo Mode ────────────────────────────────────────────────
+
+// POST /api/admin/demo/seed  — injects demo devices backdated for yellow/red badges
+router.post('/demo/seed', async (req, res) => {
+  try {
+    // Need at least one model to attach devices to
+    const [models] = await pool.query(
+      "SELECT id FROM models WHERE id NOT LIKE 'DEMO-%' LIMIT 1"
+    );
+    if (!models.length) {
+      return res.status(400).json({ error: 'No models found. Add at least one model before seeding demo data.' });
+    }
+    const modelId = models[0].id;
+    const addedBy = req.user.username;
+
+    // Remove any leftover demo data first
+    await pool.query("DELETE FROM devices WHERE id LIKE 'DEMO-%'");
+
+    // 3 fresh devices (no badge)
+    const freshDevices = [
+      ['DEMO-FRESH-001', 'DEMO-SN-F001', 'PR-DEMO-01'],
+      ['DEMO-FRESH-002', 'DEMO-SN-F002', 'PR-DEMO-02'],
+      ['DEMO-FRESH-003', 'DEMO-SN-F003', 'PR-DEMO-03'],
+    ];
+    for (const [id, serial, prNumber] of freshDevices) {
+      await pool.query(
+        'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
+        [id, modelId, serial, prNumber, 'in', 'IT Dept', addedBy]
+      );
+    }
+
+    // 3 devices 16 days old → yellow "2+ weeks" badge
+    const warningDevices = [
+      ['DEMO-WARN-001', 'DEMO-SN-W001', 'PR-DEMO-04'],
+      ['DEMO-WARN-002', 'DEMO-SN-W002', 'PR-DEMO-05'],
+      ['DEMO-WARN-003', 'DEMO-SN-W003', 'PR-DEMO-06'],
+    ];
+    for (const [id, serial, prNumber] of warningDevices) {
+      await pool.query(
+        'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 16 DAY))',
+        [id, modelId, serial, prNumber, 'in', 'IT Dept', addedBy]
+      );
+    }
+
+    // 3 devices 35 days old → red "1+ month" badge
+    const criticalDevices = [
+      ['DEMO-CRIT-001', 'DEMO-SN-C001', 'PR-DEMO-07'],
+      ['DEMO-CRIT-002', 'DEMO-SN-C002', 'PR-DEMO-08'],
+      ['DEMO-CRIT-003', 'DEMO-SN-C003', 'PR-DEMO-09'],
+    ];
+    for (const [id, serial, prNumber] of criticalDevices) {
+      await pool.query(
+        'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 35 DAY))',
+        [id, modelId, serial, prNumber, 'in', 'IT Dept', addedBy]
+      );
+    }
+
+    res.json({ ok: true, inserted: 9 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/admin/demo/cleanup  — removes all demo devices
+router.delete('/demo/cleanup', async (_req, res) => {
+  try {
+    const [result] = await pool.query("DELETE FROM devices WHERE id LIKE 'DEMO-%'");
+    res.json({ ok: true, removed: result.affectedRows });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

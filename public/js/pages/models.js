@@ -22,6 +22,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   populateTechnicianSelect();
   updateModelsHeader();
 
+  // Auto-select and lock department for non-admin users
+  const deptSel = document.getElementById('serial-department-select');
+  if (deptSel && currentUser) {
+    const isAdmin = currentUser.role === 'admin';
+    if (currentUser.department) {
+      deptSel.value    = currentUser.department;
+      deptSel.disabled = !isAdmin;
+    }
+  }
+
   // ── Close model detail ────────────────────────────────────
   document.getElementById('btn-close-model-detail').addEventListener('click', closeModelDetail);
 
@@ -41,6 +51,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (serialInp) { serialInp.disabled = false; serialInp.setAttribute('required', ''); }
     if (naCheck)    { naCheck.checked = false; }
     addSerialForm.reset();
+    // Preserve department and person after form reset.
+    const deptSelAfter = document.getElementById('serial-department-select');
+    if (deptSelAfter && currentUser && currentUser.department) {
+      deptSelAfter.value    = currentUser.department;
+      deptSelAfter.disabled = currentUser.role !== 'admin';
+    }
     // Preserve the selected person after form reset.
     const sel = document.getElementById('serial-added-by-select');
     if (sel && addedBy) sel.value = addedBy;

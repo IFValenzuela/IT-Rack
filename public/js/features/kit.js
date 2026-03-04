@@ -36,7 +36,7 @@ async function openNewHireKitDialog() {
   nhkState.otherNoSerial = false;
   nhkState.serialInputs  = {};
   nhkState.prNumber      = '';
-  nhkState.department    = '';
+  nhkState.department    = (currentUser && currentUser.department) ? currentUser.department : '';
   nhkState.addedBy       = (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'delivery')
     ? currentUser.username
     : '';
@@ -237,7 +237,7 @@ function nhkRenderStep2(container) {
       </div>
       <div class="form-field">
         <label>Department <span style="color:var(--danger)">*</span></label>
-        <select id="nhk-dept-select">
+        <select id="nhk-dept-select" ${isNhkAdmin ? '' : 'disabled'}>
           <option value="">Select department…</option>
           <option value="Planta Oeste" ${nhkState.department === 'Planta Oeste' ? 'selected' : ''}>Planta Oeste</option>
           <option value="Planta Este"  ${nhkState.department === 'Planta Este'  ? 'selected' : ''}>Planta Este</option>

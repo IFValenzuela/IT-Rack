@@ -33,6 +33,7 @@ function renderAdminUsers() {
           <th>Username</th>
           <th>Email</th>
           <th>Role</th>
+          <th>Department</th>
           <th>Last Login</th>
           <th>Created</th>
           <th style="width:120px"></th>
@@ -44,6 +45,7 @@ function renderAdminUsers() {
             <td><strong>${escHtml(u.username)}</strong>${u.id === currentUser.id ? ' <span class="badge-you">you</span>' : ''}</td>
             <td style="color:var(--text-muted)">${escHtml(u.email || '—')}</td>
             <td><span class="role-badge ${(ROLE_LABELS[u.role] || {}).cls || ''}">${(ROLE_LABELS[u.role] || {}).label || escHtml(u.role)}</span></td>
+            <td style="color:var(--text-muted)">${escHtml(u.department || '—')}</td>
             <td style="color:var(--text-muted);font-size:.8rem">${u.lastLogin ? formatDateTime(u.lastLogin) : 'Never'}</td>
             <td style="color:var(--text-muted);font-size:.8rem">${u.createdAt ? formatDate(u.createdAt) : '—'}</td>
             <td class="row-actions">
@@ -92,8 +94,7 @@ function openEditUser(id) {
   document.getElementById('new-user-password').value = '';
   document.getElementById('new-user-password').required = false;
   document.getElementById('password-field-label').innerHTML = 'New Password <span style="color:var(--text-muted);font-size:.8em">(leave blank to keep)</span>';
-  document.getElementById('new-user-role').value = u.role;
-  document.getElementById('add-user-dialog').classList.remove('hidden');
+  document.getElementById('new-user-role').value = u.role;  document.getElementById('new-user-department').value  = u.department || '';  document.getElementById('add-user-dialog').classList.remove('hidden');
 }
 
 /** Close (and reset) the add/edit user dialog. */
@@ -107,14 +108,15 @@ function closeAddUserDialog() {
 async function saveUser(e) {
   e.preventDefault();
   const token    = localStorage.getItem('token');
-  const username = document.getElementById('new-user-username').value.trim();
-  const email    = document.getElementById('new-user-email').value.trim();
-  const password = document.getElementById('new-user-password').value;
-  const role     = document.getElementById('new-user-role').value;
+  const username   = document.getElementById('new-user-username').value.trim();
+  const email      = document.getElementById('new-user-email').value.trim();
+  const password   = document.getElementById('new-user-password').value;
+  const role       = document.getElementById('new-user-role').value;
+  const department = document.getElementById('new-user-department').value || null;
 
   try {
     if (editingUserId) {
-      const body = { role, email };
+      const body = { role, email, department };
       if (password) body.password = password;
       const res = await fetch(`${API_URL}/admin/users/${editingUserId}`, {
         method: 'PUT',
@@ -129,7 +131,7 @@ async function saveUser(e) {
       const res = await fetch(`${API_URL}/admin/users`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password, role }),
+        body: JSON.stringify({ username, email, password, role, department }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -373,5 +375,68 @@ async function deleteAccessory(id, name) {
     await loadKitAccessoriesAdmin();
   } catch (err) {
     showToast(err.message);
+  }
+}
+
+// ── Demo Mode ────────────────────────────────────────────────
+
+/** Toggle demo mode panel open/closed. */
+function initDemoModePanel() {
+  const toggle = document.getElementById('demo-mode-toggle');
+  const body   = document.getElementById('demo-mode-body');
+  const icon   = document.getElementById('demo-toggle-icon');
+  if (!toggle) return;
+  toggle.addEventListener('click', () => {
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    icon.textContent   = open ? '▶' : '▼';
+  });
+
+  document.getElementById('btn-demo-seed').addEventListener('click', seedDemoData);
+  document.getElementById('btn-demo-cleanup').addEventListener('click', cleanupDemoData);
+}
+
+/** Inject backdated demo devices (for presentation). */
+async function seedDemoData() {
+  const btn = document.getElementById('btn-demo-seed');
+  btn.disabled = true;
+  btn.textContent = 'Injecting…';
+  const token = localStorage.getItem('token');
+  try {
+    const res  = await fetch(`${API_URL}/admin/demo/seed`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showToast(`✓ 9 demo devices injected. Go to All Devices to see the badges.`);
+  } catch (err) {
+    showToast(err.message || 'Failed to inject demo data.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ Inject Demo Devices';
+  }
+}
+
+/** Remove all demo devices (serials starting with DEMO-). */
+async function cleanupDemoData() {
+  if (!confirm('Remove all demo devices (DEMO-*) from the inventory?')) return;
+  const btn = document.getElementById('btn-demo-cleanup');
+  btn.disabled = true;
+  btn.textContent = 'Removing…';
+  const token = localStorage.getItem('token');
+  try {
+    const res  = await fetch(`${API_URL}/admin/demo/cleanup`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showToast(`✓ ${data.removed} demo device${data.removed !== 1 ? 's' : ''} removed.`);
+  } catch (err) {
+    showToast(err.message || 'Failed to remove demo data.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✕ Remove Demo Devices';
   }
 }

@@ -19,7 +19,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT id, username, email, password, role FROM users WHERE username = ? LIMIT 1',
+      'SELECT id, username, email, password, role, department FROM users WHERE username = ? LIMIT 1',
       [username]
     );
 
@@ -36,14 +36,14 @@ router.post('/login', async (req, res) => {
     await pool.query('UPDATE users SET lastLogin = NOW() WHERE id = ?', [user.id]);
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
+      { id: user.id, username: user.username, role: user.role, department: user.department || null },
       JWT_SECRET,
       { expiresIn: '8h' }
     );
 
     res.json({
       token,
-      user: { id: user.id, username: user.username, email: user.email, role: user.role },
+      user: { id: user.id, username: user.username, email: user.email, role: user.role, department: user.department || null },
     });
   } catch (e) {
     console.error('Login error:', e.message);

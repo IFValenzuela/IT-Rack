@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnCancelAcc)   btnCancelAcc.addEventListener('click', closeAddAccessoryDialog);
   if (addAccForm)     addAccForm.addEventListener('submit', saveAccessory);
 
+  // ── Demo Mode panel ───────────────────────────────────────
+  initDemoModePanel();
+
   // ── Initial load ──────────────────────────────────────────
   renderAll();
 });
