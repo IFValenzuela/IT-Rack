@@ -28,6 +28,7 @@ app.use('/api/devices',     require('./backend/routes/devices'));
 app.use('/api/models',      require('./backend/routes/models'));
 app.use('/api/technicians', require('./backend/routes/technicians'));
 app.use('/api/admin',       require('./backend/routes/admin'));
+app.use('/api/kit-accessories', require('./backend/routes/kit'));
 
 //  Start 
 const PORT = process.env.PORT || 3000;

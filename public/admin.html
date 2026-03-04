@@ -44,6 +44,21 @@
           <p>Loading users…</p>
         </div>
       </section>
+
+      <section class="panel" style="margin-top:28px;">
+        <div class="panel-header">
+          <div>
+            <h2>Kit Accessories</h2>
+            <p class="panel-subtitle">Manage the items available in the Prepare Kit wizard.</p>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn primary" id="btn-open-add-accessory-dialog">+ New Item</button>
+          </div>
+        </div>
+        <div id="admin-kit-accessories-container" class="table-container empty-state">
+          <p>Loading…</p>
+        </div>
+      </section>
     </section>
   </main>
 
@@ -81,6 +96,55 @@
         <div class="dialog-footer">
           <button type="button" class="btn ghost" id="btn-cancel-add-user">Cancel</button>
           <button type="submit" class="btn primary" id="btn-save-user">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add/Edit Kit Accessory Dialog -->
+  <div id="add-accessory-dialog" class="dialog-backdrop hidden">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h2 id="add-accessory-dialog-title">New Kit Item</h2>
+      </div>
+      <form id="add-accessory-form" class="dialog-body" autocomplete="off">
+        <input type="hidden" id="edit-accessory-id" value="" />
+        <div class="form-field">
+          <label for="acc-name">Item Name <span style="color:var(--danger)">*</span></label>
+          <input id="acc-name" type="text" placeholder="e.g. USB-C Hub" required />
+        </div>
+        <div class="form-field">
+          <label for="acc-category">Device Category <span style="color:var(--danger)">*</span></label>
+          <select id="acc-category" required>
+            <option value="Laptop">Laptop</option>
+            <option value="Desktop PC">Desktop PC</option>
+            <option value="Keyboard">Keyboard</option>
+            <option value="Cellphone">Cellphone</option>
+            <option value="Mouse">Mouse</option>
+            <option value="Headset">Headset</option>
+            <option value="Dock">Dock</option>
+            <option value="Monitor">Monitor</option>
+            <option value="Cable">Cable</option>
+            <option value="Camera">Camera</option>
+            <option value="Printer">Printer</option>
+            <option value="Tablet">Tablet</option>
+            <option value="Scanner">Scanner</option>
+            <option value="Other" selected>Other</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="acc-sort-order">Sort Order</label>
+          <input id="acc-sort-order" type="number" min="0" placeholder="e.g. 10" value="0" />
+        </div>
+        <div class="form-field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input id="acc-no-serial" type="checkbox" style="width:auto;" />
+            No serial number required for this item
+          </label>
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="btn ghost" id="btn-cancel-add-accessory">Cancel</button>
+          <button type="submit" class="btn primary" id="btn-save-accessory">Add Item</button>
         </div>
       </form>
     </div>

@@ -5,8 +5,30 @@
 //             pages/[page].js (renderAll — defined per page)
 // ============================================================
 
+/**
+ * Fetch kit accessories from the DB and refresh the three config arrays.
+ * Falls back silently to the hardcoded defaults if the request fails.
+ */
+async function loadKitAccessories() {
+  try {
+    const rows = await apiCall('GET', '/kit-accessories');
+    // Rebuild KIT_ACCESSORIES (always end with "Other" if present)
+    KIT_ACCESSORIES = rows.map(r => r.name);
+    if (!KIT_ACCESSORIES.includes('Other')) KIT_ACCESSORIES.push('Other');
+    // Rebuild NO_SERIAL_ITEMS Set
+    NO_SERIAL_ITEMS = new Set(rows.filter(r => r.no_serial).map(r => r.name));
+    // Rebuild KIT_ACCESSORY_CATEGORIES map
+    KIT_ACCESSORY_CATEGORIES = {};
+    rows.forEach(r => { KIT_ACCESSORY_CATEGORIES[r.name] = r.category || 'Other'; });
+    KIT_ACCESSORY_CATEGORIES['Other'] = KIT_ACCESSORY_CATEGORIES['Other'] || 'Other';
+  } catch (e) {
+    console.warn('loadKitAccessories: using defaults.', e);
+  }
+}
+
 /** Open the New Hire Kit wizard and reset all wizard state. */
-function openNewHireKitDialog() {
+async function openNewHireKitDialog() {
+  await loadKitAccessories();
   nhkState.step          = 1;
   nhkState.kitId         = '';
   nhkState.selectedItems = [];
