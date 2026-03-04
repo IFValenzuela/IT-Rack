@@ -506,6 +506,48 @@ body {
   color: var(--text-muted);
 }
 
+/* Serial number input with inline N/A checkbox */
+.serial-input-box {
+  display: flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: #f9fbff;
+  overflow: hidden;
+  transition: all 0.15s ease-out;
+}
+.serial-input-box:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1px rgba(0, 125, 184, 0.2);
+  background: #ffffff;
+}
+.serial-input-box > input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 7px 12px;
+}
+#serial-na-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px 0 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: normal;
+  white-space: nowrap;
+  border-left: 1px solid var(--border-subtle);
+}
+#serial-na-wrap input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
 input[type="text"],
 textarea,
 input[type="number"],

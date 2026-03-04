@@ -334,8 +334,12 @@ function closeRemoveSerialDialog() {
 async function addDeviceSerial(modelId, serial, department, prNumber, addedBy) {
   const model = state.models.find((m) => m.id === modelId);
   if (!model) return;
-  const cleanSerial = serial.trim();
-  if (!cleanSerial) return;
+  // Categories that don't require a serial number get 'N/A' automatically
+  const isCable   = (model.category || '') === 'Cable';
+  const isNaOther = (model.category || '') === 'Other' && (serial || '').trim().toUpperCase() === 'N/A';
+  const noSerial  = isCable || isNaOther;
+  const cleanSerial = noSerial ? 'N/A' : serial.trim();
+  if (!noSerial && !cleanSerial) return;
   const cleanDepartment = (department || '').trim();
   if (!cleanDepartment) { showToast('Please select a department.'); return; }
   const cleanPr = (prNumber || '').trim();
@@ -346,7 +350,7 @@ async function addDeviceSerial(modelId, serial, department, prNumber, addedBy) {
   const existing = state.devices.find(
     (d) => d.modelId === modelId && d.serial.toLowerCase() === cleanSerial.toLowerCase() && d.status === 'in'
   );
-  if (existing) { showToast('This serial is already in stock for this model.'); return; }
+  if (existing && !noSerial) { showToast('This serial is already in stock for this model.'); return; }
 
   // Generate ID and timestamp once so the API call and local state stay in sync.
   const newDeviceId        = uid();

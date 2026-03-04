@@ -30,16 +30,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   addSerialForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!currentModelId) { showToast('Select a model first.'); return; }
-    const serial     = document.getElementById('serial-number-input').value;
+    const naCheck    = document.getElementById('serial-na-check');
+    const serial     = (naCheck && naCheck.checked) ? 'N/A' : document.getElementById('serial-number-input').value;
     const department = document.getElementById('serial-department-select').value;
     const prNumber   = document.getElementById('serial-pr-input').value;
     const addedBy    = document.getElementById('serial-added-by-select').value;
     addDeviceSerial(currentModelId, serial, department, prNumber, addedBy);
+    // Re-enable serial input before reset so it clears properly
+    const serialInp = document.getElementById('serial-number-input');
+    if (serialInp) { serialInp.disabled = false; serialInp.setAttribute('required', ''); }
+    if (naCheck)    { naCheck.checked = false; }
     addSerialForm.reset();
     // Preserve the selected person after form reset.
     const sel = document.getElementById('serial-added-by-select');
     if (sel && addedBy) sel.value = addedBy;
   });
+
+  // ── N/A checkbox toggle (Other category) ─────────────────
+  const serialNaCheck = document.getElementById('serial-na-check');
+  if (serialNaCheck) {
+    serialNaCheck.addEventListener('change', () => {
+      const inp = document.getElementById('serial-number-input');
+      if (!inp) return;
+      if (serialNaCheck.checked) {
+        inp.value    = '';
+        inp.disabled = true;
+        inp.removeAttribute('required');
+      } else {
+        inp.disabled = false;
+        inp.setAttribute('required', '');
+      }
+    });
+  }
 
   // ── Add technician sentinel ───────────────────────────────
   const addedBySelect = document.getElementById('serial-added-by-select');

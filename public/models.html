@@ -71,9 +71,14 @@
           <div class="split-column">
             <h3>Serials in Stock</h3>
             <form id="add-serial-form" class="form-inline">
-              <div class="form-field">
+              <div class="form-field" id="serial-number-field">
                 <label for="serial-number-input">Serial number</label>
-                <input id="serial-number-input" type="text" placeholder="e.g. ABC123XYZ" required />
+                <div class="serial-input-box">
+                  <input id="serial-number-input" type="text" placeholder="e.g. ABC123XYZ" required />
+                  <label id="serial-na-wrap" style="display:none;">
+                    <input type="checkbox" id="serial-na-check" /> N/A
+                  </label>
+                </div>
               </div>
               <div class="form-field">
                 <label for="serial-pr-input">PR Number / Ticket</label>

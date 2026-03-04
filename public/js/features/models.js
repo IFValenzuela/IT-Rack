@@ -305,6 +305,33 @@ function openModelDetail(modelId) {
   const inCount  = state.devices.filter((d) => d.modelId === model.id && d.status === 'in').length;
   const outCount = state.devices.filter((d) => d.modelId === model.id && d.status === 'out').length;
   document.getElementById('model-detail-counts').textContent = `${inCount} in stock - ${outCount} removed`;
+
+  // Hide/adjust serial input based on category
+  const serialInput  = document.getElementById('serial-number-input');
+  const serialWrap   = serialInput ? serialInput.closest('.form-field') : null;
+  const serialNaWrap = document.getElementById('serial-na-wrap');
+  const serialNaCheck = document.getElementById('serial-na-check');
+  const isCable      = (model.category || '') === 'Cable';
+  const isOther      = (model.category || '') === 'Other';
+  if (serialInput) {
+    if (isCable) {
+      serialInput.value    = 'N/A';
+      serialInput.readOnly = true;
+      serialInput.disabled = false;
+      serialInput.removeAttribute('required');
+      if (serialWrap) serialWrap.style.display = 'none';
+    } else {
+      serialInput.value    = '';
+      serialInput.readOnly = false;
+      serialInput.disabled = false;
+      serialInput.setAttribute('required', '');
+      if (serialWrap) serialWrap.style.display = '';
+    }
+  }
+  // Show N/A checkbox only for Other category; reset it
+  if (serialNaWrap)  serialNaWrap.style.display  = isOther ? 'flex' : 'none';
+  if (serialNaCheck) serialNaCheck.checked = false;
+
   renderModelSerialsTable(model.id);
   modelHistoryVisible = 10;
   renderModelHistoryTable(model.id);
