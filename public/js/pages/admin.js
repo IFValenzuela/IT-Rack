@@ -4,9 +4,10 @@
 //             features/admin.js, ui/auth.js
 // ============================================================
 
-/** Page-scoped renderAll: reload the admin users table. */
+/** Page-scoped renderAll: reload the admin users table and kit accessories. */
 function renderAll() {
   loadAdminUsers();
+  loadKitAccessoriesAdmin();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -21,6 +22,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnOpenAddUser)   btnOpenAddUser.addEventListener('click', openAddUserDialog);
   if (btnCancelAddUser) btnCancelAddUser.addEventListener('click', closeAddUserDialog);
   if (addUserForm)      addUserForm.addEventListener('submit', saveUser);
+
+  // ── Add / Edit Kit Accessory dialog ──────────────────────
+  const btnOpenAddAcc   = document.getElementById('btn-open-add-accessory-dialog');
+  const btnCancelAcc    = document.getElementById('btn-cancel-add-accessory');
+  const addAccForm      = document.getElementById('add-accessory-form');
+  if (btnOpenAddAcc)  btnOpenAddAcc.addEventListener('click', openAddAccessoryDialog);
+  if (btnCancelAcc)   btnCancelAcc.addEventListener('click', closeAddAccessoryDialog);
+  if (addAccForm)     addAccForm.addEventListener('submit', saveAccessory);
 
   // ── Initial load ──────────────────────────────────────────
   renderAll();

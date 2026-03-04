@@ -47,7 +47,10 @@ desktop.ini
 .eslintcache
 .yarn-integrity
 
-# Database dumps / local backups
+# Firebase (removed — using MySQL/Express instead)
+.firebase/
+.firebaserc
+firebase.json
+
+# Database backups
 *.sql
-*.sqlite
-*.db

@@ -159,3 +159,153 @@ async function deleteUser(id, username) {
     showToast(err.message);
   }
 }
+
+// ============================================================
+// Kit Accessories Management
+// ============================================================
+
+let kitAccessories = [];
+
+/** Fetch all kit accessories from the backend and re-render. */
+async function loadKitAccessoriesAdmin() {
+  const token = localStorage.getItem('token');
+  try {
+    const res = await fetch(`${API_URL}/admin/kit-accessories`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    kitAccessories = await res.json();
+    renderKitAccessories();
+  } catch (e) {
+    showToast('Failed to load kit accessories.');
+  }
+}
+
+/** Render the kit accessories table. */
+function renderKitAccessories() {
+  const container = document.getElementById('admin-kit-accessories-container');
+  if (!container) return;
+  if (!kitAccessories.length) {
+    container.innerHTML = '<p>No kit accessories defined.</p>';
+    return;
+  }
+  container.classList.remove('empty-state');
+  container.innerHTML = `
+    <table class="inv-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Category</th>
+          <th>No Serial</th>
+          <th>Sort Order</th>
+          <th style="width:120px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${kitAccessories.map(a => `
+          <tr>
+            <td><strong>${escHtml(a.name)}</strong></td>
+            <td style="color:var(--text-muted)">${escHtml(a.category)}</td>
+            <td>${a.no_serial ? '<span class="role-badge role-viewer">N/A</span>' : '—'}</td>
+            <td style="color:var(--text-muted);font-size:.8rem">${a.sort_order}</td>
+            <td class="row-actions">
+              <span class="action-link js-edit-accessory" data-id="${a.id}">Edit</span>
+              ${a.name !== 'Other' ? `<span class="action-link action-link-danger js-delete-accessory" data-id="${a.id}" data-name="${escHtml(a.name)}">Delete</span>` : ''}
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+
+  container.addEventListener('click', (e) => {
+    const editBtn = e.target.closest('.js-edit-accessory');
+    if (editBtn) { openEditAccessory(Number(editBtn.dataset.id)); return; }
+    const delBtn = e.target.closest('.js-delete-accessory');
+    if (delBtn) { deleteAccessory(Number(delBtn.dataset.id), delBtn.dataset.name); }
+  });
+}
+
+/** Open the New Accessory dialog. */
+function openAddAccessoryDialog() {
+  document.getElementById('add-accessory-dialog-title').textContent = 'New Kit Item';
+  document.getElementById('btn-save-accessory').textContent = 'Add Item';
+  document.getElementById('add-accessory-form').reset();
+  document.getElementById('edit-accessory-id').value = '';
+  document.getElementById('acc-sort-order').value = (kitAccessories.length + 1) * 10;
+  document.getElementById('add-accessory-dialog').classList.remove('hidden');
+}
+
+/** Open the Edit Accessory dialog pre-filled. */
+function openEditAccessory(id) {
+  const a = kitAccessories.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('add-accessory-dialog-title').textContent = 'Edit Kit Item';
+  document.getElementById('btn-save-accessory').textContent = 'Save Changes';
+  document.getElementById('edit-accessory-id').value = id;
+  document.getElementById('acc-name').value = a.name;
+  document.getElementById('acc-category').value = a.category;
+  document.getElementById('acc-sort-order').value = a.sort_order;
+  document.getElementById('acc-no-serial').checked = !!a.no_serial;
+  document.getElementById('add-accessory-dialog').classList.remove('hidden');
+}
+
+/** Close the Accessory dialog. */
+function closeAddAccessoryDialog() {
+  document.getElementById('add-accessory-dialog').classList.add('hidden');
+  document.getElementById('add-accessory-form').reset();
+}
+
+/** Save (create or update) a kit accessory. */
+async function saveAccessory(e) {
+  e.preventDefault();
+  const token      = localStorage.getItem('token');
+  const editId     = document.getElementById('edit-accessory-id').value;
+  const name       = document.getElementById('acc-name').value.trim();
+  const category   = document.getElementById('acc-category').value;
+  const sort_order = Number(document.getElementById('acc-sort-order').value) || 0;
+  const no_serial  = document.getElementById('acc-no-serial').checked ? 1 : 0;
+
+  try {
+    if (editId) {
+      const res = await fetch(`${API_URL}/admin/kit-accessories/${editId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, category, sort_order, no_serial }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast('Kit item updated.');
+    } else {
+      const res = await fetch(`${API_URL}/admin/kit-accessories`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, category, sort_order, no_serial }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast(`"${name}" added to kit accessories.`);
+    }
+    closeAddAccessoryDialog();
+    await loadKitAccessoriesAdmin();
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+/** Delete a kit accessory by ID. */
+async function deleteAccessory(id, name) {
+  if (!confirm(`Remove "${name}" from the kit accessories list?`)) return;
+  const token = localStorage.getItem('token');
+  try {
+    const res = await fetch(`${API_URL}/admin/kit-accessories/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showToast(`"${name}" removed.`);
+    await loadKitAccessoriesAdmin();
+  } catch (err) {
+    showToast(err.message);
+  }
+}

@@ -12,8 +12,8 @@ const CATEGORIES = [
   "Printer", "Tablet", "Scanner", "Other",
 ];
 
-// Kit-builder constants
-const KIT_ACCESSORIES = [
+// Kit-builder constants (overwritten at runtime by loadKitAccessories in kit.js)
+let KIT_ACCESSORIES = [
   "Dell 24-Inch Monitor",
   "Dell Optical Wired Mouse",
   "Dell Wired Multi-Media Keyboard",
@@ -26,15 +26,15 @@ const KIT_ACCESSORIES = [
   "Other",
 ];
 
-// Items that never have a serial number
-const NO_SERIAL_ITEMS = new Set([
+// Items that never have a serial number (overwritten at runtime)
+let NO_SERIAL_ITEMS = new Set([
   "DisplayPort to VGA Converter",
   "DVI-D to DisplayPort Converter",
   "HDMI to VGA Adapter",
 ]);
 
-// Maps kit accessory names → device category
-const KIT_ACCESSORY_CATEGORIES = {
+// Maps kit accessory names → device category (overwritten at runtime)
+let KIT_ACCESSORY_CATEGORIES = {
   "Dell 24-Inch Monitor":          "Monitor",
   "Dell Optical Wired Mouse":      "Mouse",
   "Dell Wired Multi-Media Keyboard": "Keyboard",

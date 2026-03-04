@@ -24,11 +24,11 @@ router.get('/', async (_req, res) => {
 // POST /api/devices
 // NOTE: addedBy is taken from the JWT (req.user.username) to prevent spoofing.
 router.post('/', async (req, res) => {
-  const { id, modelId, serial, prNumber, status, department } = req.body;
+  const { id, modelId, serial, prNumber, status, department, kit_id } = req.body;
   try {
     await pool.query(
-      'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
-      [id, modelId, serial, prNumber, status, department, req.user.username]
+      'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, kit_id, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [id, modelId, serial, prNumber, status, department, req.user.username, kit_id || null]
     );
     res.json({ ok: true });
   } catch (e) {
