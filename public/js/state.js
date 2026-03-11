@@ -73,20 +73,28 @@ const nhkState = {
  * state.history is derived from devices by rebuildHistory() inside renderAll().
  */
 async function loadFromBackend() {
-  try {
-    const [models, devices, technicians] = await Promise.all([
-      apiCall('GET', '/models'),
-      apiCall('GET', '/devices'),
-      apiCall('GET', '/technicians'),
-    ]);
+  const [modelsRes, devicesRes, techRes] = await Promise.allSettled([
+    apiCall('GET', '/models'),
+    apiCall('GET', '/devices'),
+    apiCall('GET', '/technicians'),
+  ]);
 
-    state.models      = Array.isArray(models)      ? models                        : [];
-    state.devices     = Array.isArray(devices)     ? devices                       : [];
-    state.technicians = Array.isArray(technicians) ? technicians.map(t => t.name) : [];
-    // history is derived — call rebuildHistory() after loadFromBackend()
-  } catch (e) {
-    console.error('Error loading from backend:', e);
+  if (modelsRes.status === 'fulfilled' && Array.isArray(modelsRes.value)) {
+    state.models = modelsRes.value;
+  }
+  if (devicesRes.status === 'fulfilled' && Array.isArray(devicesRes.value)) {
+    state.devices = devicesRes.value;
+  }
+  if (techRes.status === 'fulfilled' && Array.isArray(techRes.value)) {
+    state.technicians = techRes.value.map(t => t.name);
+  }
+
+  // Only alert the user when everything failed — partial failures are logged silently
+  const failed = [modelsRes, devicesRes, techRes].filter(r => r.status === 'rejected');
+  if (failed.length === 3) {
     showToast('Could not load data from server');
+  } else if (failed.length > 0) {
+    failed.forEach(r => console.warn('Data endpoint failed:', r.reason));
   }
 }
 
@@ -126,6 +134,25 @@ function rebuildHistory() {
   });
   history.sort((a, b) => new Date(b.at) - new Date(a.at));
   state.history = history;
+}
+
+/**
+ * Start polling the backend for fresh data.
+ * Calls loadFromBackend() + renderAll() on a timer and when the tab becomes visible.
+ * renderAll() is defined per-page in global scope.
+ */
+function startAutoRefresh(intervalMs = 30000) {
+  setInterval(async () => {
+    await loadFromBackend();
+    renderAll();
+  }, intervalMs);
+
+  document.addEventListener('visibilitychange', async () => {
+    if (!document.hidden) {
+      await loadFromBackend();
+      renderAll();
+    }
+  });
 }
 
 /**

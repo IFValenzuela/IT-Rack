@@ -10,7 +10,9 @@ async function loadAdminUsers() {
     const res = await fetch(`${API_URL}/admin/users`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
-    adminUsers = await res.json();
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Failed to load users.'); return; }
+    adminUsers = data;
     renderAdminUsers();
   } catch (e) {
     showToast('Failed to load users.');
@@ -88,7 +90,6 @@ function openEditUser(id) {
   document.getElementById('edit-user-id').value = id;
   document.getElementById('new-user-username').value = u.username;
   document.getElementById('new-user-username').disabled = true;
-  document.getElementById('new-user-email').value = u.email || '';
   document.getElementById('new-user-password').value = '';
   document.getElementById('new-user-password').required = false;
   document.getElementById('password-field-label').innerHTML = 'New Password <span style="color:var(--text-muted);font-size:.8em">(leave blank to keep)</span>';
@@ -172,7 +173,9 @@ async function loadKitAccessoriesAdmin() {
     const res = await fetch(`${API_URL}/admin/kit-accessories`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
-    kitAccessories = await res.json();
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Failed to load kit accessories.'); return; }
+    kitAccessories = data;
     renderKitAccessories();
   } catch (e) {
     showToast('Failed to load kit accessories.');
@@ -278,11 +281,12 @@ function renderKitAccessories() {
 async function reorderAccessories(order) {
   const token = localStorage.getItem('token');
   try {
-    await fetch(`${API_URL}/admin/kit-accessories/reorder`, {
+    const res = await fetch(`${API_URL}/admin/kit-accessories/reorder`, {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ order }),
     });
+    if (!res.ok) { showToast('Failed to save order.'); return; }
     // Update local sort_order values
     order.forEach((id, idx) => {
       const item = kitAccessories.find(a => a.id === id);

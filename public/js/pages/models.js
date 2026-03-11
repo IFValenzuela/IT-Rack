@@ -10,6 +10,8 @@ function renderAll() {
   rebuildHistory();
   renderModelsTable();
   renderKitDeployDropdown();
+  populateTechnicianSelect();
+  populateDeliveredBySelect();
   if (currentModelId) openModelDetail(currentModelId);
 }
 
@@ -133,6 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Initial render ────────────────────────────────────────
   renderAll();
+  startAutoRefresh();
 
   // Auto-open model detail if URL contains ?model=<id>
   tryOpenDetailFromUrl();

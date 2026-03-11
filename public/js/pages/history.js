@@ -68,4 +68,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Initial render ────────────────────────────────────────
   renderAll();
+  startAutoRefresh();
 });

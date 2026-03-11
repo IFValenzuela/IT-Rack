@@ -36,4 +36,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Initial load ──────────────────────────────────────────
   renderAll();
+
+  // Keep admin data current — poll every 30 s and on tab focus
+  setInterval(renderAll, 30000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) renderAll();
+  });
 });

@@ -27,7 +27,7 @@ function renderHistoryView() {
       const d = new Date(m.createdAt);
       if (!Number.isNaN(d.getTime())) yearsSet.add(d.getFullYear());
     });
-    const years = Array.from(yearsSet).filter((y) => y >= 2026).sort((a, b) => b - a);
+    const years = Array.from(yearsSet).filter((y) => y >= 2020).sort((a, b) => b - a);
     let optionsHtml = '<option value="">All years</option>';
     years.forEach((y) => { optionsHtml += `<option value="${y}">${y}</option>`; });
     yearSelectEl.innerHTML = optionsHtml;

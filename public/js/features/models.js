@@ -356,7 +356,7 @@ function renderModelSerialsTable(modelId) {
   container.classList.remove('empty-state');
   const rows = serials
     .slice()
-    .sort((a, b) => a.serial.localeCompare(b.serial))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .map((d) => {
       const { rowClass, badge } = getStockAgeInfo(d.createdAt);
       return `

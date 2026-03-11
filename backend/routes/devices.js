@@ -22,13 +22,14 @@ router.get('/', async (_req, res) => {
 });
 
 // POST /api/devices
-// NOTE: addedBy is taken from the JWT (req.user.username) to prevent spoofing.
 router.post('/', async (req, res) => {
-  const { id, modelId, serial, prNumber, status, department, kit_id } = req.body;
+  const { id, modelId, serial, prNumber, status, department, kit_id, addedBy } = req.body;
+  // Use provided addedBy (admin recording on behalf of a technician) or fall back to JWT user
+  const effectiveAddedBy = (addedBy || '').trim() || req.user.username;
   try {
     await pool.query(
       'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, kit_id, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [id, modelId, serial, prNumber, status, department, req.user.username, kit_id || null]
+      [id, modelId, serial, prNumber, status, department, effectiveAddedBy, kit_id || null]
     );
     res.json({ ok: true });
   } catch (e) {
