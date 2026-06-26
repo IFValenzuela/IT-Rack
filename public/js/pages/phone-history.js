@@ -74,8 +74,6 @@ function renderPhoneHistory() {
   el('ph-stat-total',      all.length);
   el('ph-stat-deliveries', all.filter(p => (p.transactionType || 'delivery') === 'delivery').length);
   el('ph-stat-returns',    all.filter(p => p.transactionType === 'return').length);
-  el('ph-stat-signed',     all.filter(p => p.signatureImage).length);
-  el('ph-stat-photos',     all.filter(p => p.photoImage).length);
 
   // Populate year filter
   populateYearFilter();
@@ -109,8 +107,6 @@ function renderPhoneHistory() {
     '<th>IMEI</th>' +
     '<th>Phone #</th>' +
     '<th>Assigned By</th>' +
-    '<th>Signed</th>' +
-    '<th>Photo</th>' +
     '<th></th>' +
     '</tr></thead><tbody>' +
     showing.map(p => {
@@ -125,8 +121,6 @@ function renderPhoneHistory() {
         '<td style="font-size:0.76rem;font-family:monospace;">' + escHtml(p.imei) + '</td>' +
         '<td>' + escHtml(p.phoneNumber) + '</td>' +
         '<td>' + escHtml(p.assignedBy) + '</td>' +
-        '<td>' + (p.signatureImage ? 'Yes' : '—') + '</td>' +
-        '<td>' + (p.photoImage ? 'Yes' : '—') + '</td>' +
         '<td><button class="btn ghost btn-sm btn-ph-view" data-id="' + escHtml(p.id) + '">View</button></td>' +
         '</tr>';
     }).join('') +
