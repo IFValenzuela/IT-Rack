@@ -6,6 +6,77 @@
   <title>Phones — IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css?v=2" />
+  <style>
+    /* ── Signature modal ─────────────────────────────────── */
+    .dialog-sig {
+      width: 96vw;
+      max-width: 96vw;
+      height: 92vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .dialog-sig .dialog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .dialog-sig-canvas-wrap {
+      padding: 14px 18px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    /* Override global canvas height — fills whatever space is left */
+    .dialog-sig-canvas-wrap #signature-canvas {
+      flex: 1;
+      height: 100% !important;
+      min-height: 0;
+    }
+    .dialog-sig-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 0 18px 16px;
+      flex-shrink: 0;
+    }
+
+    /* ── Signature trigger (replaces inline canvas in form) ─ */
+    .sig-trigger {
+      cursor: pointer;
+      min-height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      border: 2px dashed rgba(0, 125, 184, 0.35);
+      background: #fff;
+      transition: border-color 0.15s, background 0.15s;
+      overflow: hidden;
+    }
+    .sig-trigger:hover { border-color: rgba(0, 125, 184, 0.7); background: rgba(0, 125, 184, 0.04); }
+    .sig-trigger:focus-visible { outline: 2px solid #007db8; outline-offset: 2px; }
+    .sig-trigger.has-sig { border-style: solid; border-color: rgba(0, 125, 184, 0.3); min-height: 120px; }
+    .sig-trigger-prompt {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      color: #6c7a96;
+      font-size: 0.88rem;
+      pointer-events: none;
+      user-select: none;
+    }
+    .sig-trigger-prompt svg { opacity: 0.55; }
+    .sig-preview-img {
+      display: none;
+      width: 100%;
+      max-height: 120px;
+      object-fit: contain;
+    }
+  </style>
 </head>
 
 <body>
@@ -71,7 +142,13 @@
             </div>
             <div class="form-field">
               <label for="phone-imei">IMEI</label>
-              <input id="phone-imei" type="text" placeholder="15-digit IMEI" required />
+              <input id="phone-imei" type="text" placeholder="15-digit IMEI"
+                inputmode="numeric"
+                maxlength="15"
+                pattern="[0-9]{15}"
+                title="IMEI must be exactly 15 digits"
+                oninput="this.value=this.value.replace(/\D/g,'')"
+                required />
             </div>
             <div class="form-field">
               <label for="phone-number">Phone number</label>
@@ -82,6 +159,7 @@
               <textarea id="phone-notes" placeholder="Accessories, condition, policy notes, etc."></textarea>
             </div>
 
+            <!-- Signature section: trigger + preview (canvas lives in the modal below) -->
             <div class="signature-box form-span-2">
               <div class="signature-box-header">
                 <div>
@@ -90,7 +168,18 @@
                 </div>
                 <button type="button" class="btn ghost btn-sm" id="btn-clear-signature">Clear</button>
               </div>
-              <canvas id="signature-canvas" width="860" height="240"></canvas>
+
+              <!-- Clickable area: opens the modal; becomes a preview once signed -->
+              <div id="sig-trigger" class="sig-trigger" role="button" tabindex="0" aria-label="Open signature pad">
+                <div class="sig-trigger-prompt" id="sig-prompt">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                  </svg>
+                  <span>Click here to open the signature pad</span>
+                </div>
+                <img id="sig-preview" class="sig-preview-img" alt="Captured signature" />
+              </div>
+
               <input type="hidden" id="signature-data" />
               <input type="hidden" id="signature-name" />
             </div>
@@ -141,8 +230,32 @@
   </main>
 
   <div id="toast" class="toast hidden"></div>
-
   <div id="phone-print-template" class="phone-print-template hidden"></div>
+
+  <!-- ══ Signature Modal ══════════════════════════════════════════════ -->
+  <div id="signature-modal" class="dialog-backdrop hidden">
+    <div class="dialog dialog-sig">
+
+      <div class="dialog-header">
+        <div>
+          <h2 style="margin:0;">Digital Signature</h2>
+          <p class="dialog-description" style="margin:4px 0 0;">Use your mouse, finger, or stylus to sign in the box below.</p>
+        </div>
+        <button type="button" class="btn ghost btn-sm" id="btn-sig-modal-cancel">✕ Cancel</button>
+      </div>
+
+      <div class="dialog-sig-canvas-wrap">
+        <canvas id="signature-canvas" width="860" height="240"></canvas>
+      </div>
+
+      <div class="dialog-sig-footer">
+        <button type="button" class="btn ghost" id="btn-sig-modal-clear">Clear</button>
+        <button type="button" class="btn primary" id="btn-sig-modal-done">✓ Done — Save Signature</button>
+      </div>
+
+    </div>
+  </div>
+  <!-- ════════════════════════════════════════════════════════════════ -->
 
   <script src="js/config.js" defer></script>
   <script src="js/api.js" defer></script>
@@ -152,5 +265,86 @@
   <script src="js/features/phones.js" defer></script>
   <script src="js/ui/auth.js" defer></script>
   <script src="js/pages/phones.js" defer></script>
+
+  <!-- Signature modal controller (runs after all defer scripts via DOMContentLoaded) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var modal      = document.getElementById('signature-modal');
+      var trigger    = document.getElementById('sig-trigger');
+      var sigPrompt  = document.getElementById('sig-prompt');
+      var sigPreview = document.getElementById('sig-preview');
+      var sigData    = document.getElementById('signature-data');
+
+      var clearBtn       = document.getElementById('btn-clear-signature');   // in form
+      var modalCancelBtn = document.getElementById('btn-sig-modal-cancel');  // in modal
+      var modalClearBtn  = document.getElementById('btn-sig-modal-clear');   // in modal
+      var modalDoneBtn   = document.getElementById('btn-sig-modal-done');    // in modal
+
+      /* ── helpers ─────────────────────────────────────────── */
+      function openModal() {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeModal() {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+      }
+
+      function clearCanvas() {
+        // Use the signature pad instance if phones.js exposed it, else clear raw canvas
+        if (typeof phoneSignaturePad !== 'undefined' && phoneSignaturePad) {
+          if (typeof phoneSignaturePad.clear === 'function')      phoneSignaturePad.clear();
+          else if (typeof phoneSignaturePad.clearCanvas === 'function') phoneSignaturePad.clearCanvas();
+        } else {
+          var canvas = document.getElementById('signature-canvas');
+          canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+
+      function clearPreview() {
+        sigPreview.style.display = 'none';
+        sigPreview.src = '';
+        sigPrompt.style.display  = '';
+        trigger.classList.remove('has-sig');
+        sigData.value = '';
+      }
+
+      /* ── open via trigger click / keyboard ───────────────── */
+      trigger.addEventListener('click', openModal);
+      trigger.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(); }
+      });
+
+      /* ── close on backdrop click ─────────────────────────── */
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+      });
+
+      /* ── Cancel: close without saving ────────────────────── */
+      modalCancelBtn.addEventListener('click', closeModal);
+
+      /* ── Clear inside modal ──────────────────────────────── */
+      modalClearBtn.addEventListener('click', clearCanvas);
+
+      /* ── Done: save → show preview → close ──────────────── */
+      modalDoneBtn.addEventListener('click', function () {
+        var canvas  = document.getElementById('signature-canvas');
+        var dataUrl = canvas.toDataURL('image/png');
+        sigData.value          = dataUrl;
+        sigPreview.src         = dataUrl;
+        sigPreview.style.display = 'block';
+        sigPrompt.style.display  = 'none';
+        trigger.classList.add('has-sig');
+        closeModal();
+      });
+
+      /* ── Clear button in form: wipe canvas + preview ─────── */
+      clearBtn.addEventListener('click', function () {
+        clearCanvas();
+        clearPreview();
+      });
+    });
+  </script>
 </body>
 </html>
