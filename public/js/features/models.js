@@ -20,16 +20,23 @@ function populatePersonSelect(selectId, { showAddNew = true } = {}) {
   const isPrivileged = currentUser &&
     (currentUser.role === 'admin' || currentUser.role === 'delivery');
   if (!isPrivileged) {
-    sel.innerHTML = `<option value="${escHtml(currentUser.username)}">${escHtml(currentUser.username)}</option>`;
-    sel.value     = currentUser.username;
+    const name = currentUser ? currentUser.username : 'Unknown';
+    sel.innerHTML = `<option value="${escHtml(name)}">${escHtml(name)}</option>`;
+    sel.value     = name;
     sel.disabled  = true;
     return;
   }
   sel.disabled = false;
-  const current = sel.value;
+  
+  // Ensure the current user's name is always in the list (even if API excluded admins)
+  const allNames = new Set(state.technicians || []);
+  if (currentUser && currentUser.username) {
+    allNames.add(currentUser.username);
+  }
+
   sel.innerHTML  = '<option value="">Select person…</option>';
-  state.technicians
-    .slice()
+  
+  Array.from(allNames)
     .sort((a, b) => a.localeCompare(b))
     .forEach((name) => {
       const opt = document.createElement('option');
@@ -37,13 +44,16 @@ function populatePersonSelect(selectId, { showAddNew = true } = {}) {
       opt.textContent = name;
       sel.appendChild(opt);
     });
+
+  if (currentUser && currentUser.username) {
+    sel.value = currentUser.username;
+  }
   if (showAddNew && currentUser.role === 'admin') {
     const addOpt = document.createElement('option');
     addOpt.value       = '__add_new__';
     addOpt.textContent = '+ Add new person…';
     sel.appendChild(addOpt);
   }
-  if (current && state.technicians.includes(current)) sel.value = current;
 }
 
 /** Thin wrappers kept so existing call-sites don't need to change. */

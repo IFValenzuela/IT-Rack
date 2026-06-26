@@ -3,6 +3,59 @@ const express = require('express');
 const pool = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
+// ── Public router (no JWT) — safe fields only ────────────────────────────────
+const publicRouter = express.Router();
+
+/**
+ * GET /api/phones/lookup?name=<receivedBy>&emp=<employeeNumber>
+ * Returns a filtered, privacy-safe list of phone assignments for one person.
+ * At least one query param is required to prevent dumping all records.
+ * Sensitive fields (IMEI, signatureImage, photoImage) are omitted.
+ */
+publicRouter.get('/lookup', async (req, res) => {
+  const { name, emp } = req.query;
+  if (!name && !emp) {
+    return res.status(400).json({ error: 'Provide at least one of: name, emp' });
+  }
+
+  try {
+    let query = 'SELECT * FROM phones WHERE 1=0';
+    const params = [];
+
+    if (name) {
+      query = 'SELECT * FROM phones WHERE LOWER(receivedBy) LIKE ?';
+      params.push(`%${name.toLowerCase().trim()}%`);
+      if (emp) {
+        query += ' OR employeeNumber = ?';
+        params.push(emp.trim());
+      }
+    } else if (emp) {
+      query = 'SELECT * FROM phones WHERE employeeNumber = ?';
+      params.push(emp.trim());
+    }
+
+    query += ' ORDER BY assignedAt DESC, createdAt DESC';
+    const [rows] = await pool.query(query, params);
+
+    // Strip sensitive fields before sending to the display screen
+    const safe = rows.map(r => ({
+      id:              r.id,
+      phoneModel:      r.phoneModel,
+      phoneNumber:     r.phoneNumber,
+      assignedBy:      r.assignedBy,
+      receivedBy:      r.receivedBy,
+      employeeNumber:  r.employeeNumber,
+      transactionType: r.transactionType || 'delivery',
+      assignedAt:      r.assignedAt,
+      notes:           r.notes,
+    }));
+    res.json(safe);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Private router (requires JWT) ────────────────────────────────────────────
 function uid() {
   return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 }
@@ -149,3 +202,5 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.router = router;
+module.exports.publicRouter = publicRouter;

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Phone History — IT Rack Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css?v=3" />
+</head>
+
+<body>
+  <header class="app-header">
+    <a class="logo-area" href="dashboard.html" id="app-logo-area" title="Go to Dashboard">
+      <img src="skyworks-logo.png" alt="Skyworks" class="header-logo" />
+      <div class="logo-text">
+        <span class="logo-main">IT Rack Inventory</span>
+        <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <div id="user-menu"></div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="dashboard.html">All Devices</a>
+        <a class="nav-tab" href="models.html">Models</a>
+        <a class="nav-tab" href="phones.html">Phones</a>
+        <a class="nav-tab" href="phone-history.html">Phone History</a>
+        <a class="nav-tab" href="history.html">Activity Log</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section id="view-phone-history" class="view active">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Phone Assignment History</h2>
+            <p class="panel-subtitle">Complete record of all phone assignments. Use the filters below to search and narrow results.</p>
+          </div>
+          <div class="panel-header-actions">
+            <a class="btn ghost" href="phones.html">＋ New Assignment</a>
+            <button class="btn ghost" id="btn-ph-sort" data-order="desc">Newest First</button>
+          </div>
+        </div>
+
+        <form id="ph-filters-form" class="form-inline" style="margin-bottom:4px;">
+          <div class="form-field">
+            <label for="ph-filter-search">Search</label>
+            <input id="ph-filter-search" type="text" placeholder="Name, model, IMEI, phone #…" />
+          </div>
+          <div class="form-field">
+            <label for="ph-filter-type">Type</label>
+            <select id="ph-filter-type">
+              <option value="">All</option>
+              <option value="delivery">Delivery</option>
+              <option value="return">Return</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="ph-filter-year">Year</label>
+            <select id="ph-filter-year">
+              <option value="">All years</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="ph-filter-month">Month</label>
+            <select id="ph-filter-month">
+              <option value="">All months</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+          <div class="form-field" style="align-self:flex-end;">
+            <button type="button" class="btn ghost" id="btn-ph-clear-filters">Clear</button>
+          </div>
+        </form>
+
+        <div class="ph-summary-row" id="ph-summary-row">
+          <div class="summary-card summary-card-mini"><h3>Total</h3><p class="summary-number" id="ph-stat-total">0</p></div>
+          <div class="summary-card summary-card-mini"><h3>Deliveries</h3><p class="summary-number" id="ph-stat-deliveries">0</p></div>
+          <div class="summary-card summary-card-mini"><h3>Returns</h3><p class="summary-number" id="ph-stat-returns">0</p></div>
+          <div class="summary-card summary-card-mini"><h3>Signed</h3><p class="summary-number" id="ph-stat-signed">0</p></div>
+          <div class="summary-card summary-card-mini"><h3>Photos</h3><p class="summary-number" id="ph-stat-photos">0</p></div>
+        </div>
+
+        <p id="ph-showing-label" style="margin:8px 0 4px;font-size:0.78rem;color:var(--text-muted);"></p>
+
+        <div id="ph-table-container" class="table-container empty-state">
+          <p>Loading phone history…</p>
+        </div>
+
+        <div class="ph-pagination" id="ph-pagination" style="display:none;">
+          <button class="btn ghost btn-sm" id="btn-ph-load-more">Show more</button>
+          <span id="ph-page-info" style="font-size:0.78rem;color:var(--text-muted);"></span>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Detail modal for viewing a phone record -->
+  <div id="ph-detail-modal" class="dialog-backdrop hidden">
+    <div class="dialog" style="max-width:640px;">
+      <div class="dialog-header">
+        <h2 id="ph-detail-title" style="margin:0;">Phone Assignment Detail</h2>
+        <button type="button" class="btn ghost btn-sm" id="btn-ph-detail-close">✕ Close</button>
+      </div>
+      <div id="ph-detail-body" style="padding:18px 24px 24px;"></div>
+    </div>
+  </div>
+
+  <script src="js/config.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/features/phones.js" defer></script>
+  <script src="js/ui/auth.js" defer></script>
+  <script src="js/pages/phone-history.js" defer></script>
+</body>
+
+</html>

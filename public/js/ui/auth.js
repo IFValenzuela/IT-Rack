@@ -6,7 +6,7 @@
 // ============================================================
 
 // Check authentication on page load — redirect to login if no valid token.
-(async function checkAuth() {
+window.authPromise = (async function checkAuth() {
   const token = localStorage.getItem('token');
   if (!token) {
     window.location.href = '/login.html';
@@ -35,7 +35,7 @@ function addLogoutButton() {
   const userMenu = document.getElementById('user-menu');
   if (!userMenu) return;
   userMenu.innerHTML = `
-    <span class="user-name">👤 ${currentUser.username}</span>
+    <span class="user-name">${currentUser.username}</span>
     <span style="opacity:0.3">|</span>
     <button class="btn-logout" onclick="logout()">Logout</button>
   `;

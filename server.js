@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 const express = require('express');
 const cors    = require('cors');
 require('dotenv').config();
@@ -40,9 +40,13 @@ app.get('/api/health', async (_req, res) => {
 
 // If DB is available, mount API routes that require it
 if (pool) {
+  // Public route — no JWT required (safe display fields only)
+  const phonesModule = require('./backend/routes/phones');
+  app.use('/api/phones', phonesModule.publicRouter);
+
   app.use('/api/auth',        require('./backend/routes/auth'));
   app.use('/api/devices',     require('./backend/routes/devices'));
-  app.use('/api/phones',      require('./backend/routes/phones'));
+  app.use('/api/phones',      phonesModule.router);
   app.use('/api/models',      require('./backend/routes/models'));
   app.use('/api/technicians', require('./backend/routes/technicians'));
   app.use('/api/admin',       require('./backend/routes/admin'));

@@ -232,41 +232,49 @@ function renderPhonesView() {
   `;
 }
 
-function showPhoneReceipt(record) {
-  const receipt = document.getElementById('phone-print-template');
-  if (!receipt) return;
-  receipt.innerHTML = `
+function getPhoneReceiptMarkup(record) {
+  const isReturn = record.transactionType === 'return';
+  const title = isReturn ? 'Phone Return Receipt' : 'Phone Assignment Receipt';
+  const labelAssignedBy = isReturn ? 'Received by (IT)' : 'Assigned by';
+  const labelReceivedBy = isReturn ? 'Returned by' : 'Received by';
+
+  return `
     <div class="phone-receipt">
       <div class="phone-receipt-header">
-        <h2>Phone Assignment Receipt</h2>
+        <h2>${title}</h2>
         <p>IT Rack Inventory</p>
       </div>
       <div class="phone-receipt-grid">
-        <div><span>Assigned by</span><strong>${escHtml(record.assignedBy)}</strong></div>
-        <div><span>Received by</span><strong>${escHtml(record.receivedBy)}</strong></div>
+        <div><span>${labelAssignedBy}</span><strong>${escHtml(record.assignedBy)}</strong></div>
+        <div><span>${labelReceivedBy}</span><strong>${escHtml(record.receivedBy)}</strong></div>
         <div><span>Employee #</span><strong>${escHtml(record.employeeNumber || '—')}</strong></div>
         <div><span>Phone model</span><strong>${escHtml(record.phoneModel)}</strong></div>
         <div><span>IMEI</span><strong>${escHtml(record.imei)}</strong></div>
         <div><span>Phone number</span><strong>${escHtml(record.phoneNumber)}</strong></div>
         <div><span>Date</span><strong>${formatDateTime(record.assignedAt)}</strong></div>
+        <div><span>Notes</span><strong>${escHtml(record.notes || '—')}</strong></div>
       </div>
-      <div class="phone-receipt-media">
+      <div class="phone-receipt-media ${record.photoImage ? '' : 'phone-receipt-single-media'}">
         <div>
           <span>Signature</span>
           <img src="${record.signatureImage}" alt="Signature" />
           <strong>${escHtml(record.signatureName)}</strong>
         </div>
+        ${record.photoImage ? `
         <div>
           <span>Photo</span>
-          ${record.photoImage ? `<img src="${record.photoImage}" alt="Recipient photo" />` : '<div class="phone-photo-placeholder">No photo attached</div>'}
+          <img src="${record.photoImage}" alt="Recipient photo" />
         </div>
-      </div>
-      <div class="phone-receipt-notes">
-        <span>Notes</span>
-        <p>${escHtml(record.notes || '—')}</p>
+        ` : ''}
       </div>
     </div>
   `;
+}
+
+function showPhoneReceipt(record) {
+  const receipt = document.getElementById('phone-print-template');
+  if (!receipt) return;
+  receipt.innerHTML = getPhoneReceiptMarkup(record);
   const popup = window.open('', '_blank', 'width=900,height=1200');
   if (!popup) return;
   popup.document.write(`

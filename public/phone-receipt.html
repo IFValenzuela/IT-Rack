@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <title>Phone Receipt — IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=3" />
 </head>
 
 <body class="phone-receipt-page">
@@ -23,6 +23,7 @@
         <a class="nav-tab" href="dashboard.html">All Devices</a>
         <a class="nav-tab" href="models.html">Models</a>
         <a class="nav-tab" href="phones.html">Phones</a>
+        <a class="nav-tab" href="phone-history.html">Phone History</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
         <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
       </nav>
@@ -44,6 +45,34 @@
 
       <div id="phone-receipt-shell" class="phone-receipt-shell empty-state">
         <p style="margin:0;">Loading receipt...</p>
+      </div>
+
+      <!-- Photo Evidence Section -->
+      <div id="photo-evidence-section" class="hidden" style="margin-top: 30px; border-top: 1px solid var(--border-subtle); padding-top: 20px;">
+        <h3>Capture Evidence Photo</h3>
+        <p class="panel-subtitle">Take a picture of the printed, signed receipt with the equipment.</p>
+        
+        <div class="photo-box" style="margin-top: 16px;">
+          <div class="camera-container hidden" id="camera-container">
+            <video id="phone-camera-video" playsinline autoplay></video>
+            <div class="camera-controls">
+              <button type="button" class="btn primary" id="btn-capture-photo">Capture Photo</button>
+              <button type="button" class="btn ghost" id="btn-close-camera">Cancel</button>
+            </div>
+          </div>
+          
+          <div class="photo-actions" id="photo-actions-container">
+            <button type="button" class="btn primary" id="btn-start-camera">Start Camera</button>
+          </div>
+          
+          <div class="photo-preview-wrap hidden" id="phone-photo-preview-wrap">
+            <img id="phone-photo-preview" alt="Evidence preview" />
+            <div style="margin-top: 12px; display: flex; gap: 8px;">
+              <button type="button" class="btn primary" id="btn-save-photo">Save Photo to Receipt</button>
+              <button type="button" class="btn ghost" id="btn-remove-photo">Retake Photo</button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   </main>

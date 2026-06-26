@@ -8,6 +8,16 @@ const { authenticateToken, JWT_SECRET } = require('../middleware/auth');
 
 const router = express.Router();
 
+// GET /api/auth/users (Public list of usernames for login dropdown)
+router.get('/users', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT username, role, department FROM users ORDER BY username ASC');
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   const { username, password } = req.body || {};

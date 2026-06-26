@@ -53,10 +53,28 @@ window.addEventListener('DOMContentLoaded', async () => {
 
       if (response.ok) {
         window.location.href = '/index.html';
+        return; // Don't fetch users if we're redirecting
       }
     } catch (e) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     }
+  }
+
+  // Fetch usernames for the dropdown
+  try {
+    const userSelect = document.getElementById('username');
+    const res = await fetch(`${API_URL}/auth/users`);
+    if (res.ok) {
+      const users = await res.json();
+      users.forEach(u => {
+        const option = document.createElement('option');
+        option.value = u.username;
+        option.textContent = u.username;
+        userSelect.appendChild(option);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load users:', err);
   }
 });

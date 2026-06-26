@@ -48,6 +48,76 @@ document.addEventListener('DOMContentLoaded', async () => {
         requestAnimationFrame(() => window.print());
       });
     }
+
+    // Photo evidence logic
+    const evidenceSection = document.getElementById('photo-evidence-section');
+    if (!record.photoImage && evidenceSection) {
+      evidenceSection.classList.remove('hidden');
+    }
+
+    const startCameraBtn = document.getElementById('btn-start-camera');
+    const capturePhotoBtn = document.getElementById('btn-capture-photo');
+    const closeCameraBtn = document.getElementById('btn-close-camera');
+    const savePhotoBtn = document.getElementById('btn-save-photo');
+    const removePhotoBtn = document.getElementById('btn-remove-photo');
+
+    if (startCameraBtn) {
+      startCameraBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        startPhoneCamera();
+      });
+    }
+
+    if (capturePhotoBtn) {
+      capturePhotoBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        capturePhonePhoto();
+      });
+    }
+
+    if (closeCameraBtn) {
+      closeCameraBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        closePhoneCamera();
+      });
+    }
+
+    if (removePhotoBtn) {
+      removePhotoBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        phonePhotoDataUrl = '';
+        const wrap = document.getElementById('phone-photo-preview-wrap');
+        const img = document.getElementById('phone-photo-preview');
+        if (wrap) wrap.classList.add('hidden');
+        if (img) img.src = '';
+      });
+    }
+
+    if (savePhotoBtn) {
+      savePhotoBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (!phonePhotoDataUrl) return;
+
+        savePhotoBtn.disabled = true;
+        savePhotoBtn.textContent = 'Saving...';
+
+        try {
+          await apiCall('PUT', `/phones/${encodeURIComponent(phoneId)}`, { photoImage: phonePhotoDataUrl });
+          showToast('Photo evidence saved successfully.');
+          
+          // Re-fetch and render to show the photo in the receipt
+          const updatedRecord = await apiCall('GET', `/phones/${encodeURIComponent(phoneId)}`);
+          renderPhoneReceiptPage(updatedRecord);
+          
+          if (evidenceSection) evidenceSection.classList.add('hidden');
+        } catch (error) {
+          showToast(error.message || 'Failed to save photo.');
+          savePhotoBtn.disabled = false;
+          savePhotoBtn.textContent = 'Save Photo to Receipt';
+        }
+      });
+    }
+
   } catch (error) {
     if (titleEl) titleEl.textContent = 'Receipt not found';
     if (metaEl) metaEl.textContent = error.message || 'Unable to load receipt.';
