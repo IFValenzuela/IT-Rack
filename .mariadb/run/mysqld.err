@@ -1,0 +1,132 @@
+2026-06-25 15:24:29 0 [Note] Starting MariaDB 12.3.2-MariaDB source revision 9f98f82b14a9b939834281672b6d0cf965db69a3 server_uid UX39O1fL0oB/wLaZiMKPugy6O8w= as process 5703
+2026-06-25 15:24:29 0 [Note] InnoDB: Compressed tables use zlib 1.3.2
+2026-06-25 15:24:29 0 [Note] InnoDB: Number of transaction pools: 1
+2026-06-25 15:24:29 0 [Note] InnoDB: Using crc32 + pclmulqdq instructions
+2026-06-25 15:24:29 0 [Note] InnoDB: Using io_uring
+2026-06-25 15:24:29 0 [Note] InnoDB: innodb_buffer_pool_size_max=8388608m, innodb_buffer_pool_size=128m
+2026-06-25 15:24:29 0 [Note] InnoDB: Initialized memory pressure event listener
+2026-06-25 15:24:29 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-06-25 15:24:29 0 [Note] InnoDB: File system buffers for log disabled (block size=512 bytes)
+2026-06-25 15:24:29 0 [Note] InnoDB: End of log at LSN=45568
+2026-06-25 15:24:29 0 [Note] InnoDB: Opened 3 undo tablespaces
+2026-06-25 15:24:29 0 [Note] InnoDB: 128 rollback segments in 3 undo tablespaces are active.
+2026-06-25 15:24:29 0 [Note] InnoDB: Setting file './ibtmp1' size to 12.000MiB. Physically writing the file full; Please wait ...
+2026-06-25 15:24:29 0 [Note] InnoDB: File './ibtmp1' size is now 12.000MiB.
+2026-06-25 15:24:29 0 [Note] InnoDB: log sequence number 45568; transaction id 14
+2026-06-25 15:24:29 0 [Note] InnoDB: Loading buffer pool(s) from /home/ian/Documents/IT-Rack/.mariadb/data/ib_buffer_pool
+2026-06-25 15:24:29 0 [Note] Plugin 'wsrep-provider' is disabled.
+2026-06-25 15:24:29 0 [Note] InnoDB: Buffer pool(s) load completed at 260625 15:24:29
+2026-06-25 15:24:30 0 [Note] Server socket created on IP: '127.0.0.1', port: '3307'.
+2026-06-25 15:24:30 0 [Note] mariadbd: Event Scheduler: Loaded 0 events
+2026-06-25 15:24:30 0 [Note] mariadbd: ready for connections.
+Version: '12.3.2-MariaDB'  socket: '/home/ian/Documents/IT-Rack/.mariadb/run/mysqld.sock'  port: 3307  Arch Linux
+2026-06-25 15:42:07 15 [Warning] Aborted connection 15 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:42:07 14 [Warning] Aborted connection 14 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:42:07 7 [Warning] Aborted connection 7 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:42:07 5 [Warning] Aborted connection 5 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:50:31 18 [Warning] Aborted connection 18 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:50:31 17 [Warning] Aborted connection 17 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:50:31 19 [Warning] Aborted connection 19 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:50:31 16 [Warning] Aborted connection 16 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:55:52 23 [Warning] Aborted connection 23 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:55:52 22 [Warning] Aborted connection 22 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:55:52 21 [Warning] Aborted connection 21 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 15:55:52 20 [Warning] Aborted connection 20 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:24:08 26 [Warning] Aborted connection 26 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:24:08 27 [Warning] Aborted connection 27 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:24:08 25 [Warning] Aborted connection 25 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:24:08 24 [Warning] Aborted connection 24 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+
+Status information:
+
+Current dir: /home/ian/Documents/IT-Rack/.mariadb/data/
+Running threads: 0  Cached threads: 4  Stack size: 299008
+
+Key caches:
+default
+Buffer_size:     134217728
+Block_size:           1024
+Division_limit:        100
+Age_threshold:         300
+Partitions:              0
+blocks used:             0
+not flushed:             0
+w_requests:              0
+writes:                  0
+r_requests:              0
+reads:                   0
+
+
+handler status:
+read_key:          196
+read_next:          31
+read_rnd            52
+read_first:         30
+write:              15
+delete               0
+update:             10
+
+Table status:
+Opened tables:         38
+Open tables:           19
+Open files:            33
+Open streams:           4
+
+Memory status:
+Non-mmapped space allocated from system: 32284672
+Number of free chunks:                   197
+Number of fastbin blocks:                0
+Number of mmapped regions:               30
+Space in mmapped regions:                53190656
+Maximum total allocated space:           0
+Space available in freed fastbin blocks: 0
+Total allocated space:                   12048544
+Total free space:                        20236128
+Top-most, releasable space:              126576
+Estimated memory (with thread stack):    86671360
+Global memory allocated by server:       458296456
+Memory allocated by threads:             0
+
+
+
+Events status:
+LLA = Last Locked At  LUA = Last Unlocked At
+WOC = Waiting On Condition  DL = Data Locked
+
+Event scheduler status:
+State      : INITIALIZED
+Thread id  : 0
+LLA        : n/a:0
+LUA        : n/a:0
+WOC        : NO
+Workers    : 0
+Executed   : 0
+Data locked: NO
+
+Event queue status:
+Element count   : 0
+Data locked     : NO
+Attempting lock : NO
+LLA             : init_queue:141
+LUA             : init_queue:151
+WOC             : NO
+Next activation : never
+2026-06-25 16:34:49 29 [Warning] Aborted connection 29 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:34:49 31 [Warning] Aborted connection 31 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:34:49 30 [Warning] Aborted connection 30 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:34:49 28 [Warning] Aborted connection 28 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:39:31 33 [Warning] Aborted connection 33 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:39:31 34 [Warning] Aborted connection 34 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:39:31 35 [Warning] Aborted connection 35 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:39:31 32 [Warning] Aborted connection 32 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:44:53 38 [Warning] Aborted connection 38 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:44:53 37 [Warning] Aborted connection 37 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 16:44:53 36 [Warning] Aborted connection 36 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 17:05:20 42 [Warning] Aborted connection 42 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 17:05:20 39 [Warning] Aborted connection 39 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 17:05:20 40 [Warning] Aborted connection 40 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 17:05:20 41 [Warning] Aborted connection 41 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 17:16:29 46 [Warning] Aborted connection 46 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 17:16:29 44 [Warning] Aborted connection 44 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 17:16:29 45 [Warning] Aborted connection 45 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-06-25 17:16:29 43 [Warning] Aborted connection 43 to db: 'inventory_db' user: 'root' host: 'localhost' (Got an error reading communication packets)

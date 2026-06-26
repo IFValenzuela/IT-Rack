@@ -11,6 +11,7 @@ let currentUser = null;
 const state = {
   models: [],
   devices: [],
+  phones: [],
   history: [],
   technicians: [],
 };
@@ -29,6 +30,11 @@ let viewModeOut              = 'all';
 let devicesCategoryFilter    = '';
 let historyCategoryFilter    = '';
 let removedCategoryFilter    = '';
+
+// ── Phones panel state ───────────────────────────────────────
+let lastPhoneRecord = null;
+let phonePhotoDataUrl = '';
+let phoneSignaturePad = null;
 
 // ── Pagination ────────────────────────────────────────────────
 // (DEFAULT_LIMIT_* and INCREMENT_* constants live in config.js)
@@ -68,14 +74,15 @@ const nhkState = {
 // ── Data loading ──────────────────────────────────────────────
 
 /**
- * Load models, devices, and technicians from the backend.
- * Populates state.models, state.devices, and state.technicians.
+ * Load models, devices, phones, and technicians from the backend.
+ * Populates state.models, state.devices, state.phones, and state.technicians.
  * state.history is derived from devices by rebuildHistory() inside renderAll().
  */
 async function loadFromBackend() {
-  const [modelsRes, devicesRes, techRes] = await Promise.allSettled([
+  const [modelsRes, devicesRes, phonesRes, techRes] = await Promise.allSettled([
     apiCall('GET', '/models'),
     apiCall('GET', '/devices'),
+    apiCall('GET', '/phones'),
     apiCall('GET', '/technicians'),
   ]);
 
@@ -85,13 +92,16 @@ async function loadFromBackend() {
   if (devicesRes.status === 'fulfilled' && Array.isArray(devicesRes.value)) {
     state.devices = devicesRes.value;
   }
+  if (phonesRes.status === 'fulfilled' && Array.isArray(phonesRes.value)) {
+    state.phones = phonesRes.value;
+  }
   if (techRes.status === 'fulfilled' && Array.isArray(techRes.value)) {
     state.technicians = techRes.value.map(t => t.name);
   }
 
   // Only alert the user when everything failed — partial failures are logged silently
-  const failed = [modelsRes, devicesRes, techRes].filter(r => r.status === 'rejected');
-  if (failed.length === 3) {
+  const failed = [modelsRes, devicesRes, phonesRes, techRes].filter(r => r.status === 'rejected');
+  if (failed.length === 4) {
     showToast('Could not load data from server');
   } else if (failed.length > 0) {
     failed.forEach(r => console.warn('Data endpoint failed:', r.reason));
@@ -144,12 +154,18 @@ function rebuildHistory() {
 function startAutoRefresh(intervalMs = 30000) {
   setInterval(async () => {
     await loadFromBackend();
+    if (typeof loadPhones === 'function') {
+      await loadPhones();
+    }
     renderAll();
   }, intervalMs);
 
   document.addEventListener('visibilitychange', async () => {
     if (!document.hidden) {
       await loadFromBackend();
+      if (typeof loadPhones === 'function') {
+        await loadPhones();
+      }
       renderAll();
     }
   });

@@ -200,6 +200,261 @@ body {
   overflow: hidden;
 }
 
+.summary-card-mini {
+  min-height: 92px;
+}
+
+.phones-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.phones-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.phones-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr;
+  gap: 18px;
+}
+
+.phones-form-card,
+.phones-list-card {
+  min-width: 0;
+}
+
+.phones-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+}
+
+.form-span-2 {
+  grid-column: 1 / -1;
+}
+
+.phones-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.btn-sm {
+  padding: 5px 12px;
+  font-size: 0.72rem;
+}
+
+.signature-box,
+.photo-box {
+  border: 1px solid rgba(218, 227, 243, 0.95);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(250, 252, 255, 0.98), rgba(241, 246, 255, 0.96));
+  padding: 14px;
+}
+
+.signature-box-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.signature-box-header h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.signature-box-header p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+#signature-canvas {
+  width: 100%;
+  height: 240px;
+  display: block;
+  border-radius: 14px;
+  border: 1px dashed rgba(0, 125, 184, 0.35);
+  background: #fff;
+  touch-action: none;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.photo-actions input[type="file"] {
+  max-width: 220px;
+}
+
+.photo-preview-wrap {
+  margin-top: 12px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(218, 227, 243, 0.95);
+  background: #fff;
+}
+
+.photo-preview-wrap img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.camera-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(218, 227, 243, 0.95);
+  background: #000;
+}
+
+.camera-container.hidden {
+  display: none;
+}
+
+#phone-camera-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+  background: #000;
+  object-fit: contain;
+}
+
+.camera-controls {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.camera-controls .btn {
+  flex: 1;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.phone-receipt-template,
+.phone-print-template {
+  position: fixed;
+  left: -99999px;
+  top: 0;
+  width: 800px;
+}
+
+.phone-receipt {
+  padding: 24px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #102a43;
+  background: #fff;
+}
+
+.phone-receipt-header {
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #d7e5fb;
+}
+
+.phone-receipt-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.phone-receipt-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+
+.phone-receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin-bottom: 18px;
+}
+
+.phone-receipt-grid div,
+.phone-receipt-media > div,
+.phone-receipt-notes {
+  border: 1px solid #dbe4f4;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.phone-receipt-grid span,
+.phone-receipt-media span,
+.phone-receipt-notes span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.phone-receipt-media {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.phone-receipt-media img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.phone-photo-placeholder {
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: #f7f9fe;
+}
+
+.phone-print-body {
+  background: #fff;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .phone-print-body,
+  .phone-print-body * {
+    visibility: visible !important;
+  }
+  .phone-print-body {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
 .summary-card::after {
   content: "";
   position: absolute;

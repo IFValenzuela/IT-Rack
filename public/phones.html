@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Phones — IT Rack Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css?v=2" />
+</head>
+
+<body>
+  <header class="app-header">
+    <a class="logo-area" href="dashboard.html" id="app-logo-area" title="Go to Dashboard">
+      <img src="skyworks-logo.png" alt="Skyworks" class="header-logo" />
+      <div class="logo-text">
+        <span class="logo-main">IT Rack Inventory</span>
+        <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <div id="user-menu"></div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="dashboard.html">All Devices</a>
+        <a class="nav-tab" href="models.html">Models</a>
+        <a class="nav-tab" href="phones.html">Phones</a>
+        <a class="nav-tab" href="history.html">Activity Log</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section id="view-phones" class="view active">
+      <section class="panel phones-hero">
+        <div>
+          <h2>Phones Assignment Register</h2>
+          <p class="panel-subtitle">Track each phone separately from the inventory flow. Capture who assigned it, who received it, the phone details, a signature, and a photo record.</p>
+        </div>
+        <div class="phones-hero-stats">
+          <div class="summary-card summary-card-mini"><h3>Assignments</h3><p class="summary-number" id="phones-count">0</p></div>
+          <div class="summary-card summary-card-mini"><h3>Photos</h3><p class="summary-number" id="phones-photo-count">0</p></div>
+          <div class="summary-card summary-card-mini"><h3>Signed</h3><p class="summary-number" id="phones-signed-count">0</p></div>
+        </div>
+      </section>
+
+      <section class="panel phones-grid">
+        <div class="phones-form-card">
+          <div class="panel-header">
+            <div>
+              <h2>New Phone Assignment</h2>
+              <p class="panel-subtitle">The receipt is printable after the signature is captured.</p>
+            </div>
+          </div>
+
+          <form id="phone-form" class="phones-form">
+            <div class="form-field">
+              <label for="phone-assigned-by">Assigned by</label>
+              <select id="phone-assigned-by" required></select>
+            </div>
+            <div class="form-field">
+              <label for="phone-received-by">Received by</label>
+              <input id="phone-received-by" type="text" placeholder="Employee full name" required />
+            </div>
+            <div class="form-field">
+              <label for="phone-employee-number">Employee number</label>
+              <input id="phone-employee-number" type="text" placeholder="Employee #" />
+            </div>
+            <div class="form-field">
+              <label for="phone-model">Phone model</label>
+              <input id="phone-model" type="text" placeholder="e.g. iPhone 15" required />
+            </div>
+            <div class="form-field">
+              <label for="phone-imei">IMEI</label>
+              <input id="phone-imei" type="text" placeholder="15-digit IMEI" required />
+            </div>
+            <div class="form-field">
+              <label for="phone-number">Phone number</label>
+              <input id="phone-number" type="text" placeholder="(555) 123-4567" required />
+            </div>
+            <div class="form-field form-span-2">
+              <label for="phone-notes">Notes</label>
+              <textarea id="phone-notes" placeholder="Accessories, condition, policy notes, etc."></textarea>
+            </div>
+
+            <div class="signature-box form-span-2">
+              <div class="signature-box-header">
+                <div>
+                  <h3>Digital Signature</h3>
+                  <p>Recipient must sign before saving the assignment.</p>
+                </div>
+                <button type="button" class="btn ghost btn-sm" id="btn-clear-signature">Clear</button>
+              </div>
+              <canvas id="signature-canvas" width="860" height="240"></canvas>
+              <input type="hidden" id="signature-data" />
+              <input type="hidden" id="signature-name" />
+            </div>
+
+            <div class="photo-box form-span-2">
+              <div class="signature-box-header">
+                <div>
+                  <h3>Recipient Photo</h3>
+                  <p>Take a picture as evidence of phone assignment.</p>
+                </div>
+                <button type="button" class="btn ghost btn-sm" id="btn-remove-photo">Remove Photo</button>
+              </div>
+              <div class="camera-container hidden" id="camera-container">
+                <video id="phone-camera-video" playsinline autoplay></video>
+                <div class="camera-controls">
+                  <button type="button" class="btn primary" id="btn-capture-photo">Capture Photo</button>
+                  <button type="button" class="btn ghost" id="btn-close-camera">Close Camera</button>
+                </div>
+              </div>
+              <div class="photo-actions" id="photo-actions-container">
+                <button type="button" class="btn primary" id="btn-start-camera">Start Camera</button>
+              </div>
+              <div class="photo-preview-wrap hidden" id="phone-photo-preview-wrap">
+                <img id="phone-photo-preview" alt="Recipient preview" />
+              </div>
+            </div>
+
+            <div class="phones-actions form-span-2">
+              <button type="submit" class="btn primary">Save Assignment</button>
+              <button type="button" class="btn ghost" id="btn-print-last" disabled>Print Last Receipt</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="phones-list-card">
+          <div class="panel-header">
+            <div>
+              <h2>Phone History</h2>
+              <p class="panel-subtitle">Recent assignments are kept in a separate register.</p>
+            </div>
+          </div>
+          <div id="phones-table-container" class="table-container empty-state">
+            <p>No phone assignments yet.</p>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="phone-print-template" class="phone-print-template hidden"></div>
+
+  <script src="js/config.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/features/models.js" defer></script>
+  <script src="js/features/phones.js" defer></script>
+  <script src="js/ui/auth.js" defer></script>
+  <script src="js/pages/phones.js" defer></script>
+</body>
+</html>

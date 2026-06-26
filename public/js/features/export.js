@@ -9,7 +9,7 @@ function exportData() {
     [JSON.stringify(
       {
         exportedAt: new Date().toISOString(),
-        data: { models: state.models, devices: state.devices, history: state.history },
+        data: { models: state.models, devices: state.devices, phones: state.phones, history: state.history },
       },
       null,
       2
@@ -42,6 +42,7 @@ function importDataFromFile(file) {
         !payload ||
         !Array.isArray(payload.models)  ||
         !Array.isArray(payload.devices) ||
+        !Array.isArray(payload.phones)   ||
         !Array.isArray(payload.history)
       ) {
         showToast('Invalid backup file.');
@@ -49,6 +50,7 @@ function importDataFromFile(file) {
       }
       state.models  = payload.models;
       state.devices = payload.devices;
+      state.phones  = payload.phones;
       state.history = payload.history;
       renderAll();
       showToast('Inventory imported.');
