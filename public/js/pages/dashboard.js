@@ -22,11 +22,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-cancel-remove-serial').addEventListener('click', closeRemoveSerialDialog);
   document.getElementById('remove-serial-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    if (!pendingRemoveDeviceId) { closeRemoveSerialDialog(); return; }
+    if (!pendingRemoveDeviceId && !pendingRemoveKitId) { closeRemoveSerialDialog(); return; }
     const reason      = document.getElementById('remove-reason-input').value;
     const deliveredBy = document.getElementById('remove-delivered-by-select').value;
     const destination = document.getElementById('remove-destination-input').value;
-    removeDeviceFromStock(pendingRemoveDeviceId, reason, deliveredBy, destination);
+    
+    if (pendingRemoveKitId) {
+      removeKitFromStock(pendingRemoveKitId, reason, deliveredBy, destination);
+    } else if (pendingRemoveDeviceId) {
+      removeDeviceFromStock(pendingRemoveDeviceId, reason, deliveredBy, destination);
+    }
     closeRemoveSerialDialog();
   });
 

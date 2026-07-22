@@ -233,10 +233,11 @@ function renderPhonesView() {
 }
 
 function getPhoneReceiptMarkup(record) {
-  const isReturn = record.transactionType === 'return';
-  const title = isReturn ? 'Phone Return Receipt' : 'Phone Assignment Receipt';
+  const isReturn = record.transactionType === 'return' || record.transactionType === 'return_admin';
+  const isAdminReturn = record.transactionType === 'return_admin';
+  const title = isAdminReturn ? 'Admin Phone Return Receipt' : (isReturn ? 'Phone Return Receipt' : 'Phone Assignment Receipt');
   const labelAssignedBy = isReturn ? 'Received by (IT)' : 'Assigned by';
-  const labelReceivedBy = isReturn ? 'Returned by' : 'Received by';
+  const labelReceivedBy = isAdminReturn ? 'Returned by (Not Present)' : (isReturn ? 'Returned by' : 'Received by');
 
   return `
     <div class="phone-receipt">
@@ -255,11 +256,18 @@ function getPhoneReceiptMarkup(record) {
         <div><span>Notes</span><strong>${escHtml(record.notes || '—')}</strong></div>
       </div>
       <div class="phone-receipt-media ${record.photoImage ? '' : 'phone-receipt-single-media'}">
+        ${record.signatureImage ? `
         <div>
           <span>Signature</span>
           <img src="${record.signatureImage}" alt="Signature" />
           <strong>${escHtml(record.signatureName)}</strong>
         </div>
+        ` : `
+        <div>
+          <span>Signature</span>
+          <strong>No signature collected</strong>
+        </div>
+        `}
         ${record.photoImage ? `
         <div>
           <span>Photo</span>

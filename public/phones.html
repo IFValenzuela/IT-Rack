@@ -117,6 +117,7 @@
         <a class="nav-tab" href="models.html">Models</a>
         <a class="nav-tab" href="phones.html">Phones</a>
         <a class="nav-tab" href="phone-history.html">Phone History</a>
+        <a class="nav-tab" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
         <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
       </nav>
@@ -163,6 +164,15 @@
                     document.getElementById('label-received-by').textContent = 'Returned by (Employee)';
                   " />
                 Return
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 0.9rem;">
+                <input type="radio" name="transaction-type" value="return_admin" 
+                  onchange="
+                    document.getElementById('phone-form-title').textContent = 'Admin Phone Return (No Signature)';
+                    document.getElementById('label-assigned-by').textContent = 'Received by (IT)';
+                    document.getElementById('label-received-by').textContent = 'Employee Name (Not Present)';
+                  " />
+                Admin Return (No Sig)
               </label>
             </div>
           </div>

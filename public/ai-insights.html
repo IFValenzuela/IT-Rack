@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Insights — IT Rack Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css?v=3" />
+  <style>
+    .ai-panel {
+      margin-top: 20px;
+    }
+    
+    .ai-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .ai-stat-card {
+      background: var(--surface-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .ai-stat-card h3 {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin: 0 0 10px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .ai-stat-card .number {
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin: 0;
+      background: -webkit-linear-gradient(45deg, var(--primary-color), var(--primary-hover));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .ai-list-card {
+      background: #fff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .ai-list-card h3 {
+      margin-top: 0;
+      font-size: 1.25rem;
+      border-bottom: 2px solid var(--primary-light);
+      padding-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .ai-issue-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    
+    .ai-issue-item:last-child {
+      border-bottom: none;
+    }
+    
+    .ai-issue-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    
+    .ai-issue-count {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .ai-improvement-item {
+      padding: 16px;
+      margin-bottom: 12px;
+      background: #f8fafc;
+      border-left: 4px solid var(--primary-color);
+      border-radius: 0 8px 8px 0;
+    }
+
+    .ai-improvement-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .ai-loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 1px dashed var(--border-subtle);
+    }
+  </style>
+</head>
+
+<body>
+  <header class="app-header">
+    <a class="logo-area" href="dashboard.html" id="app-logo-area" title="Go to Dashboard">
+      <img src="skyworks-logo.png" alt="Skyworks" class="header-logo" />
+      <div class="logo-text">
+        <span class="logo-main">IT Rack Inventory</span>
+        <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <div id="user-menu"></div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="dashboard.html">All Devices</a>
+        <a class="nav-tab" href="models.html">Models</a>
+        <a class="nav-tab" href="phones.html">Phones</a>
+        <a class="nav-tab" href="phone-history.html">Phone History</a>
+        <a class="nav-tab" href="statistics.html">Statistics</a>
+        <a class="nav-tab" href="history.html">Activity Log</a>
+        <a class="nav-tab active" href="ai-insights.html">AI Insights</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section class="panel ai-panel">
+      <div class="panel-header">
+        <div>
+          <h2>AI Insights & Analytics</h2>
+          <p class="panel-subtitle">
+            Powered by AI: Automatically analyzes return notes to detect recurring hardware issues and identify areas for process improvement.
+          </p>
+        </div>
+        <div class="panel-header-actions">
+          <button type="button" class="btn primary" id="btn-refresh-ai">Refresh Analysis</button>
+        </div>
+      </div>
+
+      <div id="ai-content-container">
+        <div class="ai-loading" id="ai-loading">
+          <p>Analyzing historical data and extracting insights...</p>
+        </div>
+        
+        <div id="ai-results" class="hidden">
+          <div class="ai-summary-grid">
+            <div class="ai-stat-card">
+              <h3>Issues Analyzed</h3>
+              <p class="number" id="ai-total-issues">0</p>
+            </div>
+            <div class="ai-stat-card">
+              <h3>Top Recurring Issue</h3>
+              <p class="number" id="ai-top-issue" style="font-size: 2rem;">None</p>
+            </div>
+          </div>
+          
+          <div class="ai-list-card">
+            <h3>📊 Frequency of Issues Detected</h3>
+            <div id="ai-issues-list"></div>
+          </div>
+          
+          <div class="ai-list-card">
+            <h3>💡 AI Identified Areas of Improvement</h3>
+            <div id="ai-improvements-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Module scripts -->
+  <script src="js/config.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/ui/auth.js" defer></script>
+  <script src="js/pages/ai-insights.js" defer></script>
+</body>
+
+</html>

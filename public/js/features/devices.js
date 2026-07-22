@@ -280,7 +280,7 @@ function renderDevicesView() {
           const prNums    = [...new Set(kitItems.map(d => d.prNumber).filter(Boolean))].join(', ');
           const itemCount = `${kitItems.length} item${kitItems.length !== 1 ? 's' : ''}`;
           const prLabel   = prNums ? ` &mdash; PR / Ticket: <span style="opacity:.7">${escHtml(prNums)}</span>` : '';
-          const subHeader = `<tr class="kit-sub-header${revealClass}">
+          const subHeader = `<tr class="kit-sub-header${revealClass} js-kit-header" data-kit-id="${escHtml(kitId)}" style="cursor:pointer;" title="Click to remove entire kit">
             <td colspan="${colCount}" class="kit-ticket-cell">Kit: <strong>${escHtml(kitId)}</strong>${prLabel} <span class="kit-count">${itemCount}</span></td>
           </tr>`;
           const deviceRows = kitItems.map(d => {
@@ -322,6 +322,12 @@ function renderDevicesView() {
           row.addEventListener('click', () => {
             const id = row.dataset.deviceId;
             if (id) openRemoveSerialDialog(id);
+          });
+        });
+        container.querySelectorAll('tr.js-kit-header').forEach((row) => {
+          row.addEventListener('click', () => {
+            const kitId = row.dataset.kitId;
+            if (kitId) openRemoveSerialDialog(null, kitId);
           });
         });
       }
@@ -435,8 +441,21 @@ function renderDevicesView() {
 // ── Remove from stock dialog ──────────────────────────────────
 
 /** Open the Remove Serial dialog, pre-loading the person select. */
-function openRemoveSerialDialog(deviceId) {
+function openRemoveSerialDialog(deviceId, kitId = null) {
   pendingRemoveDeviceId = deviceId;
+  pendingRemoveKitId = kitId;
+  
+  const titleEl = document.querySelector('#remove-serial-dialog .dialog-header h2');
+  if (titleEl) {
+    titleEl.textContent = kitId ? 'Remove entire Kit from Stock' : 'Remove from Stock';
+  }
+  const descEl = document.querySelector('#remove-serial-dialog .dialog-description');
+  if (descEl) {
+    descEl.textContent = kitId 
+      ? 'All items in this kit will leave active stock but stay recorded under "Removed / Assigned".' 
+      : 'This serial will leave active stock but stay recorded under "Removed / Assigned".';
+  }
+
   document.getElementById('remove-serial-dialog').classList.remove('hidden');
   populateDeliveredBySelect();
   document.getElementById('remove-reason-input').focus();
@@ -445,6 +464,7 @@ function openRemoveSerialDialog(deviceId) {
 /** Close and reset the Remove Serial dialog. */
 function closeRemoveSerialDialog() {
   pendingRemoveDeviceId = null;
+  pendingRemoveKitId = null;
   document.getElementById('remove-serial-dialog').classList.add('hidden');
   document.getElementById('remove-serial-form').reset();
 }
@@ -541,5 +561,34 @@ async function removeDeviceFromStock(deviceId, reason, deliveredBy, destination)
     showToast(`Serial removed from stock${model ? ' for ' + model.name : ''}.`);
   } catch (e) {
     showToast(`Error removing device: ${e.message}`);
+  }
+}
+
+/**
+ * Remove an entire kit of devices from stock at once.
+ */
+async function removeKitFromStock(kitId, reason, deliveredBy, destination) {
+  const kitDevices = state.devices.filter((d) => d.kit_id === kitId && d.status === 'in');
+  if (!kitDevices.length) return;
+
+  try {
+    // Process removals sequentially
+    for (const device of kitDevices) {
+      await apiCall('PUT', `/devices/${device.id}`, {
+        status:      'out',
+        reason:      (reason      || '').trim(),
+        deliveredBy: (deliveredBy || '').trim(),
+        destination: (destination || '').trim(),
+      });
+      device.status      = 'out';
+      device.removedAt   = new Date().toISOString();
+      device.reason      = (reason      || '').trim();
+      device.deliveredBy = (deliveredBy || '').trim();
+      device.destination = (destination || '').trim();
+    }
+    renderAll();
+    showToast(`Removed entire kit (${kitDevices.length} items) from stock.`);
+  } catch (e) {
+    showToast(`Error removing kit: ${e.message}`);
   }
 }

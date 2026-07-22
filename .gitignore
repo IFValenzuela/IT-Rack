@@ -54,3 +54,4 @@ firebase.json
 
 # Database backups
 *.sql
+.mariadb/

@@ -175,57 +175,46 @@ router.delete('/clear-all', async (_req, res) => {
 // POST /api/admin/demo/seed  — injects demo devices backdated for yellow/red badges
 router.post('/demo/seed', async (req, res) => {
   try {
-    // Need at least one model to attach devices to
     const [models] = await pool.query(
-      "SELECT id FROM models WHERE id NOT LIKE 'DEMO-%' LIMIT 1"
+      "SELECT id FROM models WHERE id NOT LIKE 'DEMO-%'"
     );
     if (!models.length) {
       return res.status(400).json({ error: 'No models found. Add at least one model before seeding demo data.' });
     }
-    const modelId = models[0].id;
+    
     const addedBy = req.user.username;
+    const depts = ['Planta Oeste', 'Planta Este'];
+    const statuses = ['in', 'out', 'in']; // Weight it towards 'in' storage
+    
+    // Helper to get random item
+    const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const getModelId = () => getRandom(models).id;
 
     // Remove any leftover demo data first
     await pool.query("DELETE FROM devices WHERE id LIKE 'DEMO-%'");
 
+    const insertDemo = async (id, serial, pr, daysAgo) => {
+      const sql = `INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, createdAt) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL ? DAY))`;
+      await pool.query(sql, [
+        id, getModelId(), serial, pr, getRandom(statuses), getRandom(depts), addedBy, daysAgo
+      ]);
+    };
+
     // 3 fresh devices (no badge)
-    const freshDevices = [
-      ['DEMO-FRESH-001', 'DEMO-SN-F001', 'PR-DEMO-01'],
-      ['DEMO-FRESH-002', 'DEMO-SN-F002', 'PR-DEMO-02'],
-      ['DEMO-FRESH-003', 'DEMO-SN-F003', 'PR-DEMO-03'],
-    ];
-    for (const [id, serial, prNumber] of freshDevices) {
-      await pool.query(
-        'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
-        [id, modelId, serial, prNumber, 'in', 'IT Dept', addedBy]
-      );
-    }
+    await insertDemo('DEMO-FRESH-001', 'DEMO-SN-F001', 'PR-DEMO-01', 0);
+    await insertDemo('DEMO-FRESH-002', 'DEMO-SN-F002', 'PR-DEMO-02', 1);
+    await insertDemo('DEMO-FRESH-003', 'DEMO-SN-F003', 'PR-DEMO-03', 2);
 
-    // 3 devices 16 days old → yellow "2+ weeks" badge
-    const warningDevices = [
-      ['DEMO-WARN-001', 'DEMO-SN-W001', 'PR-DEMO-04'],
-      ['DEMO-WARN-002', 'DEMO-SN-W002', 'PR-DEMO-05'],
-      ['DEMO-WARN-003', 'DEMO-SN-W003', 'PR-DEMO-06'],
-    ];
-    for (const [id, serial, prNumber] of warningDevices) {
-      await pool.query(
-        'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 16 DAY))',
-        [id, modelId, serial, prNumber, 'in', 'IT Dept', addedBy]
-      );
-    }
+    // 3 devices 16+ days old → yellow "2+ weeks" badge
+    await insertDemo('DEMO-WARN-001', 'DEMO-SN-W001', 'PR-DEMO-04', 16);
+    await insertDemo('DEMO-WARN-002', 'DEMO-SN-W002', 'PR-DEMO-05', 18);
+    await insertDemo('DEMO-WARN-003', 'DEMO-SN-W003', 'PR-DEMO-06', 22);
 
-    // 3 devices 35 days old → red "1+ month" badge
-    const criticalDevices = [
-      ['DEMO-CRIT-001', 'DEMO-SN-C001', 'PR-DEMO-07'],
-      ['DEMO-CRIT-002', 'DEMO-SN-C002', 'PR-DEMO-08'],
-      ['DEMO-CRIT-003', 'DEMO-SN-C003', 'PR-DEMO-09'],
-    ];
-    for (const [id, serial, prNumber] of criticalDevices) {
-      await pool.query(
-        'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL 35 DAY))',
-        [id, modelId, serial, prNumber, 'in', 'IT Dept', addedBy]
-      );
-    }
+    // 3 devices 35+ days old → red "1+ month" badge
+    await insertDemo('DEMO-CRIT-001', 'DEMO-SN-C001', 'PR-DEMO-07', 35);
+    await insertDemo('DEMO-CRIT-002', 'DEMO-SN-C002', 'PR-DEMO-08', 40);
+    await insertDemo('DEMO-CRIT-003', 'DEMO-SN-C003', 'PR-DEMO-09', 50);
 
     res.json({ ok: true, inserted: 9 });
   } catch (e) {

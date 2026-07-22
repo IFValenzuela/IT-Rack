@@ -24,6 +24,7 @@
         <a class="nav-tab" href="models.html">Models</a>
         <a class="nav-tab" href="phones.html">Phones</a>
         <a class="nav-tab" href="phone-history.html">Phone History</a>
+        <a class="nav-tab" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
         <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
       </nav>
@@ -39,6 +40,7 @@
         </div>
         <div class="receipt-page-actions">
           <button type="button" class="btn primary" id="btn-print-receipt">Print</button>
+          <button type="button" class="btn primary" id="btn-download-receipt" style="background: #1a73e8; border-color: #1a73e8;">Download PDF</button>
           <a class="btn ghost" href="phones.html">Back to Phones</a>
         </div>
       </div>
@@ -79,6 +81,10 @@
 
   <div id="toast" class="toast hidden"></div>
 
+  <!-- HTML2Canvas and jsPDF for downloading the receipt as a PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  
   <script src="js/config.js" defer></script>
   <script src="js/api.js" defer></script>
   <script src="js/state.js" defer></script>

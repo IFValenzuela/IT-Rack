@@ -56,6 +56,7 @@ let currentCategoryFilter = 'All';
 let modelsVisible       = 8;
 let currentModelId      = null;
 let pendingRemoveDeviceId = null;
+let pendingRemoveKitId = null;
 let modelHistoryVisible = 10;
 
 // ── Kit (NHK) state ───────────────────────────────────────────

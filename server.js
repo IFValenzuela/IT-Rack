@@ -51,6 +51,7 @@ if (pool) {
   app.use('/api/technicians', require('./backend/routes/technicians'));
   app.use('/api/admin',       require('./backend/routes/admin'));
   app.use('/api/kit-accessories', require('./backend/routes/kit'));
+  app.use('/api/stats',       require('./backend/routes/stats'));
 
   // Ensure optional schema columns exist to avoid runtime SQL errors
   (async function ensureSchema() {
@@ -95,6 +96,7 @@ if (pool) {
           phoneModel varchar(255) NOT NULL,
           imei varchar(100) NOT NULL,
           phoneNumber varchar(50) NOT NULL,
+          transactionType varchar(50) DEFAULT 'delivery',
           assignedAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
           signatureName varchar(255) NOT NULL,
           signatureImage LONGTEXT NOT NULL,
@@ -112,6 +114,18 @@ if (pool) {
       console.log('Ensured phones table exists');
     } catch (e) {
       console.warn('Could not ensure phones table exists:', e.message);
+    }
+
+    try {
+      const [[txCol]] = await pool.query(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'phones' AND COLUMN_NAME = 'transactionType'"
+      );
+      if (!txCol) {
+        await pool.query("ALTER TABLE phones ADD COLUMN transactionType VARCHAR(50) DEFAULT 'delivery'");
+        console.log('Added phones.transactionType column');
+      }
+    } catch (e) {
+      console.warn('Could not ensure phones.transactionType column:', e.message);
     }
   })();
 } else {

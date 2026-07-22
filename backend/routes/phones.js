@@ -71,7 +71,9 @@ function normalizeImei(value) {
 }
 
 function normalizeTransactionType(value) {
-  return value === 'return' ? 'return' : 'delivery';
+  if (value === 'return') return 'return';
+  if (value === 'return_admin') return 'return_admin';
+  return 'delivery';
 }
 
 function getPublicPhoneRecord(record) {
@@ -140,8 +142,14 @@ router.post('/', async (req, res) => {
   } = req.body || {};
 
   const cleanImei = normalizeImei(imei);
-  if (!assignedBy || !receivedBy || !phoneModel || !cleanImei || !phoneNumber || !signatureName || !signatureImage) {
-    return res.status(400).json({ error: 'assignedBy, receivedBy, phoneModel, imei, phoneNumber, signatureName and signatureImage are required' });
+  const cleanTransactionType = normalizeTransactionType(transactionType);
+
+  if (!assignedBy || !receivedBy || !phoneModel || !cleanImei || !phoneNumber) {
+    return res.status(400).json({ error: 'assignedBy, receivedBy, phoneModel, imei, and phoneNumber are required' });
+  }
+
+  if (cleanTransactionType !== 'return_admin' && (!signatureName || !signatureImage)) {
+    return res.status(400).json({ error: 'signatureName and signatureImage are required' });
   }
   if (cleanImei.length > 15) {
     return res.status(400).json({ error: 'IMEI must be 15 digits or fewer' });
@@ -168,7 +176,7 @@ router.post('/', async (req, res) => {
         cleanTransactionType,
         toMySqlDateTime(assignedAt),
         signatureName.trim(),
-        signatureImage,
+        signatureImage || '',
         photoImage || null,
         (notes || '').trim() || null,
       ]

@@ -92,12 +92,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   typeRadios.forEach(radio => {
     radio.addEventListener('change', () => {
-      if (radio.value === 'return') {
+      if (radio.value === 'return' || radio.value === 'return_admin') {
         searchWrapper.classList.remove('hidden');
       } else {
         searchWrapper.classList.add('hidden');
         searchInput.value = '';
         searchResults.style.display = 'none';
+      }
+
+      // Hide signature section for admin return
+      const sigBox = document.querySelector('.signature-box');
+      if (sigBox) {
+        if (radio.value === 'return_admin') {
+          sigBox.style.display = 'none';
+        } else {
+          sigBox.style.display = 'block';
+        }
       }
     });
   });
@@ -177,13 +187,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       event.preventDefault();
       const signatureImage = phoneSignaturePad?.toDataURL() || '';
       const signatureName = (document.getElementById('signature-name').value || document.getElementById('phone-received-by').value || '').trim();
-      if (!signatureImage) {
+      const typeRadio = document.querySelector('input[name="transaction-type"]:checked');
+      const transactionType = typeRadio ? typeRadio.value : 'delivery';
+
+      if (!signatureImage && transactionType !== 'return_admin') {
         showToast('Please sign before saving the assignment.');
         return;
       }
-
-      const typeRadio = document.querySelector('input[name="transaction-type"]:checked');
-      const transactionType = typeRadio ? typeRadio.value : 'delivery';
 
       const payload = {
         assignedBy: document.getElementById('phone-assigned-by').value,

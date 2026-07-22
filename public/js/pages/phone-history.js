@@ -111,10 +111,11 @@ function renderPhoneHistory() {
     '</tr></thead><tbody>' +
     showing.map(p => {
       const type    = p.transactionType || 'delivery';
-      const typeCls = type === 'return' ? 'badge-return' : 'badge-delivery';
+      const typeCls = (type === 'return' || type === 'return_admin') ? 'badge-return' : 'badge-delivery';
+      const typeLabel = type === 'return_admin' ? 'Admin Return' : (type === 'return' ? 'Return' : 'Delivery');
       return '<tr>' +
         '<td>' + formatDateTime(p.assignedAt) + '</td>' +
-        '<td><span class="ph-type-badge ' + typeCls + '">' + (type === 'return' ? 'Return' : 'Delivery') + '</span></td>' +
+        '<td><span class="ph-type-badge ' + typeCls + '">' + typeLabel + '</span></td>' +
         '<td><strong>' + escHtml(p.phoneModel) + '</strong></td>' +
         '<td>' + escHtml(p.receivedBy) + '</td>' +
         '<td>' + escHtml(p.employeeNumber || '—') + '</td>' +
@@ -162,7 +163,8 @@ function openPhoneDetail(id) {
   const title   = document.getElementById('ph-detail-title');
   const body    = document.getElementById('ph-detail-body');
 
-  if (title) title.textContent = record.phoneModel + ' — ' + (record.transactionType === 'return' ? 'Return' : 'Delivery');
+  const typeLabel = record.transactionType === 'return_admin' ? 'Admin Return' : (record.transactionType === 'return' ? 'Return' : 'Delivery');
+  if (title) title.textContent = record.phoneModel + ' — ' + typeLabel;
 
   const type = record.transactionType || 'delivery';
 
@@ -175,7 +177,7 @@ function openPhoneDetail(id) {
       '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">IMEI</span><div style="font-weight:600;font-family:monospace;">' + escHtml(record.imei) + '</div></div>' +
       '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Phone #</span><div style="font-weight:600;">' + escHtml(record.phoneNumber) + '</div></div>' +
       '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Date</span><div style="font-weight:600;">' + formatDateTime(record.assignedAt) + '</div></div>' +
-      '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Type</span><div style="font-weight:600;">' + (type === 'return' ? 'Return' : 'Delivery') + '</div></div>' +
+      '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Type</span><div style="font-weight:600;">' + typeLabel + '</div></div>' +
     '</div>' +
     (record.notes ? '<div style="margin-bottom:14px;"><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Notes</span><div style="background:#f8f9fc;border-left:3px solid var(--border-subtle);border-radius:0 6px 6px 0;padding:8px 12px;margin-top:4px;font-size:0.88rem;">' + escHtml(record.notes) + '</div></div>' : '') +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
