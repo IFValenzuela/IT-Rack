@@ -135,14 +135,14 @@ const COMMON_CHART_OPTIONS = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { position: 'right', labels: { font: { size: 11, family: 'system-ui' } } },
+    legend: { display: false },
     datalabels: {
       color: '#fff',
-      font: { weight: 'bold', size: 11 },
+      font: { weight: 'bold', size: 12 },
       formatter: (value, ctx) => {
         const total = ctx.dataset.data.reduce((a,b) => a + b, 0);
         const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-        return pct > 5 ? pct + '%' : ''; // only show if > 5%
+        return pct > 4 ? pct + '%' : '';
       },
       textShadowBlur: 4,
       textShadowColor: 'rgba(0,0,0,0.4)'
@@ -156,7 +156,8 @@ const COMMON_CHART_OPTIONS = {
         }
       }
     }
-  }
+  },
+  cutout: '65%'
 };
 
 const CHART_COLORS = ['#007db8', '#00b894', '#6c5ce7', '#e17055', '#fdcb6e', '#d63031', '#0984e3', '#00cec9', '#e84393', '#55efc4'];
@@ -167,12 +168,12 @@ function renderCharts() {
   filteredDevices.forEach(d => {
     modelsMap[d.modelName] = (modelsMap[d.modelName] || 0) + 1;
   });
-  updateChart('models', 'pie', Object.keys(modelsMap), Object.values(modelsMap));
+  updateChart('models', Object.keys(modelsMap), Object.values(modelsMap));
 
   // 2. Status Breakdown
   const inCount = filteredDevices.filter(d => d.status === 'in').length;
   const outCount = filteredDevices.filter(d => d.status !== 'in').length;
-  updateChart('status', 'doughnut', ['In Storage', 'Deployed'], [inCount, outCount], ['#00b894', '#e17055']);
+  updateChart('status', ['In Storage', 'Deployed'], [inCount, outCount], ['#00b894', '#e17055']);
 
   // 3. Location Split
   const locMap = {};
@@ -180,31 +181,59 @@ function renderCharts() {
     const loc = d.department || 'Unknown';
     locMap[loc] = (locMap[loc] || 0) + 1;
   });
-  updateChart('location', 'pie', Object.keys(locMap), Object.values(locMap));
+  updateChart('location', Object.keys(locMap), Object.values(locMap));
 }
 
-function updateChart(chartKey, type, labels, data, colors = CHART_COLORS) {
+function updateChart(chartKey, labels, data, colors = CHART_COLORS) {
   const ctx = document.getElementById(`chart-${chartKey}`).getContext('2d');
+  const usedColors = colors.slice(0, labels.length);
   
   if (charts[chartKey]) {
     charts[chartKey].data.labels = labels;
     charts[chartKey].data.datasets[0].data = data;
-    charts[chartKey].data.datasets[0].backgroundColor = colors;
+    charts[chartKey].data.datasets[0].backgroundColor = usedColors;
     charts[chartKey].update();
   } else {
     charts[chartKey] = new Chart(ctx, {
-      type: type,
+      type: 'doughnut',
       data: {
         labels: labels,
         datasets: [{
           data: data,
-          backgroundColor: colors,
-          borderWidth: 0
+          backgroundColor: usedColors,
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverOffset: 8
         }]
       },
       options: COMMON_CHART_OPTIONS
     });
   }
+
+  // Render custom legend
+  renderChartLegend(chartKey, labels, data, usedColors);
+}
+
+function renderChartLegend(chartKey, labels, data, colors) {
+  const legendEl = document.getElementById(`legend-${chartKey}`);
+  if (!legendEl) return;
+
+  const total = data.reduce((a, b) => a + b, 0);
+
+  if (total === 0) {
+    legendEl.innerHTML = '<li style="color: var(--text-muted); font-size: 0.8rem; padding: 8px;">No data</li>';
+    return;
+  }
+
+  legendEl.innerHTML = labels.map((label, i) => {
+    const count = data[i];
+    const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+    return `<li class="chart-legend-item">
+      <span class="chart-legend-dot" style="background:${colors[i]}"></span>
+      <span class="chart-legend-name" title="${escHtml(label)}">${escHtml(label)}</span>
+      <span class="chart-legend-pct">${pct}%</span>
+    </li>`;
+  }).join('');
 }
 
 function renderTable() {
@@ -212,7 +241,7 @@ function renderTable() {
   document.getElementById('table-title').textContent = `Inventory List (${filteredDevices.length})`;
 
   if (filteredDevices.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color: #888;">No devices match the current filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 30px; color: #888;">No devices match the current filters.</td></tr>';
     return;
   }
 
@@ -225,7 +254,6 @@ function renderTable() {
     const dateStr = d.createdAt ? formatDate(d.createdAt) : '—';
     return `
       <tr>
-        <td class="mono">${escHtml(d.id || '—')}</td>
         <td class="mono">${escHtml(d.serial || '—')}</td>
         <td><strong>${escHtml(d.modelName || '—')}</strong></td>
         <td>${escHtml(d.department || '—')}</td>
@@ -242,14 +270,13 @@ function exportCSV() {
     return;
   }
 
-  const rows = [['Device ID', 'Serial', 'Model', 'Building', 'Status', 'Added Date']];
+  const rows = [['Serial', 'Model', 'Building', 'Status', 'Added Date']];
   
   // Sort same as table
   const sorted = [...filteredDevices].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   sorted.forEach(d => {
     rows.push([
-      d.id || '',
       d.serial || '',
       d.modelName || '',
       d.department || '',

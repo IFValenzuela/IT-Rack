@@ -2269,3 +2269,8 @@ tr:hover .action-link {
 .login-error.show {
   display: block;
 }
+
+/* Hide phone inventory tab temporarily */
+a[href="phone-inventory.html"] {
+  display: none !important;
+}

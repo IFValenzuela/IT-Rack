@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Phone Inventory — IT Rack Inventory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Current phone inventory status — see which phones are deployed and which are in stock." />
+  <link rel="stylesheet" href="style.css?v=3" />
+  <style>
+    /* ── Page Layout ──────────────────────────────────────── */
+    .pi-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .pi-toolbar h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .pi-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pi-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin: 0 0 18px;
+    }
+
+    /* ── Summary Cards ────────────────────────────────────── */
+    .pi-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .pi-summary-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(5, 25, 51, 0.05);
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+
+    .pi-summary-card:hover {
+      box-shadow: 0 4px 14px rgba(5, 25, 51, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .pi-summary-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
+    .pi-summary-icon.total    { background: #e8f4fd; color: #007db8; }
+    .pi-summary-icon.deployed { background: #fef3e2; color: #e17055; }
+    .pi-summary-icon.stock    { background: #e6faf3; color: #00b894; }
+
+    .pi-summary-body {
+      min-width: 0;
+    }
+
+    .pi-summary-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.1;
+    }
+
+    .pi-summary-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Tabs ──────────────────────────────────────────────── */
+    .pi-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--border-subtle);
+      margin-bottom: 16px;
+    }
+
+    .pi-tab {
+      padding: 10px 22px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.15s ease;
+    }
+
+    .pi-tab:hover {
+      color: var(--blue);
+    }
+
+    .pi-tab.active {
+      color: var(--blue);
+    }
+
+    .pi-tab.active::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -2px;
+      height: 2px;
+      background: var(--blue);
+      border-radius: 1px;
+    }
+
+    .pi-tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+
+    .pi-tab.active .pi-tab-count {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .pi-tab:not(.active) .pi-tab-count {
+      background: #f0f3f8;
+      color: var(--text-muted);
+    }
+
+    /* ── Filter Bar ───────────────────────────────────────── */
+    .pi-filters {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .pi-search {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .pi-search .search-icon {
+      position: absolute;
+      left: 10px;
+      color: var(--text-muted);
+      pointer-events: none;
+      display: flex;
+    }
+
+    .pi-search input {
+      padding: 7px 12px 7px 32px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      width: 260px;
+      background: var(--card-bg);
+      color: var(--text-main);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .pi-search input:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
+    }
+
+    .pi-search input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .pi-filter-select {
+      padding: 7px 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      background: var(--card-bg);
+      font-size: 0.82rem;
+      color: var(--text-main);
+    }
+
+    .pi-filter-select:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(0, 125, 184, 0.15);
+    }
+
+    .pi-export-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--blue);
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-left: auto;
+    }
+
+    .pi-export-btn:hover {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    /* ── Table ─────────────────────────────────────────────── */
+    .pi-table-wrap {
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(5, 25, 51, 0.05);
+    }
+
+    .pi-showing-label {
+      padding: 10px 16px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+      background: #f8fafc;
+    }
+
+    .pi-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .pi-table th {
+      background: #f4f6fb;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 2px solid var(--border-subtle);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .pi-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
+    }
+
+    .pi-table tr:hover td {
+      background: var(--blue-soft);
+    }
+
+    .pi-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .pi-table .mono {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.76rem;
+      color: var(--blue-strong);
+    }
+
+    /* Status badges */
+    .pi-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .pi-status.deployed {
+      background: #fef3e2;
+      color: #e17055;
+    }
+
+    .pi-status.in-stock {
+      background: #e6faf3;
+      color: #00b894;
+    }
+
+    .pi-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .pi-status.deployed .pi-status-dot { background: #e17055; }
+    .pi-status.in-stock .pi-status-dot { background: #00b894; }
+
+    /* Empty / Loading */
+    .pi-empty {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .pi-loading {
+      text-align: center;
+      padding: 60px;
+      color: var(--text-muted);
+    }
+
+    .pi-loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-subtle);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: pi-spin 0.7s linear infinite;
+      margin: 0 auto 14px;
+    }
+
+    @keyframes pi-spin { to { transform: rotate(360deg); } }
+
+    /* View record button */
+    .pi-view-btn {
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--blue);
+      background: var(--blue-soft);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .pi-view-btn:hover {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    /* ── Responsive ────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .pi-summary-grid { grid-template-columns: 1fr; }
+      .pi-search input { width: 100%; }
+      .pi-filters { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="app-header">
+    <a class="logo-area" href="dashboard.html" id="app-logo-area" title="Go to Dashboard">
+      <img src="skyworks-logo.png" alt="Skyworks" class="header-logo" />
+      <div class="logo-text">
+        <span class="logo-main">IT Rack Inventory</span>
+        <span class="logo-sub">Deliveries &amp; Hardware Tracking</span>
+      </div>
+    </a>
+    <div class="header-right">
+      <div id="user-menu"></div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="dashboard.html">All Devices</a>
+        <a class="nav-tab" href="models.html">Models</a>
+        <a class="nav-tab" href="phones.html">Phones</a>
+        <a class="nav-tab active" href="phone-inventory.html">Phone Inventory</a>
+        <a class="nav-tab" href="phone-history.html">Phone History</a>
+        <a class="nav-tab" href="statistics.html">Statistics</a>
+        <a class="nav-tab" href="history.html">Activity Log</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- Loading state -->
+    <div id="pi-loading" class="pi-loading">
+      <div class="spinner"></div>
+      <p>Loading phone inventory…</p>
+    </div>
+
+    <!-- Main content (hidden until data loads) -->
+    <div id="pi-content" class="hidden">
+      <!-- Toolbar -->
+      <div class="pi-toolbar">
+        <div>
+          <h1>Phone Inventory</h1>
+          <p class="pi-subtitle">Current status of all phones — see what's deployed and what's in stock.</p>
+        </div>
+        <div class="pi-toolbar-right">
+          <a class="pi-export-btn" href="phones.html" id="btn-pi-new-assignment">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            New Assignment
+          </a>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="pi-summary-grid">
+        <div class="pi-summary-card">
+          <div class="pi-summary-icon total">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg>
+          </div>
+          <div class="pi-summary-body">
+            <div class="pi-summary-value" id="pi-total">0</div>
+            <div class="pi-summary-label">Total Phones</div>
+          </div>
+        </div>
+        <div class="pi-summary-card">
+          <div class="pi-summary-icon deployed">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          </div>
+          <div class="pi-summary-body">
+            <div class="pi-summary-value" id="pi-deployed">0</div>
+            <div class="pi-summary-label">Deployed</div>
+          </div>
+        </div>
+        <div class="pi-summary-card">
+          <div class="pi-summary-icon stock">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg>
+          </div>
+          <div class="pi-summary-body">
+            <div class="pi-summary-value" id="pi-in-stock">0</div>
+            <div class="pi-summary-label">In Stock</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="pi-tabs" id="pi-tabs">
+        <button class="pi-tab active" data-tab="deployed">
+          Deployed <span class="pi-tab-count" id="pi-tab-deployed-count">0</span>
+        </button>
+        <button class="pi-tab" data-tab="in-stock">
+          In Stock <span class="pi-tab-count" id="pi-tab-stock-count">0</span>
+        </button>
+        <button class="pi-tab" data-tab="all">
+          All <span class="pi-tab-count" id="pi-tab-all-count">0</span>
+        </button>
+      </div>
+
+      <!-- Filters -->
+      <div class="pi-filters">
+        <div class="pi-search">
+          <span class="search-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </span>
+          <input type="text" id="pi-search" placeholder="Search name, model, IMEI, phone #…" />
+        </div>
+        <select id="pi-filter-model" class="pi-filter-select">
+          <option value="">All Models</option>
+        </select>
+        <button class="pi-export-btn" id="btn-pi-export" title="Export current view as CSV">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Export CSV
+        </button>
+      </div>
+
+      <!-- Table -->
+      <div class="pi-table-wrap">
+        <div class="pi-showing-label" id="pi-showing-label"></div>
+        <div style="overflow-x:auto; max-height:600px; overflow-y:auto;">
+          <table class="pi-table">
+            <thead id="pi-thead"></thead>
+            <tbody id="pi-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Detail modal for viewing a phone record -->
+  <div id="ph-detail-modal" class="dialog-backdrop hidden">
+    <div class="dialog" style="max-width:640px;">
+      <div class="dialog-header">
+        <h2 id="ph-detail-title" style="margin:0;">Phone Assignment Detail</h2>
+        <button type="button" class="btn ghost btn-sm" id="btn-ph-detail-close">✕ Close</button>
+      </div>
+      <div id="ph-detail-body" style="padding:18px 24px 24px;"></div>
+    </div>
+  </div>
+
+  <script src="js/config.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/features/phones.js" defer></script>
+  <script src="js/ui/auth.js" defer></script>
+  <script src="js/pages/phone-inventory.js" defer></script>
+</body>
+
+</html>

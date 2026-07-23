@@ -131,26 +131,86 @@
       padding: 16px;
       display: flex;
       flex-direction: column;
-      align-items: center;
       box-shadow: 0 1px 4px rgba(5, 25, 51, 0.05);
     }
     
     .chart-card h3 {
       margin: 0 0 16px 0;
       font-size: 0.9rem;
+      font-weight: 700;
       color: var(--text-main);
       width: 100%;
       text-align: left;
     }
 
-    .chart-wrapper {
-      position: relative;
-      height: 250px;
-      width: 100%;
+    .chart-card-body {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex: 1;
+      min-height: 0;
     }
 
-    .chart-wrapper canvas {
+    .chart-area {
+      width: 160px;
+      height: 160px;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .chart-area canvas {
       filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.15)) drop-shadow(0px 4px 6px rgba(0,0,0,0.1));
+    }
+
+    .chart-legend {
+      flex: 1;
+      min-width: 0;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: #f8fafc;
+      border: 1px solid var(--border-subtle);
+      transition: background 0.15s;
+      font-size: 0.78rem;
+    }
+
+    .chart-legend-item:hover {
+      background: #eef1f7;
+    }
+
+    .chart-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .chart-legend-name {
+      flex: 1;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chart-legend-pct {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      white-space: nowrap;
     }
 
     /* ── Data Table ───────────────────────────────────────── */
@@ -260,6 +320,7 @@
         <a class="nav-tab" href="dashboard.html">All Devices</a>
         <a class="nav-tab" href="models.html">Models</a>
         <a class="nav-tab" href="phones.html">Phones</a>
+        <a class="nav-tab" href="phone-inventory.html">Phone Inventory</a>
         <a class="nav-tab" href="phone-history.html">Phone History</a>
         <a class="nav-tab" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
@@ -316,15 +377,24 @@
       <div class="charts-grid">
         <div class="chart-card">
           <h3>Model Distribution</h3>
-          <div class="chart-container"><canvas id="chart-models"></canvas></div>
+          <div class="chart-card-body">
+            <div class="chart-area"><canvas id="chart-models"></canvas></div>
+            <ul class="chart-legend" id="legend-models"></ul>
+          </div>
         </div>
         <div class="chart-card">
           <h3>Status Breakdown</h3>
-          <div class="chart-container"><canvas id="chart-status"></canvas></div>
+          <div class="chart-card-body">
+            <div class="chart-area"><canvas id="chart-status"></canvas></div>
+            <ul class="chart-legend" id="legend-status"></ul>
+          </div>
         </div>
         <div class="chart-card">
           <h3>Location Split</h3>
-          <div class="chart-container"><canvas id="chart-location"></canvas></div>
+          <div class="chart-card-body">
+            <div class="chart-area"><canvas id="chart-location"></canvas></div>
+            <ul class="chart-legend" id="legend-location"></ul>
+          </div>
         </div>
       </div>
 
@@ -337,7 +407,6 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Device ID</th>
                 <th>Serial</th>
                 <th>Model</th>
                 <th>Building</th>
