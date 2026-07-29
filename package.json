@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "start:static": "node server.js --static",
+    "db:start": "mariadbd --datadir=$(pwd)/.mariadb/data --port=3307 --socket=$(pwd)/.mariadb/run/mysqld.sock",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

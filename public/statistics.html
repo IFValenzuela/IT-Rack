@@ -275,6 +275,30 @@
       color: var(--text-muted);
     }
 
+    .pipeline-sla-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .pipeline-sla-chart-wrap {
+      position: relative;
+      width: 100%;
+      min-height: 520px;
+      height: 520px;
+    }
+
+    .pipeline-sla-chart-wrap canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .pipeline-sla-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
     /* ── Bar Rows ─────────────────────────────────────────── */
     .bar-row {
       display: flex;
@@ -921,6 +945,7 @@
         <a class="nav-tab" href="phones.html">Phones</a>
         <a class="nav-tab" href="phone-inventory.html">Phone Inventory</a>
         <a class="nav-tab" href="phone-history.html">Phone History</a>
+        <a class="nav-tab" href="pipeline.html">Pipeline</a>
         <a class="nav-tab active" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
         <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
@@ -1085,6 +1110,25 @@
       </div>
 
     </div>
+
+      <!-- ── Pipeline SLA Section ──────────────────────────── -->
+      <div class="stats-card" style="margin-top: 24px;">
+        <div class="stats-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+          <div>
+            <h2 style="margin:0;font-size:1.1rem;font-weight:700;color:var(--text-main);">Pipeline SLA Analysis</h2>
+            <p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);">Average time between consecutive pipeline stages (hours)</p>
+          </div>
+        </div>
+        <div class="pipeline-sla-layout">
+          <div class="pipeline-sla-chart-wrap">
+            <canvas id="pipeline-sla-chart"></canvas>
+          </div>
+          <div id="pipeline-sla-table" class="pipeline-sla-table-wrap">
+            <p style="color:var(--text-muted);font-size:0.82rem;">No pipeline data available yet.</p>
+          </div>
+        </div>
+      </div>
+
   </main>
 
   <!-- Drawer removed -->

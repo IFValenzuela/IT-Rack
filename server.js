@@ -52,6 +52,8 @@ if (pool) {
   app.use('/api/admin',       require('./backend/routes/admin'));
   app.use('/api/kit-accessories', require('./backend/routes/kit'));
   app.use('/api/stats',       require('./backend/routes/stats'));
+  app.use('/api/tickets',     require('./backend/routes/tickets'));
+  app.use('/api/pipeline',    require('./backend/routes/pipeline'));
 
   // Ensure optional schema columns exist to avoid runtime SQL errors
   (async function ensureSchema() {
@@ -117,6 +119,18 @@ if (pool) {
     }
 
     try {
+      const [[receivedByCol]] = await pool.query(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'devices' AND COLUMN_NAME = 'receivedBy'"
+      );
+      if (!receivedByCol) {
+        await pool.query("ALTER TABLE devices ADD COLUMN receivedBy VARCHAR(255) DEFAULT NULL AFTER addedBy");
+        console.log('Added devices.receivedBy column');
+      }
+    } catch (e) {
+      console.warn('Could not ensure devices.receivedBy column:', e.message);
+    }
+
+    try {
       const [[txCol]] = await pool.query(
         "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'phones' AND COLUMN_NAME = 'transactionType'"
       );
@@ -126,6 +140,75 @@ if (pool) {
       }
     } catch (e) {
       console.warn('Could not ensure phones.transactionType column:', e.message);
+    }
+
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS tickets (
+          id varchar(50) NOT NULL,
+          title varchar(255) NOT NULL,
+          requester varchar(255) DEFAULT NULL,
+          status varchar(50) NOT NULL DEFAULT 'First Requirement',
+          notes text,
+          createdAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updatedAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+      `);
+      console.log('Ensured tickets table exists');
+    } catch (e) {
+      console.warn('Could not ensure tickets table exists:', e.message);
+    }
+
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS pipeline_requests (
+          ticket_number VARCHAR(20) NOT NULL,
+          device_model  VARCHAR(255) NOT NULL,
+          requested_by  VARCHAR(255) DEFAULT NULL,
+          current_status VARCHAR(60) NOT NULL DEFAULT 'Ticket',
+          assigned_to   VARCHAR(255) DEFAULT NULL,
+          notes         TEXT,
+          jira_ticket   VARCHAR(100) DEFAULT NULL,
+          created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (ticket_number)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+      `);
+      console.log('Ensured pipeline_requests table exists');
+    } catch (e) {
+      console.warn('Could not ensure pipeline_requests table:', e.message);
+    }
+
+    try {
+      const [[jiraTicketCol]] = await pool.query(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pipeline_requests' AND COLUMN_NAME = 'jira_ticket'"
+      );
+      if (!jiraTicketCol) {
+        await pool.query("ALTER TABLE pipeline_requests ADD COLUMN jira_ticket VARCHAR(100) DEFAULT NULL AFTER notes");
+        console.log('Added pipeline_requests.jira_ticket column');
+      }
+    } catch (e) {
+      console.warn('Could not ensure pipeline_requests.jira_ticket column:', e.message);
+    }
+
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS pipeline_history (
+          id            INT AUTO_INCREMENT PRIMARY KEY,
+          ticket_number VARCHAR(20) NOT NULL,
+          status_name   VARCHAR(60) NOT NULL,
+          timestamp     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          handled_by    VARCHAR(255) DEFAULT NULL,
+          notes         TEXT,
+          FOREIGN KEY (ticket_number) REFERENCES pipeline_requests(ticket_number) ON DELETE CASCADE,
+          KEY idx_ph_ticket (ticket_number),
+          KEY idx_ph_timestamp (timestamp)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+      `);
+      console.log('Ensured pipeline_history table exists');
+    } catch (e) {
+      console.warn('Could not ensure pipeline_history table:', e.message);
     }
   })();
 } else {

@@ -139,4 +139,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Auto-open model detail if URL contains ?model=<id>
   tryOpenDetailFromUrl();
+
+  // ── Pipeline handoff: prefill PR/Ticket from URL ──────────
+  const urlParams = new URLSearchParams(window.location.search);
+  const prefillPr = urlParams.get('prefillPr');
+  if (prefillPr) {
+    const prInput = document.getElementById('serial-pr-input');
+    if (prInput) {
+      prInput.value = prefillPr;
+      showToast(`Pipeline handoff: PR/Ticket pre-filled with ${prefillPr}. Select a model to add the serial.`);
+    }
+  }
 });

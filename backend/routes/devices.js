@@ -23,13 +23,13 @@ router.get('/', async (_req, res) => {
 
 // POST /api/devices
 router.post('/', async (req, res) => {
-  const { id, modelId, serial, prNumber, status, department, kit_id, addedBy } = req.body;
+  const { id, modelId, serial, prNumber, status, department, kit_id, addedBy, receivedBy } = req.body;
   // Use provided addedBy (admin recording on behalf of a technician) or fall back to JWT user
   const effectiveAddedBy = (addedBy || '').trim() || req.user.username;
   try {
     await pool.query(
-      'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, kit_id, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [id, modelId, serial, prNumber, status, department, effectiveAddedBy, kit_id || null]
+      'INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, receivedBy, kit_id, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [id, modelId, serial, prNumber, status, department, effectiveAddedBy, (receivedBy || '').trim() || null, kit_id || null]
     );
     res.json({ ok: true });
   } catch (e) {

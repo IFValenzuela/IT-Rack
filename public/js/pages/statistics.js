@@ -72,6 +72,7 @@ Chart.register(ChartDataLabels);
 document.addEventListener('DOMContentLoaded', () => {
   attachToolbarEvents();
   loadStatistics();
+  loadPipelineSla();
 });
 
 /* ── Data Loading ──────────────────────────────────────── */
@@ -564,3 +565,125 @@ function exportExplorerCSV() {
 /* ── Helpers ───────────────────────────────────────────── */
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+/* ── Pipeline SLA Analysis ─────────────────────────────── */
+let pipelineSlaChartInstance = null;
+
+async function loadPipelineSla() {
+  try {
+    const data = await apiCall('GET', '/pipeline/stats/stage-durations');
+    renderPipelineSla(data || []);
+  } catch (err) {
+    console.warn('Could not load pipeline SLA data:', err);
+  }
+}
+
+function renderPipelineSla(rows) {
+  const tableEl = document.getElementById('pipeline-sla-table');
+  const chartCanvas = document.getElementById('pipeline-sla-chart');
+  if (!tableEl || !chartCanvas) return;
+
+  if (!rows || rows.length === 0) {
+    tableEl.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem;">No stage transition data available yet. Advance pipeline requests to generate SLA metrics.</p>';
+    return;
+  }
+
+  // Render HTML Table
+  let html = `
+    <table class="explorer-table" style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border-subtle);text-align:left;">
+          <th style="padding:8px 10px;">Transition</th>
+          <th style="padding:8px 10px;text-align:right;">Avg (hrs)</th>
+          <th style="padding:8px 10px;text-align:right;">Min</th>
+          <th style="padding:8px 10px;text-align:right;">Max</th>
+          <th style="padding:8px 10px;text-align:right;">Samples</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  rows.forEach(r => {
+    html += `
+      <tr style="border-bottom:1px solid var(--border-subtle);">
+        <td style="padding:8px 10px;font-weight:550;">${escHtml(r.from_stage)} → ${escHtml(r.to_stage)}</td>
+        <td style="padding:8px 10px;text-align:right;color:var(--blue);font-weight:650;">${Number(r.avg_hours).toFixed(1)}</td>
+        <td style="padding:8px 10px;text-align:right;color:var(--text-muted);">${Number(r.min_hours).toFixed(1)}</td>
+        <td style="padding:8px 10px;text-align:right;color:var(--text-muted);">${Number(r.max_hours).toFixed(1)}</td>
+        <td style="padding:8px 10px;text-align:right;">${r.sample_count}</td>
+      </tr>
+    `;
+  });
+
+  html += '</tbody></table>';
+  tableEl.innerHTML = html;
+
+  // Render Horizontal Bar Chart
+  const labels = rows.map(r => `${r.from_stage} → ${r.to_stage}`);
+  const data = rows.map(r => Number(r.avg_hours));
+  const suggestedMax = Math.max(1, Math.ceil(Math.max(...data, 0) * 1.15));
+
+  if (pipelineSlaChartInstance) {
+    pipelineSlaChartInstance.data.labels = labels;
+    pipelineSlaChartInstance.data.datasets[0].data = data;
+    pipelineSlaChartInstance.update();
+  } else {
+    pipelineSlaChartInstance = new Chart(chartCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Avg Hours',
+          data,
+          backgroundColor: '#007db8',
+          borderRadius: 6,
+          barThickness: 14,
+          maxBarThickness: 18
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {
+          padding: {
+            left: 8,
+            right: 12,
+            top: 4,
+            bottom: 4
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            color: '#051933',
+            anchor: 'end',
+            align: 'right',
+            clamp: true,
+            formatter: val => `${val.toFixed(1)}h`,
+            font: { weight: '600', size: 11 }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            suggestedMax,
+            grid: { color: '#f0f4fa' },
+            ticks: {
+              callback: value => `${value}h`
+            },
+            title: { display: true, text: 'Hours' }
+          },
+          y: {
+            grid: { display: false },
+            ticks: {
+              autoSkip: false,
+              padding: 8,
+              font: { size: 11 }
+            }
+          }
+        }
+      }
+    });
+  }
+}
