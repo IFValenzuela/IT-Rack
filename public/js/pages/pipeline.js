@@ -39,6 +39,20 @@ const STATUS_COLORS = [
 const CANCELLED_COLOR = '#94a3b8';
 const CUSTOM_MODEL_VALUE = '__custom__';
 const STANDARD_MODEL_CATEGORIES = ['Laptop', 'Desktop PC', 'Monitor', 'Cable', 'Headset', 'Other'];
+const NON_SERIALIZED_KEYWORDS = [
+  'cable', 'cables', 'headset', 'headsets', 'other', 'others',
+  'accessory', 'accessories', 'adapter', 'adapters', 'peripheral', 'peripherals',
+  'mouse', 'mice', 'keyboard', 'keyboards', 'dock', 'docking station',
+  'n/a', 'none', 'jack', 'charger', 'power supply', 'cord'
+];
+
+function isNonSerializedItem(category, modelName) {
+  const cat = String(category || '').trim().toLowerCase();
+  const model = String(modelName || '').trim().toLowerCase();
+  if (NON_SERIALIZED_KEYWORDS.some(kw => cat === kw || cat.includes(kw))) return true;
+  if (NON_SERIALIZED_KEYWORDS.some(kw => model.includes(kw))) return true;
+  return false;
+}
 
 let allRequests = [];
 let showCancelled = false;
@@ -123,7 +137,7 @@ function attachPipelineListeners() {
     document.getElementById('new-request-dialog').classList.remove('hidden');
     document.getElementById('new-request-form').reset();
     resetNewRequestSelections();
-    document.getElementById('req-device-category').focus();
+    document.getElementById('req-jira-ticket').focus();
   });
   document.getElementById('btn-cancel-request').addEventListener('click', () => {
     document.getElementById('new-request-dialog').classList.add('hidden');
@@ -167,6 +181,13 @@ function attachPipelineListeners() {
   document.getElementById('btn-close-timeline').addEventListener('click', () => {
     document.getElementById('timeline-panel').classList.add('hidden');
   });
+
+  // Close ticket detail modal on backdrop click or close button
+  document.getElementById('ticket-detail-modal').addEventListener('click', e => {
+    if (e.target.id === 'ticket-detail-modal') closeTicketDetailModal();
+  });
+  const btnCloseDetail = document.getElementById('btn-close-ticket-detail');
+  if (btnCloseDetail) btnCloseDetail.addEventListener('click', closeTicketDetailModal);
 }
 
 // ── Data Loading ─────────────────────────────────────────────
@@ -304,65 +325,9 @@ function createCard(req) {
   card.className = 'pipeline-card' + (req.current_status === 'Cancelled' ? ' cancelled' : '');
   card.draggable = req.current_status !== 'Cancelled' && req.current_status !== 'Final Delivery';
 
-  const timeInStage = getTimeInStage(req.updated_at);
-  const isHandoffStage = HANDOFF_STAGES.includes(req.current_status);
-  const isFinal = req.current_status === 'Final Delivery';
-  const isCancelled = req.current_status === 'Cancelled';
-  const currentIdx = PIPELINE_STATUSES.indexOf(req.current_status);
-  const serialCount = Number(req.serial_count || 0);
-
-  let actionsHtml = '';
-  if (!isCancelled && !isFinal) {
-    const nextStage = currentIdx < PIPELINE_STATUSES.length - 1
-      ? PIPELINE_STATUSES[currentIdx + 1]
-      : null;
-
-    if (nextStage) {
-      const isJiraGate = req.current_status === 'Add to Jira';
-      const isFinalGate = nextStage === 'Final Delivery' && serialCount === 0;
-      const buttonLabel = isJiraGate
-        ? 'Add Jira ID & Continue'
-        : (isFinalGate ? 'Add Serial & Continue' : 'Next');
-      const buttonTitle = isJiraGate
-        ? 'Enter Jira ID and continue'
-        : (isFinalGate ? 'Add a real serial number before final delivery' : `Advance to ${escHtml(nextStage)}`);
-      actionsHtml += `<button type="button" class="btn btn-advance js-advance" data-ticket="${escHtml(req.ticket_number)}" data-next-stage="${escHtml(nextStage)}" data-jira-gate="${isJiraGate ? '1' : '0'}" data-serial-gate="${isFinalGate ? '1' : '0'}" title="${buttonTitle}">${buttonLabel}</button>`;
-    }
-    if (isHandoffStage) {
-      actionsHtml += `<button type="button" class="btn btn-add-serial js-handoff" data-ticket="${escHtml(req.ticket_number)}" title="Add device serial to inventory">Add Serial</button>`;
-    }
-    actionsHtml += `<button type="button" class="btn btn-cancel-ticket js-cancel" data-ticket="${escHtml(req.ticket_number)}" title="Cancel this request">Cancel</button>`;
-  }
-
-  // Admin delete
-  if (currentUser && currentUser.username === 'admin') {
-    actionsHtml += `<button type="button" class="btn btn-delete-ticket js-delete" data-ticket="${escHtml(req.ticket_number)}" title="Delete permanently">Delete</button>`;
-  }
-
-  const metaChips = [];
-  if (req.requested_by) {
-    metaChips.push(`
-      <span class="card-meta-chip card-meta-requester">
-        <span class="card-meta-label">Requester</span>
-        <span class="card-meta-value">${escHtml(req.requested_by)}</span>
-      </span>
-    `);
-  }
-  if (req.assigned_to) {
-    metaChips.push(`
-      <span class="card-meta-chip card-meta-assignee">
-        <span class="card-meta-label">Assignee</span>
-        <span class="card-meta-value">${escHtml(req.assigned_to)}</span>
-      </span>
-    `);
-  }
-
   card.innerHTML = `
-    <div class="card-ticket-num">${escHtml(req.ticket_number)}</div>
+    <div class="card-ticket-num">${escHtml(req.jira_ticket || req.ticket_number)}</div>
     <div class="card-device">${escHtml(req.device_model)}</div>
-    <div class="card-meta-list">${metaChips.join('')}</div>
-    <div class="${timeInStage.badgeClass}"><span class="card-meta-label">Time in Stage</span><span class="card-meta-value">${escHtml(timeInStage.label)}</span></div>
-    <div class="card-actions">${actionsHtml}</div>
   `;
 
   // Drag events
@@ -374,69 +339,156 @@ function createCard(req) {
     card.style.opacity = '1';
   });
 
-  // Click to show timeline
-  card.addEventListener('click', (e) => {
-    if (e.target.closest('button')) return; // don't trigger on button clicks
-    showTimeline(req.ticket_number);
-  });
-
-  // Button handlers
-  card.querySelectorAll('.js-advance').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const nextStage = btn.dataset.nextStage;
-      const jiraGate = btn.dataset.jiraGate === '1';
-      const serialGate = btn.dataset.serialGate === '1';
-      if (jiraGate) {
-        openJiraActionDialog(btn.dataset.ticket, nextStage);
-        return;
-      }
-      if (serialGate) {
-        openSerialActionDialog(btn.dataset.ticket, nextStage);
-        return;
-      }
-      advanceTicket(btn.dataset.ticket, nextStage);
-    });
-  });
-  card.querySelectorAll('.js-cancel').forEach(btn => {
-    btn.addEventListener('click', () => openConfirmActionDialog({
-      title: 'Cancel Request',
-      message: `Cancel request ${btn.dataset.ticket}? This will move the ticket out of the active pipeline.`,
-      confirmText: 'Confirm Cancel',
-      confirmClass: 'danger',
-      action: () => cancelTicket(btn.dataset.ticket),
-    }));
-  });
-  card.querySelectorAll('.js-delete').forEach(btn => {
-    btn.addEventListener('click', () => openConfirmActionDialog({
-      title: 'Delete Request',
-      message: `Delete ${btn.dataset.ticket} and all of its history? This cannot be undone.`,
-      confirmText: 'Confirm Delete',
-      confirmClass: 'danger',
-      action: () => deleteTicket(btn.dataset.ticket),
-    }));
-  });
-  card.querySelectorAll('.js-handoff').forEach(btn => {
-    btn.addEventListener('click', () => openInventoryHandoff(btn.dataset.ticket));
+  // Click to open detail modal
+  card.addEventListener('click', () => {
+    openTicketDetailModal(req);
   });
 
   return card;
 }
 
+// ── Ticket Detail Modal ──────────────────────────────────────
+
+let detailModalReq = null;
+
+function openTicketDetailModal(req) {
+  detailModalReq = req;
+  const modal = document.getElementById('ticket-detail-modal');
+
+  // Populate header
+  document.getElementById('td-ticket-num').textContent = req.jira_ticket || req.ticket_number;
+  document.getElementById('td-device-model').textContent = req.device_model || '—';
+
+  // Populate meta
+  document.getElementById('td-current-stage').textContent = req.current_status || '—';
+  document.getElementById('td-requester').textContent = req.requested_by || '—';
+  document.getElementById('td-assignee').textContent = req.assigned_to || '—';
+
+  const timeInStage = getTimeInStage(req.updated_at);
+  const timeEl = document.getElementById('td-time-in-stage');
+  timeEl.textContent = timeInStage.label || '—';
+  timeEl.className = 'td-meta-value';
+
+  // Build action buttons
+  const actionsEl = document.getElementById('td-actions');
+  actionsEl.innerHTML = '';
+
+  const isCancelled = req.current_status === 'Cancelled';
+  const isFinal = req.current_status === 'Final Delivery';
+  const currentIdx = PIPELINE_STATUSES.indexOf(req.current_status);
+  const serialCount = Number(req.serial_count || 0);
+  const isHandoffStage = HANDOFF_STAGES.includes(req.current_status);
+
+  if (!isCancelled && !isFinal) {
+    const nextStage = currentIdx < PIPELINE_STATUSES.length - 1
+      ? PIPELINE_STATUSES[currentIdx + 1]
+      : null;
+
+    if (nextStage) {
+      const isJiraGate = req.current_status === 'Add to Jira';
+      const isFinalGate = nextStage === 'Final Delivery' && serialCount === 0;
+      const label = isJiraGate ? 'Add Jira ID & Continue'
+        : (isFinalGate ? 'Add Serial & Continue' : `Next → ${nextStage}`);
+
+      const advBtn = document.createElement('button');
+      advBtn.type = 'button';
+      advBtn.className = 'btn td-btn-advance';
+      advBtn.textContent = label;
+      advBtn.addEventListener('click', () => {
+        closeTicketDetailModal();
+        if (isJiraGate) {
+          openJiraActionDialog(req.ticket_number, nextStage);
+        } else if (isFinalGate) {
+          openSerialActionDialog(req.ticket_number, nextStage);
+        } else {
+          advanceTicket(req.ticket_number, nextStage);
+        }
+      });
+      actionsEl.appendChild(advBtn);
+    }
+
+    if (isHandoffStage) {
+      const serialBtn = document.createElement('button');
+      serialBtn.type = 'button';
+      serialBtn.className = 'btn td-btn-serial';
+      serialBtn.textContent = 'Add Serial';
+      serialBtn.addEventListener('click', () => {
+        closeTicketDetailModal();
+        openInventoryHandoff(req.ticket_number);
+      });
+      actionsEl.appendChild(serialBtn);
+    }
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn td-btn-cancel';
+    cancelBtn.textContent = 'Cancel Ticket';
+    cancelBtn.addEventListener('click', () => {
+      closeTicketDetailModal();
+      openConfirmActionDialog({
+        title: 'Cancel Request',
+        message: `Cancel request ${req.ticket_number}? This will move the ticket out of the active pipeline.`,
+        confirmText: 'Confirm Cancel',
+        confirmClass: 'danger',
+        action: () => cancelTicket(req.ticket_number),
+      });
+    });
+    actionsEl.appendChild(cancelBtn);
+  }
+
+  // Timeline button (always visible)
+  const timelineBtn = document.createElement('button');
+  timelineBtn.type = 'button';
+  timelineBtn.className = 'btn td-btn-timeline';
+  timelineBtn.textContent = 'View Timeline';
+  timelineBtn.addEventListener('click', () => {
+    closeTicketDetailModal();
+    showTimeline(req.ticket_number);
+  });
+  actionsEl.appendChild(timelineBtn);
+
+  // Admin delete
+  if (currentUser && currentUser.username === 'admin') {
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn td-btn-delete';
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', () => {
+      closeTicketDetailModal();
+      openConfirmActionDialog({
+        title: 'Delete Request',
+        message: `Delete ${req.ticket_number} and all of its history? This cannot be undone.`,
+        confirmText: 'Confirm Delete',
+        confirmClass: 'danger',
+        action: () => deleteTicket(req.ticket_number),
+      });
+    });
+    actionsEl.appendChild(delBtn);
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeTicketDetailModal() {
+  document.getElementById('ticket-detail-modal').classList.add('hidden');
+  detailModalReq = null;
+}
+
 function getTimeInStage(updatedAt) {
   const now = Date.now();
   const updated = new Date(updatedAt).getTime();
-  if (isNaN(updated)) return { label: '', badgeClass: 'card-time-badge' };
+  if (isNaN(updated)) return { label: '', badgeClass: 'td-stage-badge' };
 
   const diffHours = (now - updated) / (1000 * 60 * 60);
   const diffDays = diffHours / 24;
 
-  let label, badgeClass = 'card-time-badge';
+  let label, badgeClass = 'td-stage-badge';
   if (diffDays >= 7) {
     label = `${Math.floor(diffDays)}d in stage`;
-    badgeClass = 'card-time-badge critical';
+    badgeClass = 'td-stage-badge critical';
   } else if (diffDays >= 2) {
     label = `${Math.floor(diffDays)}d in stage`;
-    badgeClass = 'card-time-badge warning';
+    badgeClass = 'td-stage-badge warning';
   } else if (diffHours >= 1) {
     label = `${Math.floor(diffHours)}h in stage`;
   } else {
@@ -567,7 +619,19 @@ function openJiraActionDialog(ticketNumber, nextStage) {
   const dialog = document.getElementById('jira-action-dialog');
   const input = document.getElementById('jira-action-input');
   jiraActionContext = { ticketNumber, nextStage };
-  input.value = '';
+  const req = allRequests.find(r => r.ticket_number === ticketNumber) || {};
+  const existingJira = req.jira_ticket || '';
+  const isAdminAccount = currentUser && (currentUser.username === 'admin' || currentUser.role === 'admin');
+  input.value = existingJira;
+  if (existingJira && !isAdminAccount) {
+    input.disabled = true;
+    input.readOnly = true;
+    input.title = 'Only admin main account can edit ticket numbers once created';
+  } else {
+    input.disabled = false;
+    input.readOnly = false;
+    input.title = '';
+  }
   dialog.classList.remove('hidden');
   setTimeout(() => input.focus(), 0);
 }
@@ -578,6 +642,7 @@ function openSerialActionDialog(ticketNumber, nextStage) {
   const summary = document.getElementById('serial-action-summary');
   const ticketInput = document.getElementById('serial-action-ticket');
   const serialInput = document.getElementById('serial-action-serial');
+  const serialContainer = document.getElementById('serial-action-serial-container');
   const departmentInput = document.getElementById('serial-action-department');
   const receivedByInput = document.getElementById('serial-action-received-by');
 
@@ -587,8 +652,38 @@ function openSerialActionDialog(ticketNumber, nextStage) {
       <strong>${escHtml(req.ticket_number || ticketNumber)}</strong> · ${escHtml(req.device_model || 'Device')}${req.requested_by ? ` · ${escHtml(req.requested_by)}` : ''}${req.assigned_to ? ` · ${escHtml(req.assigned_to)}` : ''}
     `;
   }
-  if (ticketInput) ticketInput.value = req.jira_ticket || req.ticket_number || ticketNumber || '';
-  if (serialInput) serialInput.value = '';
+  const isAdminAccount = currentUser && (currentUser.username === 'admin' || currentUser.role === 'admin');
+  if (ticketInput) {
+    ticketInput.value = req.jira_ticket || req.ticket_number || ticketNumber || '';
+    ticketInput.disabled = !isAdminAccount;
+    ticketInput.readOnly = !isAdminAccount;
+    if (!isAdminAccount) {
+      ticketInput.title = 'Only admin main account can edit ticket numbers once created';
+    } else {
+      ticketInput.title = '';
+    }
+  }
+
+  // Adaptive UI: check category of incoming device_model
+  const model = modelCatalog.find(m => (m.name || '').toLowerCase() === String(req.device_model || '').toLowerCase());
+  const category = (model && model.category) ? model.category : (req.device_model_category || req.category || 'Other');
+  const isNonSerialized = isNonSerializedItem(category, req.device_model);
+
+  if (serialContainer && serialInput) {
+    if (isNonSerialized) {
+      serialContainer.classList.add('hidden');
+      serialInput.required = false;
+      serialInput.value = 'N/A';
+    } else {
+      serialContainer.classList.remove('hidden');
+      serialInput.required = true;
+      serialInput.value = '';
+    }
+  } else if (serialInput) {
+    serialInput.value = isNonSerialized ? 'N/A' : '';
+    serialInput.required = !isNonSerialized;
+  }
+
   if (departmentInput) {
     departmentInput.value = currentUser && currentUser.department ? currentUser.department : '';
   }
@@ -596,7 +691,7 @@ function openSerialActionDialog(ticketNumber, nextStage) {
     receivedByInput.value = req.requested_by || req.assigned_to || '';
   }
   dialog.classList.remove('hidden');
-  setTimeout(() => (serialInput || ticketInput || departmentInput || receivedByInput)?.focus?.(), 0);
+  setTimeout(() => (isNonSerialized ? (ticketInput || departmentInput || receivedByInput) : (serialInput || ticketInput || departmentInput || receivedByInput))?.focus?.(), 0);
 }
 
 async function submitSerialAction(mode) {
@@ -604,13 +699,17 @@ async function submitSerialAction(mode) {
   const ticketInput = document.getElementById('serial-action-ticket');
   const departmentInput = document.getElementById('serial-action-department');
   const receivedByInput = document.getElementById('serial-action-received-by');
+  const serialContainer = document.getElementById('serial-action-serial-container');
 
-  const serial = (serialInput?.value || '').trim();
+  const isSerialHidden = serialContainer ? serialContainer.classList.contains('hidden') : false;
+  const isNAPattern = ['N/A', 'NA', 'NONE', 'N / A'].includes(String(serialInput?.value || '').trim().toUpperCase());
+  const serial = (isSerialHidden || isNAPattern) ? 'N/A' : (serialInput?.value || '').trim();
   const ticketNumber = (ticketInput?.value || '').trim();
-  const department = (departmentInput?.value || '').trim();
+  let department = (departmentInput?.value || '').trim();
   const receivedBy = (receivedByInput?.value || '').trim();
 
-  if (!serial) {
+  // Bypass serial number required validation specifically for hidden scenarios or N/A items
+  if (!isSerialHidden && !serial && !isNAPattern) {
     showToast('Serial number is required');
     serialInput?.focus();
     return;
@@ -621,9 +720,7 @@ async function submitSerialAction(mode) {
     return;
   }
   if (!department) {
-    showToast('Please select a department');
-    departmentInput?.focus();
-    return;
+    department = currentUser?.department || 'IT';
   }
   if (mode === 'device' && !receivedBy) {
     showToast('Person receiving device is required');
@@ -633,18 +730,38 @@ async function submitSerialAction(mode) {
 
   const context = serialActionContext || {};
   const req = context.req || allRequests.find(r => r.ticket_number === context.ticketNumber) || {};
-  const model = modelCatalog.find(m => (m.name || '').toLowerCase() === String(req.device_model || '').toLowerCase());
+  let model = modelCatalog.find(m => (m.name || '').toLowerCase() === String(req.device_model || '').toLowerCase());
+  if (!model) {
+    await loadModelsForSelect();
+    model = modelCatalog.find(m => (m.name || '').toLowerCase() === String(req.device_model || '').toLowerCase());
+  }
+  if (!model && req.device_model) {
+    const newModel = {
+      id: uid(),
+      name: req.device_model.trim(),
+      category: req.device_model_category || req.category || 'Other',
+      notes: ''
+    };
+    try {
+      await apiCall('POST', '/models', newModel);
+      modelCatalog.push(newModel);
+      model = newModel;
+    } catch (e) {
+      console.warn('Could not auto-create model:', e);
+    }
+  }
   if (!model) {
     showToast('Could not resolve the device model for this request');
     return;
   }
 
-  const cleanSerial = serial.trim();
+  const cleanSerial = serial.trim() || 'N/A';
   const cleanTicket = ticketNumber.trim();
   const now = new Date().toISOString();
 
   try {
-    const existing = state.devices.find(
+    const isNA = ['N/A', 'NA', 'NONE', 'N / A'].includes(cleanSerial.toUpperCase());
+    const existing = !isNA && state.devices.find(
       d => d.modelId === model.id && d.serial.toLowerCase() === cleanSerial.toLowerCase() && d.status === 'in'
     );
     if (mode === 'stock' && existing) {
@@ -849,7 +966,7 @@ async function handleNewRequest(e) {
   const requestedBy = document.getElementById('req-requested-by').value.trim();
   const assignedTo = document.getElementById('req-assigned-to').value.trim();
   const notes = document.getElementById('req-notes').value.trim();
-  const jiraTicket = document.getElementById('req-jira-ticket').value.trim();
+  const jiraTicket = document.getElementById('req-jira-ticket').value.trim().toUpperCase();
 
   if (!category) {
     showToast('Please select a category');
