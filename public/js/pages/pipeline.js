@@ -5,17 +5,17 @@
 'use strict';
 
 const PIPELINE_STATUSES = [
-  'Ticket',
+  'Ticket Created',
   'Manager Approval',
   'Requisition / Quote',
-  'PR (Purchase Request)',
-  'Approval',
-  'Waiting on Purchasing',
+  'PR',
+  'Awaiting Approval',
+  'Awaiting Purchasing',
   'Warehouse Delivery',
-  'IT Pickup from Warehouse',
+  'IT Transit Time',
   'Add to Jira',
-  'IT Preparation',
-  'Final Delivery',
+  'Equipment Preparation',
+  'Delivery'
 ];
 
 // Stages where inventory handoff button is shown
@@ -63,6 +63,9 @@ let modelCategories = [...STANDARD_MODEL_CATEGORIES];
 let confirmAction = null;
 let jiraActionContext = null;
 let serialActionContext = null;
+let techFilter = '';
+let locationFilter = '';
+let compactView = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await window.authPromise;
@@ -90,6 +93,7 @@ function createColumn(status, color) {
   const col = document.createElement('div');
   col.className = 'pipeline-column';
   col.dataset.status = status;
+  col.style.setProperty('--col-accent', color);
 
   col.innerHTML = `
     <div class="col-header">
@@ -131,61 +135,145 @@ function createColumn(status, color) {
 
 function attachPipelineListeners() {
   // New Request dialog
-  document.getElementById('req-device-category').addEventListener('change', handleCategoryChange);
-  document.getElementById('req-device-model').addEventListener('change', toggleCustomModelField);
-  document.getElementById('btn-new-request').addEventListener('click', () => {
-    document.getElementById('new-request-dialog').classList.remove('hidden');
-    document.getElementById('new-request-form').reset();
-    resetNewRequestSelections();
-    document.getElementById('req-jira-ticket').focus();
-  });
-  document.getElementById('btn-cancel-request').addEventListener('click', () => {
-    document.getElementById('new-request-dialog').classList.add('hidden');
-    document.getElementById('new-request-form').reset();
-    resetNewRequestSelections();
-  });
-  document.getElementById('new-request-form').addEventListener('submit', handleNewRequest);
+  const reqCategory = document.getElementById('req-device-category');
+  if (reqCategory) reqCategory.addEventListener('change', handleCategoryChange);
+  
+  const reqModel = document.getElementById('req-device-model');
+  if (reqModel) reqModel.addEventListener('change', toggleCustomModelField);
+  
+  const btnNewReq = document.getElementById('btn-new-request');
+  if (btnNewReq) {
+    btnNewReq.addEventListener('click', () => {
+      document.getElementById('new-request-dialog').classList.remove('hidden');
+      document.getElementById('new-request-form').reset();
+      resetNewRequestSelections();
+      document.getElementById('req-jira-ticket').focus();
+    });
+  }
+  
+  const btnCancelReq = document.getElementById('btn-cancel-request');
+  if (btnCancelReq) {
+    btnCancelReq.addEventListener('click', () => {
+      document.getElementById('new-request-dialog').classList.add('hidden');
+      document.getElementById('new-request-form').reset();
+      resetNewRequestSelections();
+    });
+  }
+  
+  const newReqForm = document.getElementById('new-request-form');
+  if (newReqForm) newReqForm.addEventListener('submit', handleNewRequest);
 
-  document.getElementById('btn-confirm-action-close').addEventListener('click', closeConfirmActionDialog);
-  document.getElementById('btn-confirm-action').addEventListener('click', runConfirmAction);
-  document.getElementById('confirm-action-dialog').addEventListener('click', e => {
-    if (e.target.id === 'confirm-action-dialog') closeConfirmActionDialog();
-  });
+  // Confirm dialog
+  const btnConfirmClose = document.getElementById('btn-confirm-action-close');
+  if (btnConfirmClose) btnConfirmClose.addEventListener('click', closeConfirmActionDialog);
+  
+  const btnConfirmAction = document.getElementById('btn-confirm-action');
+  if (btnConfirmAction) btnConfirmAction.addEventListener('click', runConfirmAction);
+  
+  const confirmDialog = document.getElementById('confirm-action-dialog');
+  if (confirmDialog) {
+    confirmDialog.addEventListener('click', e => {
+      if (e.target.id === 'confirm-action-dialog') closeConfirmActionDialog();
+    });
+  }
 
-  document.getElementById('btn-jira-action-cancel').addEventListener('click', closeJiraActionDialog);
-  document.getElementById('btn-jira-action-submit').addEventListener('click', submitJiraAction);
-  document.getElementById('jira-action-dialog').addEventListener('click', e => {
-    if (e.target.id === 'jira-action-dialog') closeJiraActionDialog();
-  });
+  // Jira action dialog
+  const btnJiraCancel = document.getElementById('btn-jira-action-cancel');
+  if (btnJiraCancel) btnJiraCancel.addEventListener('click', closeJiraActionDialog);
+  
+  const btnJiraSubmit = document.getElementById('btn-jira-action-submit');
+  if (btnJiraSubmit) btnJiraSubmit.addEventListener('click', submitJiraAction);
+  
+  const jiraDialog = document.getElementById('jira-action-dialog');
+  if (jiraDialog) {
+    jiraDialog.addEventListener('click', e => {
+      if (e.target.id === 'jira-action-dialog') closeJiraActionDialog();
+    });
+  }
 
-  document.getElementById('btn-serial-action-cancel').addEventListener('click', closeSerialActionDialog);
-  document.getElementById('btn-serial-action-device').addEventListener('click', () => submitSerialAction('device'));
-  document.getElementById('btn-serial-action-stock').addEventListener('click', () => submitSerialAction('stock'));
-  document.getElementById('serial-action-dialog').addEventListener('click', e => {
-    if (e.target.id === 'serial-action-dialog') closeSerialActionDialog();
-  });
+  // Serial action dialog
+  const btnSerialCancel = document.getElementById('btn-serial-action-cancel');
+  if (btnSerialCancel) btnSerialCancel.addEventListener('click', closeSerialActionDialog);
+  
+  const btnSerialDevice = document.getElementById('btn-serial-action-device');
+  if (btnSerialDevice) btnSerialDevice.addEventListener('click', () => submitSerialAction('device'));
+  
+  const btnSerialStock = document.getElementById('btn-serial-action-stock');
+  if (btnSerialStock) btnSerialStock.addEventListener('click', () => submitSerialAction('stock'));
+  
+  const serialDialog = document.getElementById('serial-action-dialog');
+  if (serialDialog) {
+    serialDialog.addEventListener('click', e => {
+      if (e.target.id === 'serial-action-dialog') closeSerialActionDialog();
+    });
+  }
 
   // Search
-  document.getElementById('pipeline-search').addEventListener('input', e => {
-    searchFilter = e.target.value.trim().toLowerCase();
-    renderBoard();
-  });
+  const searchInput = document.getElementById('pipeline-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', e => {
+      searchFilter = e.target.value.trim().toLowerCase();
+      renderBoard();
+    });
+  }
 
   // Toggle cancelled
-  document.getElementById('toggle-cancelled').addEventListener('change', e => {
-    showCancelled = e.target.checked;
-    renderBoard();
-  });
+  const toggleCancelled = document.getElementById('toggle-cancelled');
+  if (toggleCancelled) {
+    toggleCancelled.addEventListener('change', e => {
+      showCancelled = e.target.checked;
+      renderBoard();
+    });
+  }
 
-  // Close timeline
-  document.getElementById('btn-close-timeline').addEventListener('click', () => {
-    document.getElementById('timeline-panel').classList.add('hidden');
-  });
+  // Technician filter
+  const filterTech = document.getElementById('filter-technician');
+  if (filterTech) {
+    filterTech.addEventListener('change', e => {
+      techFilter = e.target.value;
+      renderBoard();
+    });
+  }
+
+  // Location filter
+  const filterLoc = document.getElementById('filter-location');
+  if (filterLoc) {
+    filterLoc.addEventListener('change', e => {
+      locationFilter = e.target.value;
+      renderBoard();
+    });
+  }
+
+  // View toggle (compact)
+  const btnViewToggle = document.getElementById('btn-view-toggle');
+  if (btnViewToggle) {
+    btnViewToggle.addEventListener('click', () => {
+      compactView = !compactView;
+      const board = document.getElementById('pipeline-board');
+      if (board) board.classList.toggle('compact-view', compactView);
+      btnViewToggle.classList.toggle('active', compactView);
+      const labelEl = btnViewToggle.querySelector('.toggle-label');
+      if (labelEl) labelEl.textContent = compactView ? 'Default' : 'Compact';
+    });
+  }
+
+  // Close timeline if present
+  const btnCloseTimeline = document.getElementById('btn-close-timeline');
+  if (btnCloseTimeline) {
+    btnCloseTimeline.addEventListener('click', () => {
+      const panel = document.getElementById('timeline-panel');
+      if (panel) panel.classList.add('hidden');
+    });
+  }
 
   // Close ticket detail modal on backdrop click or close button
-  document.getElementById('ticket-detail-modal').addEventListener('click', e => {
-    if (e.target.id === 'ticket-detail-modal') closeTicketDetailModal();
-  });
+  const detailModal = document.getElementById('ticket-detail-modal');
+  if (detailModal) {
+    detailModal.addEventListener('click', e => {
+      if (e.target.id === 'ticket-detail-modal') closeTicketDetailModal();
+    });
+  }
+  
   const btnCloseDetail = document.getElementById('btn-close-ticket-detail');
   if (btnCloseDetail) btnCloseDetail.addEventListener('click', closeTicketDetailModal);
 }
@@ -211,6 +299,7 @@ async function loadModelsForSelect() {
 async function loadTechniciansForSelect() {
   try {
     const techs = await apiCall('GET', '/technicians');
+    // Populate new-request dialog select
     const select = document.getElementById('req-assigned-to');
     select.innerHTML = '<option value="">Select technician…</option>';
     techs.forEach(t => {
@@ -219,6 +308,18 @@ async function loadTechniciansForSelect() {
       opt.textContent = t.name;
       select.appendChild(opt);
     });
+
+    // Populate toolbar technician filter
+    const filterSelect = document.getElementById('filter-technician');
+    if (filterSelect) {
+      filterSelect.innerHTML = '<option value="">All Technicians</option>';
+      techs.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.name;
+        opt.textContent = t.name;
+        filterSelect.appendChild(opt);
+      });
+    }
   } catch (err) {
     console.error('Failed to load technicians:', err);
   }
@@ -280,6 +381,20 @@ function renderBoard() {
     );
   }
 
+  // Technician filter
+  if (techFilter) {
+    filtered = filtered.filter(r =>
+      (r.assigned_to || '').toLowerCase() === techFilter.toLowerCase()
+    );
+  }
+
+  // Location filter
+  if (locationFilter) {
+    filtered = filtered.filter(r =>
+      (r.department || r.location || '').toLowerCase() === locationFilter.toLowerCase()
+    );
+  }
+
   // Separate cancelled
   const cancelled = filtered.filter(r => r.current_status === 'Cancelled');
   const active = filtered.filter(r => r.current_status !== 'Cancelled');
@@ -318,16 +433,165 @@ function renderBoard() {
     });
     board.appendChild(cancelCol);
   }
+
+  // Inject empty-state placeholders for columns with no cards
+  document.querySelectorAll('.col-cards').forEach(container => {
+    if (container.children.length === 0) {
+      const emptyEl = document.createElement('div');
+      emptyEl.className = 'col-empty-state';
+      emptyEl.textContent = 'No tickets in this stage';
+      container.appendChild(emptyEl);
+    }
+  });
 }
+
+// ── Card Helpers ─────────────────────────────────────────────
+
+function getCardAccentColor(req) {
+  if (!req) return '#2563eb';
+  const p = (req.priority || '').toLowerCase();
+  if (p === 'critical') return '#dc2626';
+  if (p === 'urgent') return '#ef4444';
+  if (p === 'high') return '#f59e0b';
+
+  const cat = (req.device_model_category || req.category || '').toLowerCase();
+  if (cat.includes('laptop'))  return '#2563eb';
+  if (cat.includes('desktop')) return '#4f46e5';
+  if (cat.includes('monitor')) return '#7c3aed';
+  if (cat.includes('cable') || cat.includes('headset') || cat.includes('other')) return '#94a3b8';
+
+  // Default: stage-based color
+  const idx = PIPELINE_STATUSES.indexOf(req.current_status);
+  return idx >= 0 ? STATUS_COLORS[idx] : '#2563eb';
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return parts[0].substring(0, 2).toUpperCase();
+}
+
+function formatRelativeTime(isoString) {
+  if (!isoString) return '';
+  const diff = Date.now() - new Date(isoString).getTime();
+  if (isNaN(diff) || diff < 0) return '';
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
+function buildStepperHtml(req) {
+  const currentIdx = PIPELINE_STATUSES.indexOf(req.current_status);
+  // Use 5 milestone segments (coalescing 11 statuses into 5 groups)
+  const milestones = [
+    { label: 'Ticket',      end: 0 },
+    { label: 'Approval',    end: 2 },
+    { label: 'Procurement', end: 5 },
+    { label: 'Setup',       end: 8 },
+    { label: 'Delivered',   end: 10 },
+  ];
+  const isCancelled = req.current_status === 'Cancelled';
+  let activeGroup = -1;
+  if (!isCancelled && currentIdx >= 0) {
+    for (let i = 0; i < milestones.length; i++) {
+      if (currentIdx <= milestones[i].end) { activeGroup = i; break; }
+    }
+  }
+  const segments = milestones.map((m, i) => {
+    if (isCancelled) return '<div class="stepper-seg"></div>';
+    if (i < activeGroup) return '<div class="stepper-seg completed"></div>';
+    if (i === activeGroup) return '<div class="stepper-seg active"></div>';
+    return '<div class="stepper-seg"></div>';
+  }).join('');
+
+  const stageLabel = isCancelled
+    ? 'Cancelled'
+    : (currentIdx >= 0
+      ? `Stage: ${req.current_status} (${activeGroup + 1}/${milestones.length})`
+      : req.current_status || 'Unknown');
+
+  return `
+    <div class="card-stepper">${segments}</div>
+    <div class="card-stage-label">${escHtml(stageLabel)}</div>
+  `;
+}
+
+// ── Card Renderer ────────────────────────────────────────────
 
 function createCard(req) {
   const card = document.createElement('div');
-  card.className = 'pipeline-card' + (req.current_status === 'Cancelled' ? ' cancelled' : '');
-  card.draggable = req.current_status !== 'Cancelled' && req.current_status !== 'Final Delivery';
+  
+  // Create wrapper logic for dragging / events
+  // Note: the prompt asks to return HTML string, but since createCard is expected to return a DOM element with event listeners,
+  // we build the DOM element and set its innerHTML, keeping event listeners intact.
+  
+  card.className = 'pipeline-card';
+  card.draggable = true;
+  card.dataset.ticket = req.ticket_number;
+
+  const ticketId = req.jira_ticket || req.ticket_number || '#UNKNOWN';
+  const title = req.device_model || 'Untitled Request';
+  const requester = req.requested_by || 'Unknown User';
+  const dept = req.department || 'General';
+
+  // Time logic
+  const relTime = req.updated_at ? formatRelativeTime(req.updated_at) : 'Unknown time';
+  const timeInStageObj = getTimeInStage(req.updated_at);
+  const timeInStage = timeInStageObj ? timeInStageObj.label : 'Unknown';
+
+  // Assignee logic
+  const techName = req.assigned_to;
+  let initials = '--';
+  let displayName = 'Unassigned';
+  if (techName && techName !== 'Unassigned') {
+    displayName = techName;
+    initials = techName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  }
+
+  // Progress logic
+  let currentIdx = PIPELINE_STATUSES.indexOf(req.current_status);
+  if (currentIdx === -1) currentIdx = 0; // fallback
+  const stageNumber = currentIdx + 1;
+  const totalStages = 6;
+
+  let segmentsHtml = '';
+  for (let i = 1; i <= totalStages; i++) {
+    const activeClass = i <= stageNumber ? 'active' : '';
+    segmentsHtml += `<div class="pipeline-progress-seg ${activeClass}"></div>`;
+  }
 
   card.innerHTML = `
-    <div class="card-ticket-num">${escHtml(req.jira_ticket || req.ticket_number)}</div>
-    <div class="card-device">${escHtml(req.device_model)}</div>
+    <div class="pipeline-card-header">
+      <span class="pipeline-card-id">${escHtml(ticketId)}</span>
+      <span class="pipeline-card-time">${escHtml(relTime)}</span>
+    </div>
+    
+    <div class="pipeline-card-title">${escHtml(title)}</div>
+    <div class="pipeline-card-subtitle">${escHtml(requester)} &middot; ${escHtml(dept)}</div>
+    
+    <div class="pipeline-progress-wrapper">
+      <div class="pipeline-progress-meta">
+        <span>Progress</span>
+        <span>Stage ${stageNumber} of ${totalStages}</span>
+      </div>
+      <div class="pipeline-progress-bars">
+        ${segmentsHtml}
+      </div>
+    </div>
+    
+    <div class="pipeline-card-footer">
+      <div class="pipeline-card-user">
+        <div class="pipeline-card-avatar">${escHtml(initials)}</div>
+        <span class="pipeline-card-username">${escHtml(displayName)}</span>
+      </div>
+      <span class="pipeline-card-duration">${escHtml(timeInStage)}</span>
+    </div>
   `;
 
   // Drag events
@@ -347,112 +611,243 @@ function createCard(req) {
   return card;
 }
 
-// ── Ticket Detail Modal ──────────────────────────────────────
+// ── Date Formatting Helpers ─────────────────────────────────
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + ', ' +
+         d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+// ── Ticket Detail Slide-Over Drawer ─────────────────────────
 
 let detailModalReq = null;
 
-function openTicketDetailModal(req) {
-  detailModalReq = req;
+async function openTicketDetailModal(cardReq) {
+  detailModalReq = cardReq;
   const modal = document.getElementById('ticket-detail-modal');
+  if (modal) modal.classList.remove('hidden');
 
-  // Populate header
-  document.getElementById('td-ticket-num').textContent = req.jira_ticket || req.ticket_number;
-  document.getElementById('td-device-model').textContent = req.device_model || '—';
-
-  // Populate meta
-  document.getElementById('td-current-stage').textContent = req.current_status || '—';
-  document.getElementById('td-requester').textContent = req.requested_by || '—';
-  document.getElementById('td-assignee').textContent = req.assigned_to || '—';
-
-  const timeInStage = getTimeInStage(req.updated_at);
-  const timeEl = document.getElementById('td-time-in-stage');
-  timeEl.textContent = timeInStage.label || '—';
-  timeEl.className = 'td-meta-value';
-
-  // Build action buttons
-  const actionsEl = document.getElementById('td-actions');
-  actionsEl.innerHTML = '';
-
-  const isCancelled = req.current_status === 'Cancelled';
-  const isFinal = req.current_status === 'Final Delivery';
-  const currentIdx = PIPELINE_STATUSES.indexOf(req.current_status);
-  const serialCount = Number(req.serial_count || 0);
-  const isHandoffStage = HANDOFF_STAGES.includes(req.current_status);
-
-  if (!isCancelled && !isFinal) {
-    const nextStage = currentIdx < PIPELINE_STATUSES.length - 1
-      ? PIPELINE_STATUSES[currentIdx + 1]
-      : null;
-
-    if (nextStage) {
-      const isJiraGate = req.current_status === 'Add to Jira';
-      const isFinalGate = nextStage === 'Final Delivery' && serialCount === 0;
-      const label = isJiraGate ? 'Add Jira ID & Continue'
-        : (isFinalGate ? 'Add Serial & Continue' : `Next → ${nextStage}`);
-
-      const advBtn = document.createElement('button');
-      advBtn.type = 'button';
-      advBtn.className = 'btn td-btn-advance';
-      advBtn.textContent = label;
-      advBtn.addEventListener('click', () => {
-        closeTicketDetailModal();
-        if (isJiraGate) {
-          openJiraActionDialog(req.ticket_number, nextStage);
-        } else if (isFinalGate) {
-          openSerialActionDialog(req.ticket_number, nextStage);
-        } else {
-          advanceTicket(req.ticket_number, nextStage);
-        }
-      });
-      actionsEl.appendChild(advBtn);
-    }
-
-    if (isHandoffStage) {
-      const serialBtn = document.createElement('button');
-      serialBtn.type = 'button';
-      serialBtn.className = 'btn td-btn-serial';
-      serialBtn.textContent = 'Add Serial';
-      serialBtn.addEventListener('click', () => {
-        closeTicketDetailModal();
-        openInventoryHandoff(req.ticket_number);
-      });
-      actionsEl.appendChild(serialBtn);
-    }
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.type = 'button';
-    cancelBtn.className = 'btn td-btn-cancel';
-    cancelBtn.textContent = 'Cancel Ticket';
-    cancelBtn.addEventListener('click', () => {
-      closeTicketDetailModal();
-      openConfirmActionDialog({
-        title: 'Cancel Request',
-        message: `Cancel request ${req.ticket_number}? This will move the ticket out of the active pipeline.`,
-        confirmText: 'Confirm Cancel',
-        confirmClass: 'danger',
-        action: () => cancelTicket(req.ticket_number),
-      });
-    });
-    actionsEl.appendChild(cancelBtn);
+  // Fetch fresh ticket data + complete history
+  let req = cardReq;
+  let history = [];
+  try {
+    const data = await apiCall('GET', `/pipeline/${cardReq.ticket_number}`);
+    req = data.request || cardReq;
+    history = data.history || [];
+    const idx = allRequests.findIndex(r => r.ticket_number === req.ticket_number);
+    if (idx !== -1) allRequests[idx] = { ...allRequests[idx], ...req };
+  } catch (err) {
+    console.error('Failed to load fresh ticket details:', err);
   }
 
-  // Timeline button (always visible)
-  const timelineBtn = document.createElement('button');
-  timelineBtn.type = 'button';
-  timelineBtn.className = 'btn td-btn-timeline';
-  timelineBtn.textContent = 'View Timeline';
-  timelineBtn.addEventListener('click', () => {
-    closeTicketDetailModal();
-    showTimeline(req.ticket_number);
-  });
-  actionsEl.appendChild(timelineBtn);
+  // 1. Header
+  const numEl = document.getElementById('td-ticket-num');
+  if (numEl) numEl.textContent = req.jira_ticket || req.ticket_number;
+  
+  const titleEl = document.getElementById('td-device-model');
+  if (titleEl) titleEl.textContent = req.device_model || 'Purchase Request';
 
-  // Admin delete
-  if (currentUser && currentUser.username === 'admin') {
+  // 2. Primary Action Bar
+  // Assignee Dropdown
+  const assignSelect = document.getElementById('drawer-assignee-select');
+  if (assignSelect) {
+    assignSelect.innerHTML = '<option value="">Unassigned</option>';
+    const filterTechSelect = document.getElementById('filter-technician');
+    if (filterTechSelect) {
+      Array.from(filterTechSelect.options).forEach(opt => {
+        if (opt.value) {
+          assignSelect.add(new Option(opt.textContent, opt.value, false, opt.value === req.assigned_to));
+        }
+      });
+    }
+    assignSelect.onchange = async (e) => {
+      try {
+        const newAssignee = e.target.value;
+        await apiCall('PUT', `/pipeline/${req.ticket_number}`, { assigned_to: newAssignee });
+        req.assigned_to = newAssignee;
+        const idx = allRequests.findIndex(r => r.ticket_number === req.ticket_number);
+        if (idx !== -1) allRequests[idx].assigned_to = newAssignee;
+        renderBoard();
+        showToast('Assignee updated successfully');
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to update assignee');
+      }
+    };
+  }
+
+  // Stage Progression & Return Controls
+  const advanceContainer = document.getElementById('td-advance-container');
+  if (advanceContainer) {
+    advanceContainer.innerHTML = '';
+
+    const isCancelled = req.current_status === 'Cancelled';
+    let currentIdx = PIPELINE_STATUSES.indexOf(req.current_status);
+    if (currentIdx === -1) currentIdx = 0;
+
+    if (!isCancelled) {
+      // Return / Reject to Previous Stage button (if currentIdx > 0)
+      if (currentIdx > 0) {
+        const prevStage = PIPELINE_STATUSES[currentIdx - 1];
+        const returnBtn = document.createElement('button');
+        returnBtn.type = 'button';
+        returnBtn.className = 'drawer-btn-return';
+        returnBtn.textContent = `Return to ${prevStage}`;
+        returnBtn.title = `Return ticket to ${prevStage}`;
+        returnBtn.addEventListener('click', () => {
+          closeTicketDetailModal();
+          advanceTicket(req.ticket_number, prevStage, `Returned to ${prevStage}`);
+        });
+        advanceContainer.appendChild(returnBtn);
+      }
+
+      // Advance to Next Stage button
+      if (currentIdx < PIPELINE_STATUSES.length - 1) {
+        const nextStage = PIPELINE_STATUSES[currentIdx + 1];
+        const advBtn = document.createElement('button');
+        advBtn.type = 'button';
+        advBtn.className = 'drawer-btn-advance';
+        advBtn.innerHTML = `<span>Advance to ${escHtml(nextStage)}</span><span>&rarr;</span>`;
+        advBtn.addEventListener('click', () => {
+          closeTicketDetailModal();
+          if (req.current_status === 'Add to Jira') {
+            // Show Jira dialog first, then Serial dialog will chain after
+            openJiraActionDialog(req.ticket_number, nextStage);
+          } else if (req.current_status === 'Equipment Preparation') {
+            // Must have serial before advancing past Equipment Preparation
+            openSerialActionDialog(req.ticket_number, nextStage);
+          } else if (nextStage === 'Delivery') {
+            openSerialActionDialog(req.ticket_number, nextStage);
+          } else {
+            advanceTicket(req.ticket_number, nextStage);
+          }
+        });
+        advanceContainer.appendChild(advBtn);
+      } else {
+        const completedBadge = document.createElement('span');
+        completedBadge.className = 'stage-completed-badge';
+        completedBadge.textContent = 'Completed (Final Stage)';
+        advanceContainer.appendChild(completedBadge);
+      }
+    }
+  }
+
+  // 3. Metadata Grid
+  const stageEl = document.getElementById('td-current-stage');
+  if (stageEl) stageEl.textContent = req.current_status || '—';
+  
+  const timeInStage = getTimeInStage(req.updated_at);
+  const timeEl = document.getElementById('td-time-in-stage');
+  if (timeEl) timeEl.textContent = timeInStage.label || '—';
+  
+  const reqEl = document.getElementById('td-requester');
+  if (reqEl) reqEl.textContent = req.requested_by || '—';
+  
+  const deptEl = document.getElementById('td-department');
+  if (deptEl) deptEl.textContent = req.department || 'General';
+  
+  const notesEl = document.getElementById('td-notes');
+  if (notesEl) notesEl.textContent = req.notes || 'No description provided.';
+
+  // Jira Ticket display
+  const jiraEl = document.getElementById('td-jira-ticket');
+  if (jiraEl) jiraEl.textContent = req.jira_ticket || 'Not assigned';
+
+  // Serial Number display — look up from devices by ticket number
+  const serialEl = document.getElementById('td-serial-number');
+  if (serialEl) {
+    const linkedDevice = state.devices.find(d => d.prNumber === req.ticket_number || d.prNumber === req.jira_ticket);
+    serialEl.textContent = linkedDevice ? linkedDevice.serial : 'Not added yet';
+  }
+
+  // 4. Process Timeline (Vertical Linear Stepper)
+  const stepperContainer = document.getElementById('td-timeline-stepper');
+  if (stepperContainer) {
+    stepperContainer.innerHTML = '';
+
+    const timelineCurrentIdx = PIPELINE_STATUSES.indexOf(req.current_status);
+
+    PIPELINE_STATUSES.forEach((stageName, idx) => {
+      const isCompleted = timelineCurrentIdx !== -1 && idx < timelineCurrentIdx;
+      const isActive = timelineCurrentIdx !== -1 && idx === timelineCurrentIdx;
+      const isPending = !isCompleted && !isActive;
+
+      const item = document.createElement('div');
+      item.className = `stepper-item ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''} ${isPending ? 'pending' : ''}`;
+
+      let nodeHtml = '';
+      if (isCompleted) {
+        nodeHtml = `<div class="stepper-node completed">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>`;
+      } else if (isActive) {
+        nodeHtml = `<div class="stepper-node active"></div>`;
+      } else {
+        nodeHtml = `<div class="stepper-node pending">${idx + 1}</div>`;
+      }
+
+      let metaText = 'Pending';
+      const stageHist = history.find(h => h.status_name === stageName || (idx === 0 && (h.status_name === 'Ticket' || h.status_name === 'Ticket Created')));
+
+      if (isCompleted) {
+        if (stageHist) {
+          const timeStr = formatDateTime(stageHist.timestamp);
+          const actor = stageHist.handled_by || req.requested_by || 'System';
+          metaText = `Completed by ${escHtml(actor)} · ${timeStr}`;
+        } else if (idx === 0 && req.created_at) {
+          metaText = `Created by ${escHtml(req.requested_by || 'User')} · ${formatDateTime(req.created_at)}`;
+        } else {
+          metaText = 'Completed';
+        }
+      } else if (isActive) {
+        const timeStr = formatDateTime(req.updated_at);
+        const actor = req.assigned_to ? `Assigned to ${escHtml(req.assigned_to)}` : 'In progress';
+        metaText = timeStr ? `${actor} · Active since ${timeStr}` : actor;
+      }
+
+      item.innerHTML = `
+        ${nodeHtml}
+        <div class="stepper-content">
+          <div class="stepper-title">${escHtml(stageName)}</div>
+          <div class="stepper-meta">${metaText}</div>
+        </div>
+      `;
+      stepperContainer.appendChild(item);
+    });
+  }
+
+  // 5. Footer Actions
+  const actionsEl = document.getElementById('td-actions');
+  if (actionsEl) {
+    actionsEl.innerHTML = '';
+
+    if (req.current_status !== 'Cancelled') {
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'btn btn-cancel-request';
+      cancelBtn.textContent = 'Cancel Request';
+      cancelBtn.addEventListener('click', () => {
+        closeTicketDetailModal();
+        openConfirmActionDialog({
+          title: 'Cancel Request',
+          message: `Cancel request ${req.ticket_number}? This will move the ticket out of the active pipeline.`,
+          confirmText: 'Confirm Cancel',
+          confirmClass: 'danger',
+          action: () => cancelTicket(req.ticket_number),
+        });
+      });
+      actionsEl.appendChild(cancelBtn);
+    }
+
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
-    delBtn.className = 'btn td-btn-delete';
-    delBtn.textContent = 'Delete';
+    delBtn.className = 'btn btn-delete-request';
+    delBtn.textContent = 'Delete Request';
     delBtn.addEventListener('click', () => {
       closeTicketDetailModal();
       openConfirmActionDialog({
@@ -465,12 +860,11 @@ function openTicketDetailModal(req) {
     });
     actionsEl.appendChild(delBtn);
   }
-
-  modal.classList.remove('hidden');
 }
 
 function closeTicketDetailModal() {
-  document.getElementById('ticket-detail-modal').classList.add('hidden');
+  const modal = document.getElementById('ticket-detail-modal');
+  if (modal) modal.classList.add('hidden');
   detailModalReq = null;
 }
 
@@ -670,18 +1064,22 @@ function openSerialActionDialog(ticketNumber, nextStage) {
   const isNonSerialized = isNonSerializedItem(category, req.device_model);
 
   if (serialContainer && serialInput) {
+    serialContainer.classList.remove('hidden');
     if (isNonSerialized) {
-      serialContainer.classList.add('hidden');
       serialInput.required = false;
       serialInput.value = 'N/A';
+      serialInput.readOnly = true;
+      serialInput.title = 'This item is non-serialized. N/A is assigned automatically.';
     } else {
-      serialContainer.classList.remove('hidden');
       serialInput.required = true;
       serialInput.value = '';
+      serialInput.readOnly = false;
+      serialInput.title = '';
     }
   } else if (serialInput) {
     serialInput.value = isNonSerialized ? 'N/A' : '';
     serialInput.required = !isNonSerialized;
+    serialInput.readOnly = isNonSerialized;
   }
 
   if (departmentInput) {
@@ -799,11 +1197,18 @@ async function submitSerialAction(mode) {
 
     showToast(mode === 'device' ? 'Device added.' : 'Serial added to stock.');
     closeSerialActionDialog();
-    if (mode === 'device' && context.nextStage === 'Final Delivery') {
-      await advanceTicket(context.ticketNumber, context.nextStage);
+    // Advance ticket with Jira ID if it was captured
+    let notes = '';
+    if (jiraActionContext && jiraActionContext.jiraId) {
+      notes = `Jira ID: ${jiraActionContext.jiraId}`;
+    }
+    if (context.nextStage) {
+      await advanceTicket(context.ticketNumber, context.nextStage, notes);
     } else {
       await loadPipelineData();
     }
+    // Clean up
+    jiraActionContext = null;
   } catch (err) {
     showToast(err.message || 'Failed to save serial');
   }
@@ -836,8 +1241,11 @@ async function submitJiraAction() {
   }
 
   const { ticketNumber, nextStage } = jiraActionContext;
-  await advanceTicket(ticketNumber, nextStage, `Jira ID: ${jiraId}`);
+  // Save Jira ID in context to pass to advanceTicket later
+  jiraActionContext.jiraId = jiraId;
   closeJiraActionDialog();
+  // Chain into Serial Dialog
+  openSerialActionDialog(ticketNumber, nextStage);
 }
 
 function renderCategorySelect() {
@@ -964,6 +1372,8 @@ async function handleNewRequest(e) {
   const deviceModelId = select.value.trim();
   const customModelInput = document.getElementById('req-device-model-custom');
   const requestedBy = document.getElementById('req-requested-by').value.trim();
+  const departmentInput = document.getElementById('req-department');
+  const department = departmentInput ? departmentInput.value.trim() : '';
   const assignedTo = document.getElementById('req-assigned-to').value.trim();
   const notes = document.getElementById('req-notes').value.trim();
   const jiraTicket = document.getElementById('req-jira-ticket').value.trim().toUpperCase();
@@ -975,6 +1385,11 @@ async function handleNewRequest(e) {
 
   if (!jiraTicket) {
     showToast('Please enter the Jira / ticket number');
+    return;
+  }
+
+  if (!department) {
+    showToast('Please select a department');
     return;
   }
 
@@ -998,6 +1413,7 @@ async function handleNewRequest(e) {
       device_model_category: category,
       jira_ticket: jiraTicket,
       requested_by: requestedBy || null,
+      department: department || null,
       assigned_to: assignedTo || null,
       notes: notes || null,
     });

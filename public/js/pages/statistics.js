@@ -72,7 +72,7 @@ Chart.register(ChartDataLabels);
 document.addEventListener('DOMContentLoaded', () => {
   attachToolbarEvents();
   loadStatistics();
-  loadPipelineSla();
+  initPipelineSLA();
 });
 
 /* ── Data Loading ──────────────────────────────────────── */
@@ -356,12 +356,15 @@ function initExplorer() {
   // Build category chips from the master list (preserves canonical order)
   const chipContainer = document.getElementById('explorer-cat-chips');
   const allCats = ALL_CATEGORIES;
+  
+  // Default to all categories selected
+  explorerState.categories = [...ALL_CATEGORIES];
 
-  chipContainer.innerHTML = `<button class="cat-chip" data-cat="__all" style="--cat-color:var(--blue); font-weight:700;">
+  chipContainer.innerHTML = `<button class="cat-chip selected" data-cat="__all" style="--cat-color:var(--blue); font-weight:700;">
       <span class="chip-dot"></span>All
     </button>` + allCats.map(cat => {
     const color = BAR_COLORS[cat] || '#636e72';
-    return `<button class="cat-chip" data-cat="${escHtml(cat)}" style="--cat-color:${color}">
+    return `<button class="cat-chip selected" data-cat="${escHtml(cat)}" style="--cat-color:${color}">
       <span class="chip-dot"></span>${escHtml(cat)}
     </button>`;
   }).join('');
@@ -427,6 +430,9 @@ function initExplorer() {
 
   // Attach explorer CSV export
   document.getElementById('btn-explorer-csv').addEventListener('click', exportExplorerCSV);
+  
+  // Initial query run with all categories selected
+  runExplorerQuery();
 }
 
 function runExplorerQuery() {
@@ -567,123 +573,526 @@ function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
 /* ── Pipeline SLA Analysis ─────────────────────────────── */
-let pipelineSlaChartInstance = null;
 
-async function loadPipelineSla() {
+let slaAllTickets = [];
+const SLA_TARGET_HOURS = 72;
+const PIPELINE_STAGES = [
+  'Ticket Created',
+  'Manager Approval',
+  'Requisition / Quote',
+  'PR',
+  'Awaiting Approval',
+  'Awaiting Purchasing',
+  'Warehouse Delivery',
+  'IT Transit Time',
+  'Add to Jira',
+  'Equipment Preparation',
+  'Delivery'
+];
+
+async function initPipelineSLA() {
   try {
-    const data = await apiCall('GET', '/pipeline/stats/stage-durations');
-    renderPipelineSla(data || []);
+    const [tickets, summary] = await Promise.all([
+      apiCall('GET', '/pipeline'),
+      apiCall('GET', '/pipeline/stats/summary')
+    ]);
+    slaAllTickets = tickets || [];
+    
+    // Setup Dept Filter Dropdown
+    const deptSet = new Set();
+    slaAllTickets.forEach(t => { if (t.department) deptSet.add(t.department); });
+    const deptFilter = document.getElementById('sla-dept-filter');
+    if (deptFilter) {
+      deptFilter.innerHTML = '<option value="">All Departments</option>';
+      Array.from(deptSet).sort().forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = d;
+        deptFilter.appendChild(opt);
+      });
+      deptFilter.addEventListener('change', () => renderSLATable());
+    }
+
+    const searchInput = document.getElementById('sla-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => renderSLATable());
+    }
+
+    const exportBtn = document.getElementById('btn-export-sla');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', exportSLACsv);
+    }
+
+    renderSLAKPIs(summary);
+    renderStageDwellTimes();
+    renderSLATable();
+    initPipelineExplorer();
   } catch (err) {
-    console.warn('Could not load pipeline SLA data:', err);
+    console.error('Failed to init Pipeline SLA:', err);
   }
 }
 
-function renderPipelineSla(rows) {
-  const tableEl = document.getElementById('pipeline-sla-table');
-  const chartCanvas = document.getElementById('pipeline-sla-chart');
-  if (!tableEl || !chartCanvas) return;
+function getElapsedHours(fromDate, toDate = new Date()) {
+  if (!fromDate) return 0;
+  const ms = new Date(toDate).getTime() - new Date(fromDate).getTime();
+  return ms > 0 ? ms / (1000 * 60 * 60) : 0;
+}
 
-  if (!rows || rows.length === 0) {
-    tableEl.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem;">No stage transition data available yet. Advance pipeline requests to generate SLA metrics.</p>';
+function renderSLAKPIs(summary) {
+  // 1. Avg Lead Time
+  const avgLeadTime = summary.avgCycleHours ? `${summary.avgCycleHours}h` : 'N/A';
+
+  // 2. Primary Bottleneck
+  const stageTimes = {};
+  PIPELINE_STAGES.forEach(s => stageTimes[s] = { total: 0, count: 0 });
+  
+  slaAllTickets.forEach(t => {
+    if (t.current_status !== 'Cancelled' && PIPELINE_STAGES.includes(t.current_status)) {
+      stageTimes[t.current_status].total += getElapsedHours(t.updated_at);
+      stageTimes[t.current_status].count += 1;
+    }
+  });
+
+  let bottleneckStage = 'None';
+  let maxAvg = 0;
+  PIPELINE_STAGES.forEach(s => {
+    if (stageTimes[s].count > 0) {
+      const avg = stageTimes[s].total / stageTimes[s].count;
+      if (avg > maxAvg) {
+        maxAvg = avg;
+        bottleneckStage = s;
+      }
+    }
+  });
+
+  // 3. SLA On-Track Rate
+  let onTrackCount = 0;
+  let measurableCount = 0;
+  slaAllTickets.forEach(t => {
+    if (t.current_status !== 'Cancelled') {
+      const totalElapsed = getElapsedHours(t.created_at, t.current_status === 'Delivery' ? t.updated_at : new Date());
+      if (totalElapsed <= SLA_TARGET_HOURS) onTrackCount++;
+      measurableCount++;
+    }
+  });
+  const onTrackRate = measurableCount > 0 ? ((onTrackCount / measurableCount) * 100).toFixed(1) + '%' : 'N/A';
+
+  // 4. Total Requests
+  const totalReqs = summary.total || slaAllTickets.length;
+
+  // DOM Updates
+  const avgEl = document.getElementById('sla-avg-lead-time');
+  if (avgEl) avgEl.textContent = avgLeadTime;
+
+  const bneckEl = document.getElementById('sla-bottleneck-stage');
+  if (bneckEl) bneckEl.textContent = bottleneckStage;
+
+  const bneckSubEl = document.getElementById('sla-bottleneck-sub');
+  if (bneckSubEl) bneckSubEl.textContent = `Avg: ${maxAvg.toFixed(1)}h in stage`;
+
+  const trackEl = document.getElementById('sla-ontrack-rate');
+  if (trackEl) trackEl.textContent = onTrackRate;
+
+  const totalEl = document.getElementById('sla-total-requests');
+  if (totalEl) totalEl.textContent = totalReqs;
+}
+
+function renderStageDwellTimes() {
+  const listEl = document.getElementById('sla-breakdown-list');
+  if (!listEl) return;
+
+  const stageTimes = {};
+  PIPELINE_STAGES.forEach(s => stageTimes[s] = { total: 0, count: 0 });
+  
+  slaAllTickets.forEach(t => {
+    if (t.current_status !== 'Cancelled' && PIPELINE_STAGES.includes(t.current_status)) {
+      stageTimes[t.current_status].total += getElapsedHours(t.updated_at);
+      stageTimes[t.current_status].count += 1;
+    }
+  });
+
+  let maxAvg = 0;
+  let totalAvg = 0;
+  const stageAvgs = PIPELINE_STAGES.map(s => {
+    const avg = stageTimes[s].count > 0 ? stageTimes[s].total / stageTimes[s].count : 0;
+    if (avg > maxAvg) maxAvg = avg;
+    totalAvg += avg;
+    return { stage: s, avg };
+  });
+
+  listEl.innerHTML = stageAvgs.map((s, idx) => {
+    const isBottleneck = s.avg > 0 && s.avg === maxAvg;
+    const pct = totalAvg > 0 ? ((s.avg / totalAvg) * 100).toFixed(1) : 0;
+    const barWidth = maxAvg > 0 ? (s.avg / maxAvg) * 100 : 0;
+    return `
+      <div class="sla-stage-row">
+        <span class="sla-stage-name">${idx + 1}. ${escHtml(s.stage)}</span>
+        <div class="sla-stage-track">
+          <div class="sla-stage-fill ${isBottleneck ? 'bottleneck' : ''}" style="width: ${barWidth}%;"></div>
+        </div>
+        <div class="sla-stage-metrics">
+          <span>${s.avg.toFixed(1)}h</span>
+          <span class="sla-stage-pct">(${pct}%)</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSLATable() {
+  const tbody = document.getElementById('sla-audit-tbody');
+  const searchStr = (document.getElementById('sla-search')?.value || '').toLowerCase();
+  const deptFilter = document.getElementById('sla-dept-filter')?.value || '';
+
+  if (!tbody) return;
+
+  const filtered = slaAllTickets.filter(t => {
+    if (t.current_status === 'Cancelled') return false;
+    if (deptFilter && t.department !== deptFilter) return false;
+    if (searchStr) {
+      const match = [t.ticket_number, t.jira_ticket, t.device_model, t.requested_by]
+        .some(val => (val || '').toLowerCase().includes(searchStr));
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">No matching requests found.</td></tr>';
     return;
   }
 
-  // Render HTML Table
-  let html = `
-    <table class="explorer-table" style="width:100%;border-collapse:collapse;font-size:0.82rem;">
-      <thead>
-        <tr style="border-bottom:2px solid var(--border-subtle);text-align:left;">
-          <th style="padding:8px 10px;">Transition</th>
-          <th style="padding:8px 10px;text-align:right;">Avg (hrs)</th>
-          <th style="padding:8px 10px;text-align:right;">Min</th>
-          <th style="padding:8px 10px;text-align:right;">Max</th>
-          <th style="padding:8px 10px;text-align:right;">Samples</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
+  tbody.innerHTML = filtered.map(t => {
+    const totalElapsed = getElapsedHours(t.created_at, t.current_status === 'Delivery' ? t.updated_at : new Date());
+    const timeInStage = getElapsedHours(t.updated_at);
+    
+    let slaPill = '';
+    if (t.current_status === 'Delivery') {
+      slaPill = '<span class="sla-badge-ontrack">Completed</span>';
+    } else if (totalElapsed <= SLA_TARGET_HOURS) {
+      slaPill = '<span class="sla-badge-ontrack">On Track</span>';
+    } else {
+      slaPill = '<span class="sla-badge-delayed">Delayed</span>';
+    }
 
-  rows.forEach(r => {
-    html += `
-      <tr style="border-bottom:1px solid var(--border-subtle);">
-        <td style="padding:8px 10px;font-weight:550;">${escHtml(r.from_stage)} → ${escHtml(r.to_stage)}</td>
-        <td style="padding:8px 10px;text-align:right;color:var(--blue);font-weight:650;">${Number(r.avg_hours).toFixed(1)}</td>
-        <td style="padding:8px 10px;text-align:right;color:var(--text-muted);">${Number(r.min_hours).toFixed(1)}</td>
-        <td style="padding:8px 10px;text-align:right;color:var(--text-muted);">${Number(r.max_hours).toFixed(1)}</td>
-        <td style="padding:8px 10px;text-align:right;">${r.sample_count}</td>
+    const tId = t.jira_ticket || t.ticket_number;
+    const deptStr = t.department || 'General';
+    const reqStr = t.requested_by || 'Unknown';
+
+    return `
+      <tr>
+        <td><span class="sla-mono-badge">${escHtml(tId)}</span></td>
+        <td style="font-weight:600;">${escHtml(t.device_model)}</td>
+        <td>${escHtml(reqStr)} &middot; ${escHtml(deptStr)}</td>
+        <td>${escHtml(t.current_status)}</td>
+        <td>${timeInStage.toFixed(1)}h</td>
+        <td>${totalElapsed.toFixed(1)}h</td>
+        <td>${slaPill}</td>
       </tr>
     `;
+  }).join('');
+}
+
+function exportSLACsv() {
+  const searchStr = (document.getElementById('sla-search')?.value || '').toLowerCase();
+  const deptFilter = document.getElementById('sla-dept-filter')?.value || '';
+
+  const filtered = slaAllTickets.filter(t => {
+    if (t.current_status === 'Cancelled') return false;
+    if (deptFilter && t.department !== deptFilter) return false;
+    if (searchStr) {
+      const match = [t.ticket_number, t.jira_ticket, t.device_model, t.requested_by]
+        .some(val => (val || '').toLowerCase().includes(searchStr));
+      if (!match) return false;
+    }
+    return true;
   });
 
-  html += '</tbody></table>';
-  tableEl.innerHTML = html;
+  let csv = 'Ticket ID,Item,Requester,Department,Stage,Time In Stage (h),Total Elapsed (h),Status\n';
+  filtered.forEach(t => {
+    const totalElapsed = getElapsedHours(t.created_at, t.current_status === 'Delivery' ? t.updated_at : new Date());
+    const timeInStage = getElapsedHours(t.updated_at);
+    const status = totalElapsed <= SLA_TARGET_HOURS ? 'On Track' : 'Delayed';
+    csv += `"${t.jira_ticket||t.ticket_number}","${t.device_model||''}","${t.requested_by||''}","${t.department||''}","${t.current_status}","${timeInStage.toFixed(1)}","${totalElapsed.toFixed(1)}","${t.current_status === 'Delivery' ? 'Completed' : status}"
+`;
+  });
 
-  // Render Horizontal Bar Chart
-  const labels = rows.map(r => `${r.from_stage} → ${r.to_stage}`);
-  const data = rows.map(r => Number(r.avg_hours));
-  const suggestedMax = Math.max(1, Math.ceil(Math.max(...data, 0) * 1.15));
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pipeline_sla_audit_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
 
-  if (pipelineSlaChartInstance) {
-    pipelineSlaChartInstance.data.labels = labels;
-    pipelineSlaChartInstance.data.datasets[0].data = data;
-    pipelineSlaChartInstance.update();
+
+/* ── Pipeline Request Explorer ────────────────────────────── */
+
+let slaExplorerState = {
+  stages: ['all'],
+  month: 'all',
+  year: 'all',
+  department: 'all',
+  technician: 'all'
+};
+
+const SLA_STAGE_COLORS = {
+  'Ticket Created': '#007db8',
+  'Manager Approval': '#00b894',
+  'Requisition / Quote': '#6c5ce7',
+  'PR': '#e17055',
+  'Awaiting Approval': '#fdcb6e',
+  'Awaiting Purchasing': '#d63031',
+  'Warehouse Delivery': '#0984e3',
+  'IT Transit Time': '#00cec9',
+  'Add to Jira': '#e84393',
+  'Equipment Preparation': '#636e72',
+  'Delivery': '#74b9ff'
+};
+
+let pipelineExplorerChartInstance = null;
+let slaExplorerFiltered = [];
+
+function initPipelineExplorer() {
+  renderSLAExplorerFilters();
+  computeSLAExplorer();
+
+  // Bind Export CSV
+  const exportBtn = document.getElementById('btn-sla-explorer-csv');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', exportSLAExplorerCSV);
+  }
+}
+
+function renderSLAExplorerFilters() {
+  const chipsContainer = document.getElementById('sla-explorer-stage-chips');
+  if (!chipsContainer) return;
+
+  // Render Stage Pills
+  let chipsHtml = `<button class="cat-chip ${slaExplorerState.stages.includes('all') ? 'selected' : ''}" data-stage="all" style="--cat-color:var(--blue); font-weight:700;">
+      <span class="chip-dot"></span>All
+    </button>`;
+  
+  PIPELINE_STAGES.forEach(stage => {
+    const isActive = slaExplorerState.stages.includes(stage) || slaExplorerState.stages.includes('all');
+    const color = SLA_STAGE_COLORS[stage] || '#64748b';
+    chipsHtml += `<button class="cat-chip ${isActive ? 'selected' : ''}" data-stage="${stage}" style="--cat-color:${color};">
+      <span class="chip-dot"></span>${escHtml(stage)}
+    </button>`;
+  });
+  chipsContainer.innerHTML = chipsHtml;
+
+  // Bind chip clicks
+  chipsContainer.querySelectorAll('.cat-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stage = btn.getAttribute('data-stage');
+      if (stage === 'all') {
+        slaExplorerState.stages = ['all'];
+      } else {
+        if (slaExplorerState.stages.includes('all')) {
+          slaExplorerState.stages = [stage];
+        } else {
+          if (slaExplorerState.stages.includes(stage)) {
+            slaExplorerState.stages = slaExplorerState.stages.filter(s => s !== stage);
+            if (slaExplorerState.stages.length === 0) slaExplorerState.stages = ['all'];
+          } else {
+            slaExplorerState.stages.push(stage);
+            if (slaExplorerState.stages.length === PIPELINE_STAGES.length) slaExplorerState.stages = ['all'];
+          }
+        }
+      }
+      renderSLAExplorerFilters();
+      computeSLAExplorer();
+    });
+  });
+
+  // Populate Dropdowns
+  const months = new Set();
+  const years = new Set();
+  const depts = new Set();
+  const techs = new Set();
+
+  slaAllTickets.forEach(t => {
+    if (t.created_at) {
+      const d = new Date(t.created_at);
+      if (!isNaN(d.getTime())) {
+        months.add(d.getMonth() + 1);
+        years.add(d.getFullYear());
+      }
+    }
+    if (t.department) depts.add(t.department);
+    if (t.assigned_to) techs.add(t.assigned_to);
+  });
+
+  const mSelect = document.getElementById('sla-exp-month');
+  const ySelect = document.getElementById('sla-exp-year');
+  const dSelect = document.getElementById('sla-exp-department');
+  const tSelect = document.getElementById('sla-exp-technician');
+
+  const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  
+  if (mSelect && mSelect.options.length <= 1) {
+    let mHtml = '<option value="all">All Months</option>';
+    Array.from(months).sort((a,b)=>a-b).forEach(m => mHtml += `<option value="${m}">${monthNames[m]}</option>`);
+    mSelect.innerHTML = mHtml;
+    mSelect.addEventListener('change', e => { slaExplorerState.month = e.target.value; computeSLAExplorer(); });
+  }
+
+  if (ySelect && ySelect.options.length <= 1) {
+    let yHtml = '<option value="all">All Years</option>';
+    Array.from(years).sort((a,b)=>b-a).forEach(y => yHtml += `<option value="${y}">${y}</option>`);
+    ySelect.innerHTML = yHtml;
+    ySelect.addEventListener('change', e => { slaExplorerState.year = e.target.value; computeSLAExplorer(); });
+  }
+
+  if (dSelect && dSelect.options.length <= 1) {
+    let dHtml = '<option value="all">All Departments</option>';
+    Array.from(depts).sort().forEach(d => dHtml += `<option value="${d}">${escHtml(d)}</option>`);
+    dSelect.innerHTML = dHtml;
+    dSelect.addEventListener('change', e => { slaExplorerState.department = e.target.value; computeSLAExplorer(); });
+  }
+
+  if (tSelect && tSelect.options.length <= 1) {
+    let tHtml = '<option value="all">All Technicians</option>';
+    Array.from(techs).sort().forEach(t => tHtml += `<option value="${t}">${escHtml(t)}</option>`);
+    tSelect.innerHTML = tHtml;
+    tSelect.addEventListener('change', e => { slaExplorerState.technician = e.target.value; computeSLAExplorer(); });
+  }
+}
+
+function computeSLAExplorer() {
+  let tickets = slaAllTickets;
+
+  if (!slaExplorerState.stages.includes('all')) {
+    tickets = tickets.filter(t => slaExplorerState.stages.includes(t.current_status));
+  }
+
+  if (slaExplorerState.month !== 'all') {
+    tickets = tickets.filter(t => t.created_at && (new Date(t.created_at).getMonth() + 1).toString() === slaExplorerState.month);
+  }
+  if (slaExplorerState.year !== 'all') {
+    tickets = tickets.filter(t => t.created_at && new Date(t.created_at).getFullYear().toString() === slaExplorerState.year);
+  }
+  if (slaExplorerState.department !== 'all') {
+    tickets = tickets.filter(t => t.department === slaExplorerState.department);
+  }
+  if (slaExplorerState.technician !== 'all') {
+    tickets = tickets.filter(t => t.assigned_to === slaExplorerState.technician);
+  }
+
+  slaExplorerFiltered = tickets;
+  renderSLAExplorerResults();
+}
+
+function renderSLAExplorerResults() {
+  const summaryEl = document.getElementById('sla-explorer-summary');
+  const actionsEl = document.getElementById('sla-explorer-actions');
+  const chartCanvas = document.getElementById('sla-explorer-pie-chart');
+
+  if (!slaExplorerFiltered.length) {
+    summaryEl.innerHTML = '<p class="explorer-no-data">No requests found for the selected filters</p>';
+    actionsEl.style.display = 'none';
+    if (pipelineExplorerChartInstance) pipelineExplorerChartInstance.destroy();
+    pipelineExplorerChartInstance = null;
+    return;
+  }
+
+  const stageCounts = {};
+  PIPELINE_STAGES.forEach(s => stageCounts[s] = 0);
+  slaExplorerFiltered.forEach(t => {
+    if (stageCounts[t.current_status] !== undefined) stageCounts[t.current_status]++;
+  });
+
+  const total = slaExplorerFiltered.length;
+  const activeStages = PIPELINE_STAGES.filter(s => stageCounts[s] > 0);
+
+  const labels = activeStages.map(s => s);
+  const data = activeStages.map(s => stageCounts[s]);
+  const bgColors = activeStages.map(s => SLA_STAGE_COLORS[s] || '#ccc');
+
+  if (pipelineExplorerChartInstance) {
+    pipelineExplorerChartInstance.data.labels = labels;
+    pipelineExplorerChartInstance.data.datasets[0].data = data;
+    pipelineExplorerChartInstance.data.datasets[0].backgroundColor = bgColors;
+    pipelineExplorerChartInstance.update();
   } else {
-    pipelineSlaChartInstance = new Chart(chartCanvas.getContext('2d'), {
-      type: 'bar',
+    pipelineExplorerChartInstance = new Chart(chartCanvas.getContext('2d'), {
+      type: 'doughnut',
       data: {
         labels,
         datasets: [{
-          label: 'Avg Hours',
           data,
-          backgroundColor: '#007db8',
-          borderRadius: 6,
-          barThickness: 14,
-          maxBarThickness: 18
+          backgroundColor: bgColors,
+          borderWidth: 2,
+          borderColor: '#ffffff',
+          hoverOffset: 4
         }]
       },
       options: {
-        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        layout: {
-          padding: {
-            left: 8,
-            right: 12,
-            top: 4,
-            bottom: 4
-          }
-        },
+        cutout: '65%',
         plugins: {
           legend: { display: false },
-          datalabels: {
-            color: '#051933',
-            anchor: 'end',
-            align: 'right',
-            clamp: true,
-            formatter: val => `${val.toFixed(1)}h`,
-            font: { weight: '600', size: 11 }
-          }
-        },
-        scales: {
-          x: {
-            beginAtZero: true,
-            suggestedMax,
-            grid: { color: '#f0f4fa' },
-            ticks: {
-              callback: value => `${value}h`
-            },
-            title: { display: true, text: 'Hours' }
-          },
-          y: {
-            grid: { display: false },
-            ticks: {
-              autoSkip: false,
-              padding: 8,
-              font: { size: 11 }
-            }
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            titleFont: { size: 13 },
+            bodyFont: { size: 12 },
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: true
           }
         }
       }
     });
   }
+
+  summaryEl.innerHTML = `
+    <ul class="explorer-stat-list">
+      ${activeStages.map((s, idx) => {
+        const pct = ((stageCounts[s] / total) * 100).toFixed(1);
+        return `
+        <li class="explorer-stat-item">
+          <div class="explorer-stat-dot" style="background: ${SLA_STAGE_COLORS[s] || '#ccc'}"></div>
+          <span class="explorer-stat-name">${idx + 1}. ${escHtml(s)}</span>
+          <span class="explorer-stat-count">${stageCounts[s]}</span>
+          <span class="explorer-stat-pct">${pct}%</span>
+        </li>`;
+      }).join('')}
+    </ul>`;
+
+  actionsEl.style.display = 'flex';
+  document.getElementById('sla-explorer-count').textContent = `${total} request${total === 1 ? '' : 's'} found`;
+}
+
+function exportSLAExplorerCSV() {
+  if (slaExplorerFiltered.length === 0) {
+    showToast('No data to export.');
+    return;
+  }
+
+  const rows = [['Ticket ID', 'Item / Description', 'Requester', 'Department', 'Assigned To', 'Current Stage', 'Created At', 'Updated At']];
+  for (const t of slaExplorerFiltered) {
+    rows.push([
+      t.jira_ticket || t.ticket_number || '',
+      t.device_model || '',
+      t.requested_by || '',
+      t.department || '',
+      t.assigned_to || '',
+      t.current_status || '',
+      t.created_at || '',
+      t.updated_at || ''
+    ]);
+  }
+
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `pipeline-explorer-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${slaExplorerFiltered.length} requests to CSV`);
 }

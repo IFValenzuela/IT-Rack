@@ -6,12 +6,19 @@ const mysql = require('mysql2/promise');
  * dotenv is loaded by server.js before any routes are required,
  * so process.env is already populated when this module runs.
  */
-const pool = mysql.createPool({
-  host:     process.env.DB_HOST,
-  user:     process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port:     Number(process.env.DB_PORT || 3306),
-});
+const config = {
+  host:     process.env.DB_HOST || 'localhost',
+  user:     process.env.DB_USER || 'ian',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'inventory_db',
+  port:     Number(process.env.DB_PORT || 3307),
+};
+
+if (process.env.DB_SOCKET) {
+  config.socketPath = process.env.DB_SOCKET;
+  config.host = 'localhost';
+}
+
+const pool = mysql.createPool(config);
 
 module.exports = pool;

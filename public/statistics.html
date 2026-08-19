@@ -6,7 +6,7 @@
   <title>Statistics — IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="IT rack device statistics dashboard with category breakdown, filtering, and drill-down." />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=1787160378" />
   <style>
     /* ================================================================
        STATISTICS DASHBOARD — High-density corporate layout
@@ -1112,24 +1112,177 @@
     </div>
 
       <!-- ── Pipeline SLA Section ──────────────────────────── -->
-      <div class="stats-card" style="margin-top: 24px;">
-        <div class="stats-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
-          <div>
-            <h2 style="margin:0;font-size:1.1rem;font-weight:700;color:var(--text-main);">Pipeline SLA Analysis</h2>
-            <p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);">Average time between consecutive pipeline stages (hours)</p>
+      <div style="margin-top: 32px; margin-bottom: 16px;">
+        <h2 style="margin:0;font-size:1.2rem;font-weight:700;color:var(--text-main);">Pipeline SLA & Bottleneck Analysis</h2>
+        <p style="margin:4px 0 0;font-size:0.85rem;color:var(--text-muted);">Track purchasing request lead times and identify workflow bottlenecks across the 6 procurement stages</p>
+      </div>
+
+      <!-- Top SLA KPI Strip -->
+      <div class="sla-kpi-grid">
+        <!-- Card 1: Avg Lead Time -->
+        <div class="sla-kpi-card">
+          <div class="sla-kpi-card-header">
+            <span class="sla-kpi-card-label">AVG LEAD TIME</span>
+            <div class="sla-kpi-icon-wrapper" style="background: #e0f2fe; color: #0284c7;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="sla-kpi-value" id="sla-avg-lead-time">N/A</div>
+          <div class="sla-kpi-subtext">Creation to Delivery</div>
+        </div>
+
+        <!-- Card 2: Primary Bottleneck -->
+        <div class="sla-kpi-card">
+          <div class="sla-kpi-card-header">
+            <span class="sla-kpi-card-label">PRIMARY BOTTLENECK</span>
+            <div class="sla-kpi-icon-wrapper" style="background: #fef3c7; color: #d97706;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="sla-kpi-value" id="sla-bottleneck-stage" style="font-size: 20px;">Ticket Created</div>
+          <div class="sla-kpi-subtext" id="sla-bottleneck-sub">Avg: 0.7h in stage</div>
+        </div>
+
+        <!-- Card 3: SLA On-Track Rate -->
+        <div class="sla-kpi-card">
+          <div class="sla-kpi-card-header">
+            <span class="sla-kpi-card-label">SLA ON-TRACK RATE</span>
+            <div class="sla-kpi-icon-wrapper" style="background: #dcfce7; color: #16a34a;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="sla-kpi-value" id="sla-ontrack-rate">100.0%</div>
+          <div class="sla-kpi-subtext">Target: &gt; 90.0%</div>
+        </div>
+
+        <!-- Card 4: Total Requests -->
+        <div class="sla-kpi-card">
+          <div class="sla-kpi-card-header">
+            <span class="sla-kpi-card-label">TOTAL REQUESTS</span>
+            <div class="sla-kpi-icon-wrapper" style="background: #f1f5f9; color: #475569;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="sla-kpi-value" id="sla-total-requests">2</div>
+          <div class="sla-kpi-subtext">Active &amp; Completed</div>
+        </div>
+      </div>
+
+      <div class="pipeline-sla-layout">
+        <!-- Stage Dwell Time Breakdown -->
+        <div class="sla-card-panel">
+          <div class="sla-panel-header">
+            <div>
+              <h3 class="sla-panel-title">Stage Dwell Time Breakdown</h3>
+              <p class="sla-panel-subtitle">Average processing time per procurement step</p>
+            </div>
+          </div>
+          <div id="sla-breakdown-list" class="sla-stage-list">
+            <!-- Filled by JS -->
           </div>
         </div>
-        <div class="pipeline-sla-layout">
-          <div class="pipeline-sla-chart-wrap">
-            <canvas id="pipeline-sla-chart"></canvas>
+
+        <!-- Request Lead-Time Audit Table -->
+        <div class="sla-card-panel">
+          <div class="sla-table-toolbar">
+            <input type="text" id="sla-search" class="sla-search" placeholder="Search ticket, description, requester..." />
+            <select id="sla-dept-filter" class="sla-select">
+              <option value="">All Departments</option>
+              <!-- Filled by JS -->
+            </select>
+            <button id="btn-export-sla" class="sla-btn">Export SLA CSV</button>
           </div>
-          <div id="pipeline-sla-table" class="pipeline-sla-table-wrap">
-            <p style="color:var(--text-muted);font-size:0.82rem;">No pipeline data available yet.</p>
+          <div class="sla-table-wrapper">
+            <table class="sla-table">
+              <thead>
+                <tr>
+                  <th>TICKET ID</th>
+                  <th>ITEM / DESCRIPTION</th>
+                  <th>REQUESTER & DEPT</th>
+                  <th>CURRENT STAGE</th>
+                  <th>TIME IN STAGE</th>
+                  <th>TOTAL ELAPSED</th>
+                  <th>SLA STATUS</th>
+                </tr>
+              </thead>
+              <tbody id="sla-audit-tbody">
+                <!-- Filled by JS -->
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-  </main>
+  
+      <!-- ══════════════════════════════════════════════════════ -->
+      <!-- Pipeline Request Explorer -->
+      <!-- ══════════════════════════════════════════════════════ -->
+      <div class="explorer-panel" id="sla-explorer-panel" style="margin-top: 32px;">
+        <div class="explorer-header">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Pipeline Request Explorer
+          </h2>
+          <span class="explorer-hint">Select stages and apply filters to visualize and export</span>
+        </div>
+
+        <!-- Stage Filter Pills -->
+        <div class="explorer-section">
+          <label class="explorer-label">Stages</label>
+          <div class="cat-chips" id="sla-explorer-stage-chips">
+            <!-- Populated dynamically by JS -->
+          </div>
+        </div>
+
+        <!-- Filter Row -->
+        <div class="explorer-filters">
+          <div class="explorer-filter-group">
+            <label for="sla-exp-month">Month</label>
+            <select id="sla-exp-month" class="exp-select"><option value="all">All Months</option></select>
+          </div>
+          <div class="explorer-filter-group">
+            <label for="sla-exp-year">Year</label>
+            <select id="sla-exp-year" class="exp-select"><option value="all">All Years</option></select>
+          </div>
+          <div class="explorer-filter-group">
+            <label for="sla-exp-department">Department</label>
+            <select id="sla-exp-department" class="exp-select"><option value="all">All Departments</option></select>
+          </div>
+          <div class="explorer-filter-group">
+            <label for="sla-exp-technician">Technician</label>
+            <select id="sla-exp-technician" class="exp-select"><option value="all">All Technicians</option></select>
+          </div>
+        </div>
+
+        <!-- Results area -->
+        <div class="explorer-results" id="sla-explorer-results">
+          <div class="explorer-chart-area">
+            <canvas id="sla-explorer-pie-chart"></canvas>
+          </div>
+          <div class="explorer-summary" id="sla-explorer-summary">
+            <p class="explorer-no-data">Select at least one stage to see results</p>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="explorer-actions" id="sla-explorer-actions" style="display: none;">
+          <button class="stats-export-btn" id="btn-sla-explorer-csv" title="Export filtered results as CSV">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            Export Filtered CSV
+          </button>
+          <span class="explorer-count" id="sla-explorer-count"></span>
+        </div>
+      </div>
+
+</main>
 
   <!-- Drawer removed -->
 
@@ -1138,12 +1291,12 @@
   <!-- Module scripts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-  <script src="js/config.js" defer></script>
-  <script src="js/api.js" defer></script>
-  <script src="js/state.js" defer></script>
-  <script src="js/utils.js" defer></script>
-  <script src="js/ui/auth.js" defer></script>
-  <script src="js/pages/statistics.js" defer></script>
+  <script src="js/config.js?v=1787160378" defer></script>
+  <script src="js/api.js?v=1787160378" defer></script>
+  <script src="js/state.js?v=1787160378" defer></script>
+  <script src="js/utils.js?v=1787160378" defer></script>
+  <script src="js/ui/auth.js?v=1787160378" defer></script>
+  <script src="js/pages/statistics.js?v=1787160378" defer></script>
 </body>
 
 </html>

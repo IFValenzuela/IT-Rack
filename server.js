@@ -193,6 +193,18 @@ if (pool) {
     }
 
     try {
+      const [[checklistCol]] = await pool.query(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pipeline_requests' AND COLUMN_NAME = 'checklist'"
+      );
+      if (!checklistCol) {
+        await pool.query("ALTER TABLE pipeline_requests ADD COLUMN checklist JSON DEFAULT NULL AFTER jira_ticket");
+        console.log('Added pipeline_requests.checklist column');
+      }
+    } catch (e) {
+      console.warn('Could not ensure pipeline_requests.checklist column:', e.message);
+    }
+
+    try {
       await pool.query(`
         CREATE TABLE IF NOT EXISTS pipeline_history (
           id            INT AUTO_INCREMENT PRIMARY KEY,

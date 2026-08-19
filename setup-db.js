@@ -6,33 +6,32 @@
 const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
+require('dotenv').config();
 
-const DB_NAME = 'it_rack_stock';
+const DB_HOST = process.env.DB_HOST || '127.0.0.1';
+const DB_PORT = Number(process.env.DB_PORT || 3307);
+const DB_USER = process.env.DB_USER || 'ian';
+const DB_PASSWORD = process.env.DB_PASSWORD || '';
+const DB_NAME = process.env.DB_NAME || 'inventory_db';
 
 (async () => {
-  // Connect WITHOUT selecting a database so we can CREATE it
   const conn = await mysql.createConnection({
-    host: '127.0.0.1',
-    user: 'root',
-    password: 'FValenzuela34',
-    port: 3306,
+    host: DB_HOST,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    port: DB_PORT,
     multipleStatements: true,
   });
 
-  console.log('Connected to MySQL.');
+  console.log(`Connected to MariaDB at ${DB_HOST}:${DB_PORT} as ${DB_USER}.`);
 
-  // 1. Create database
   await conn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\``);
   console.log(`Database "${DB_NAME}" ready.`);
 
-  // 2. Select it
   await conn.query(`USE \`${DB_NAME}\``);
 
-  // 3. Read and execute backup.sql
   const sqlFile = path.join(__dirname, 'backup.sql');
-  // Read as binary buffer then convert, to handle BOM / encoding
   const sqlBuf = fs.readFileSync(sqlFile);
-  // Strip UTF-16 LE BOM if present, otherwise treat as UTF-8
   let sql;
   if (sqlBuf[0] === 0xFF && sqlBuf[1] === 0xFE) {
     sql = sqlBuf.toString('utf16le').replace(/^\uFEFF/, '');
@@ -44,7 +43,6 @@ const DB_NAME = 'it_rack_stock';
   await conn.query(sql);
   console.log('Import complete!');
 
-  // 4. Quick verification
   const [tables] = await conn.query('SHOW TABLES');
   console.log(`\nTables in ${DB_NAME}:`);
   tables.forEach(row => console.log('  -', Object.values(row)[0]));

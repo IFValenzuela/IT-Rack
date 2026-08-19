@@ -6,7 +6,7 @@
   <title>Pipeline — IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="IT hardware procurement pipeline — track requests from ticket to final delivery." />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=1787165154" />
   <style>
     /* ================================================================
        PIPELINE PAGE — Kanban Board + Quick Actions
@@ -102,69 +102,191 @@
       font-size: 0.78rem;
     }
 
-    /* ── Filter bar ────────────────────────────────────────── */
+    /* ── Toolbar Panel ─────────────────────────────────────── */
     .pipeline-toolbar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
       flex-wrap: wrap;
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      box-shadow: 0 2px 8px rgba(5, 25, 51, 0.04);
+    }
+
+    .toolbar-filters {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .toolbar-search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .toolbar-search-wrap .search-icon {
+      position: absolute;
+      left: 10px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      pointer-events: none;
+      line-height: 1;
     }
 
     .pipeline-toolbar .search-box {
-      padding: 7px 12px;
+      padding: 7px 12px 7px 30px;
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
       font-size: 0.82rem;
-      width: 260px;
-      background: var(--card-bg);
+      width: 240px;
+      background: #f8fafc;
       color: var(--text-main);
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
     }
 
     .pipeline-toolbar .search-box:focus {
       outline: none;
       border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.10);
+    }
+
+    .toolbar-select {
+      padding: 7px 28px 7px 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      font-size: 0.78rem;
+      background: #f8fafc;
+      color: var(--text-main);
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236c7a96'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 10px 6px;
+      min-width: 130px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .toolbar-select:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.10);
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .btn-view-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      background: #f8fafc;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-view-toggle:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: #f0f6ff;
+    }
+
+    .btn-view-toggle.active {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .btn-view-toggle .toggle-icon {
+      font-size: 0.88rem;
+      line-height: 1;
     }
 
     /* ── Kanban Board ──────────────────────────────────────── */
     .pipeline-board-wrapper {
       overflow-x: auto;
       overflow-y: hidden;
-      padding-bottom: 6px;
-      /* Sticky horizontal scrollbar always visible */
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(226, 232, 240, 0.7);
     }
 
     .pipeline-board {
       display: flex;
-      gap: 12px;
-      padding: 4px 0 18px;
+      gap: 14px;
+      padding: 2px 0 12px;
       align-items: flex-start;
       min-height: 400px;
       width: max-content;
     }
 
     .pipeline-column {
+      --col-accent: var(--blue);
       background-color: var(--card-bg);
       border-radius: 10px;
-      padding: 12px;
-      min-width: 240px;
-      max-width: 270px;
+      padding: 0 14px 14px;
+      min-width: 280px;
+      max-width: 340px;
+      width: 310px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 4px 12px rgba(5, 25, 51, 0.06);
+      box-shadow: 0 2px 8px rgba(5, 25, 51, 0.05);
       border: 1px solid var(--border-subtle);
-      transition: border-color 0.15s, background-color 0.15s;
+      transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Colored accent bar at the top of each column */
+    .pipeline-column::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--col-accent);
+      border-radius: 10px 10px 0 0;
     }
 
     .pipeline-column.drag-over {
       background-color: var(--blue-soft);
       border-color: var(--blue);
+      box-shadow: 0 4px 16px rgba(0, 125, 184, 0.12);
     }
 
     .pipeline-column.cancelled-col {
+      --col-accent: #94a3b8;
       opacity: 0.7;
       background: #fdf5f5;
     }
@@ -174,29 +296,30 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 10px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid var(--border-subtle);
+      padding: 14px 0 10px;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.6);
     }
 
     .col-header h3 {
       margin: 0;
-      font-size: 0.78rem;
+      font-size: 0.74rem;
       color: var(--text-main);
-      font-weight: 650;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.03em;
       line-height: 1.3;
+      max-width: 200px;
     }
 
     .col-count {
-      background: var(--blue-soft);
-      color: var(--blue-strong);
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 0.72rem;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.7rem;
       font-weight: 700;
-      min-width: 22px;
+      min-width: 24px;
       text-align: center;
+      flex-shrink: 0;
+      transition: transform 0.15s;
     }
 
     .col-cards {
@@ -208,9 +331,12 @@
       max-height: 65vh;
       overflow-y: auto;
       padding-right: 4px;
+      /* Cross-browser sleek scrollbars */
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
     }
 
-    /* Thin scrollbar for card columns */
+    /* Webkit scrollbar */
     .col-cards::-webkit-scrollbar {
       width: 4px;
     }
@@ -218,61 +344,212 @@
       background: transparent;
     }
     .col-cards::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.15);
+      background: rgba(0, 0, 0, 0.12);
       border-radius: 4px;
     }
     .col-cards::-webkit-scrollbar-thumb:hover {
-      background: rgba(0, 0, 0, 0.25);
+      background: rgba(0, 0, 0, 0.22);
     }
 
-    /* ── Micro-Card ─────────────────────────────────────────── */
-    .pipeline-card {
+    /* ── Empty-state placeholder ────────────────────────────── */
+    .col-empty-state {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
+      min-height: 64px;
+      border: 2px dashed rgba(203, 213, 225, 0.6);
+      border-radius: 8px;
+      padding: 16px 12px;
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      font-weight: 500;
+      text-align: center;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+
+    /* ── Pipeline Card ──────────────────────────────────────── */
+    .pipeline-card {
+      --card-accent: var(--blue);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
       background: #fff;
       border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 6px 10px;
+      border-left: 4px solid var(--card-accent);
+      border-radius: 8px;
+      padding: 10px 12px 8px;
       cursor: pointer;
-      transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+      transition: box-shadow 0.18s, border-color 0.15s, transform 0.12s;
       position: relative;
       user-select: none;
     }
 
     .pipeline-card:hover {
-      background: #f0f6ff;
-      border-color: var(--blue);
-      box-shadow: 0 2px 8px rgba(0, 125, 184, 0.08);
+      box-shadow: 0 4px 16px rgba(0, 25, 60, 0.10);
+      border-color: rgba(0, 125, 184, 0.3);
+      transform: translateY(-2px);
     }
 
     .pipeline-card:active {
       cursor: grabbing;
+      transform: translateY(0);
+      box-shadow: 0 1px 4px rgba(0, 25, 60, 0.08);
     }
 
     .pipeline-card.cancelled {
       opacity: 0.55;
-      border-left: 3px solid var(--danger);
+      --card-accent: var(--danger);
     }
 
-    .card-ticket-num {
-      font-size: 0.78rem;
+    /* ── Card Top Row ── */
+    .card-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .card-ticket-id {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+      font-size: 0.72rem;
       color: var(--blue-strong);
-      font-weight: 800;
-      letter-spacing: 0.03em;
+      font-weight: 700;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
       white-space: nowrap;
       flex-shrink: 0;
     }
 
-    .card-device {
-      font-weight: 500;
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      white-space: nowrap;
+
+    /* ── Card Middle ── */
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 650;
+      color: var(--text-main);
+      line-height: 1.3;
       overflow: hidden;
       text-overflow: ellipsis;
-      min-width: 0;
+      white-space: nowrap;
+      margin-bottom: 1px;
+    }
+
+    .card-location {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 6px;
+    }
+
+    /* ── Progress Stepper ── */
+    .card-progress {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 6px;
+    }
+
+    .card-stepper {
+      display: flex;
+      gap: 2px;
+      height: 4px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .stepper-seg {
+      flex: 1;
+      border-radius: 2px;
+      background: #e2e8f0;
+      transition: background 0.2s;
+    }
+
+    .stepper-seg.completed {
+      background: linear-gradient(135deg, var(--blue), #10b981);
+    }
+
+    .stepper-seg.active {
+      background: var(--blue);
+      animation: stepperPulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes stepperPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+
+    .card-stage-label {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Card Bottom Row ── */
+    .card-bottom-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .card-avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue-soft), #dbeafe);
+      color: var(--blue-strong);
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .card-avatar.unassigned {
+      background: #f1f5f9;
+      color: #94a3b8;
+    }
+
+    .card-timestamp {
+      font-size: 0.62rem;
+      color: #94a3b8;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    /* ── Compact View Mode ──────────────────────────────────── */
+    .pipeline-board.compact-view .pipeline-card {
+      padding: 5px 10px 4px;
+    }
+
+    .pipeline-board.compact-view .card-location,
+    .pipeline-board.compact-view .card-progress,
+    .pipeline-board.compact-view .card-bottom-row {
+      display: none;
+    }
+
+    .pipeline-board.compact-view .card-title {
+      font-size: 0.72rem;
+      margin-bottom: 0;
+    }
+
+    .pipeline-board.compact-view .card-top-row {
+      margin-bottom: 2px;
+    }
+
+    .pipeline-board.compact-view .col-cards {
+      gap: 3px;
     }
 
     /* ── Ticket Detail Modal ──────────────────────────────── */
@@ -449,10 +726,11 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       color: var(--text-muted);
       cursor: pointer;
       user-select: none;
+      white-space: nowrap;
     }
 
     .cancelled-toggle input {
@@ -749,6 +1027,343 @@
         height: 180px;
       }
     }
+  
+    /* ── Slide-Over Drawer & Linear Stepper ─────────────────── */
+    .slide-over-backdrop {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(2px);
+      z-index: 9999;
+      display: flex;
+      justify-content: flex-end;
+      opacity: 1;
+      transition: opacity 0.25s ease;
+    }
+    .slide-over-backdrop.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .slide-over-drawer {
+      width: 520px;
+      max-width: 100%;
+      height: 100%;
+      background: #ffffff;
+      box-shadow: -6px 0 28px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(0);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .slide-over-backdrop.hidden .slide-over-drawer {
+      transform: translateX(100%);
+    }
+
+    .slide-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      background: #f8fafc;
+    }
+    .slide-ticket-id {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--blue-strong, #1d4ed8);
+      letter-spacing: 0.03em;
+      margin-bottom: 4px;
+    }
+    .slide-ticket-title {
+      font-size: 1.18rem;
+      font-weight: 700;
+      color: var(--text-main, #0f172a);
+      line-height: 1.35;
+    }
+    .btn-close-slide {
+      padding: 4px 10px;
+      font-size: 1.4rem;
+      line-height: 1;
+      color: #64748b;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+    .btn-close-slide:hover {
+      color: #dc2626;
+      background: #fee2e2;
+    }
+
+    .slide-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    /* ── Primary Action Bar ── */
+    .slide-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+    .assignee-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .assignee-select-wrap label {
+      font-size: 0.75rem;
+      color: #64748b;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .slide-select {
+      padding: 5px 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      outline: none;
+    }
+    .slide-select:focus {
+      border-color: var(--blue, #2563eb);
+    }
+    
+    .stage-actions-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-advance {
+      background: var(--blue, #2563eb);
+      color: #ffffff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-advance:hover {
+      background: var(--blue-strong, #1d4ed8);
+    }
+    .btn-reject {
+      background: #ffffff;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .btn-reject:hover {
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fca5a5;
+    }
+    .stage-completed-badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #059669;
+      background: #ecfdf5;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #a7f3d0;
+    }
+
+    /* ── Metadata Grid ── */
+    .slide-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      background: #f8fafc;
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .meta-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      font-weight: 700;
+    }
+    .meta-value {
+      font-size: 0.88rem;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .slide-section h3 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      font-weight: 700;
+    }
+    .slide-notes-box {
+      background: #f8fafc;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: #334155;
+      white-space: pre-wrap;
+      border: 1px solid #e2e8f0;
+      min-height: 48px;
+    }
+
+    /* ── Vertical Linear Stepper ── */
+    .vertical-stepper {
+      display: flex;
+      flex-direction: column;
+      margin-top: 6px;
+    }
+    .stepper-item {
+      display: flex;
+      position: relative;
+      min-height: 48px;
+    }
+    .stepper-item:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 11px;
+      top: 24px;
+      bottom: 0;
+      width: 2px;
+      background: #e2e8f0;
+    }
+    .stepper-item.completed:not(:last-child)::before {
+      background: var(--emerald, #10b981);
+    }
+    .stepper-node {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      z-index: 1;
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748b;
+    }
+    .stepper-item.completed .stepper-node {
+      background: var(--emerald, #10b981);
+      border-color: var(--emerald, #10b981);
+      color: #ffffff;
+    }
+    .stepper-item.active .stepper-node {
+      border-color: var(--blue, #2563eb);
+      background: #ffffff;
+      color: var(--blue, #2563eb);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+    .stepper-item.active .stepper-node::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--blue, #2563eb);
+    }
+    .stepper-content {
+      margin-left: 14px;
+      padding-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .stepper-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .stepper-item.pending .stepper-title {
+      color: #64748b;
+      font-weight: 500;
+    }
+    .stepper-meta {
+      font-size: 0.75rem;
+      color: #64748b;
+      line-height: 1.3;
+    }
+    .stepper-item.active .stepper-meta {
+      color: var(--blue, #2563eb);
+      font-weight: 500;
+    }
+
+    /* ── Slide Footer ── */
+    .slide-footer {
+      padding: 14px 24px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      background: #f8fafc;
+    }
+    .btn-cancel-request {
+      background: transparent;
+      border: 1px solid #fca5a5;
+      color: #dc2626;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-cancel-request:hover {
+      background: #fee2e2;
+    }
+    .btn-delete-request {
+      background: transparent;
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-delete-request:hover {
+      background: #fee2e2;
+      color: #dc2626;
+      border-color: #fca5a5;
+    }
   </style>
 </head>
 
@@ -800,24 +1415,36 @@
         </div>
       </div>
 
-      <!-- Chart + Legend -->
-      <div class="pipeline-chart-panel">
-        <div class="pipeline-chart-area">
-          <canvas id="pipeline-chart"></canvas>
-        </div>
-        <div class="pipeline-chart-legend" id="pipeline-chart-legend"></div>
-      </div>
+
 
       <!-- Toolbar -->
       <div class="pipeline-toolbar">
-        <div style="display:flex;gap:10px;align-items:center;">
-          <input type="text" class="search-box" id="pipeline-search" placeholder="Search ticket, model, requester…" />
+        <div class="toolbar-filters">
+          <div class="toolbar-search-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon" style="color: var(--text-muted);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" class="search-box" id="pipeline-search" placeholder="Search ticket, model, user…" />
+          </div>
+          <select class="toolbar-select" id="filter-technician">
+            <option value="">All Technicians</option>
+          </select>
+          <select class="toolbar-select" id="filter-location">
+            <option value="">All Locations</option>
+            <option value="Planta Oeste">Planta Oeste</option>
+            <option value="Planta Este">Planta Este</option>
+          </select>
+
+        </div>
+        <div class="toolbar-actions">
           <label class="cancelled-toggle">
             <input type="checkbox" id="toggle-cancelled" />
-            Show cancelled
+            Cancelled
           </label>
-        </div>
-        <div style="display:flex;gap:8px;">
+          <div class="toolbar-divider"></div>
+          <button type="button" class="btn-view-toggle" id="btn-view-toggle" title="Toggle compact view">
+            <span class="toggle-icon">☰</span>
+            <span class="toggle-label">Compact</span>
+          </button>
+          <div class="toolbar-divider"></div>
           <button type="button" class="btn primary" id="btn-new-request">+ New Request</button>
         </div>
       </div>
@@ -829,51 +1456,95 @@
         </div>
       </div>
 
-      <!-- Timeline Detail (hidden by default) -->
-      <div class="timeline-panel hidden" id="timeline-panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <h3 id="timeline-title">Timeline</h3>
-          <button type="button" class="btn ghost" id="btn-close-timeline">Close</button>
-        </div>
-        <ul class="timeline-list" id="timeline-list"></ul>
-      </div>
+
     </section>
   </main>
 
   <div id="toast" class="toast hidden"></div>
 
   <!-- Ticket Detail Modal -->
-  <div id="ticket-detail-modal" class="ticket-detail-backdrop hidden">
-    <div class="ticket-detail-dialog">
-      <div class="td-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <div>
-          <div class="td-ticket-num" id="td-ticket-num"></div>
-          <div class="td-device-model" id="td-device-model"></div>
+    <!-- Slide-Over Ticket Detail Drawer -->
+  <div id="ticket-detail-modal" class="slide-over-backdrop hidden">
+    <div class="slide-over-drawer">
+      <!-- 1. Header -->
+      <div class="slide-header">
+        <div class="slide-header-text">
+          <div class="slide-ticket-id" id="td-ticket-num">#CS-00000</div>
+          <div class="slide-ticket-title" id="td-device-model">Purchase Request</div>
         </div>
-        <button type="button" class="btn ghost" id="btn-close-ticket-detail" title="Close" style="padding:4px 8px; font-size:1rem; line-height:1; border:none; color:var(--text-muted); cursor:pointer;">✕</button>
+        <button type="button" class="btn ghost btn-close-slide" id="btn-close-ticket-detail" title="Close" aria-label="Close">&times;</button>
       </div>
-      <div class="td-body">
-        <div class="td-meta-grid">
-          <div class="td-meta-item">
-            <span class="td-meta-label">Current Stage</span>
-            <span class="td-meta-value" id="td-current-stage">—</span>
+      
+      <!-- Body -->
+      <div class="slide-body">
+        
+        <!-- 2. Primary Action Bar -->
+        <div class="drawer-action-container">
+          <div class="drawer-controls-row">
+            <div class="drawer-field-group">
+              <span class="drawer-field-label">Assigned Technician</span>
+              <div class="drawer-select-wrapper">
+                <select class="drawer-select" id="drawer-assignee-select">
+                  <option value="">Unassigned</option>
+                </select>
+                <svg class="drawer-select-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
           </div>
-          <div class="td-meta-item">
-            <span class="td-meta-label">Time in Stage</span>
-            <span class="td-meta-value" id="td-time-in-stage">—</span>
-          </div>
-          <div class="td-meta-item">
-            <span class="td-meta-label">Requester</span>
-            <span class="td-meta-value" id="td-requester">—</span>
-          </div>
-          <div class="td-meta-item">
-            <span class="td-meta-label">Assigned Tech</span>
-            <span class="td-meta-value" id="td-assignee">—</span>
+          <div class="drawer-btn-group" id="td-advance-container">
+            <!-- Populated by JS -->
           </div>
         </div>
+
+        <!-- 3. Metadata Grid -->
+        <div class="slide-meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">Current Stage</span>
+            <span class="meta-value" id="td-current-stage">&mdash;</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Time in Stage</span>
+            <span class="meta-value" id="td-time-in-stage">&mdash;</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Requester</span>
+            <span class="meta-value" id="td-requester">&mdash;</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Department</span>
+            <span class="meta-value" id="td-department">&mdash;</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Jira Ticket</span>
+            <span class="meta-value" id="td-jira-ticket">&mdash;</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Serial Number</span>
+            <span class="meta-value" id="td-serial-number">&mdash;</span>
+          </div>
+        </div>
+        
+        <!-- Description / Notes -->
+        <div class="slide-section">
+          <h3>Description / Notes</h3>
+          <div class="slide-notes-box" id="td-notes">&mdash;</div>
+        </div>
+
+        <!-- 4. Process Timeline (Vertical Linear Stepper) -->
+        <div class="slide-section">
+          <h3>Purchasing Process Timeline</h3>
+          <div class="vertical-stepper" id="td-timeline-stepper">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+        
       </div>
-      <div class="td-actions" id="td-actions">
-        <!-- Populated by JS -->
+      
+      <!-- 5. Footer Actions -->
+      <div class="slide-footer" id="td-actions">
+        <!-- Populated by JS: Cancel Request, Delete Request -->
       </div>
     </div>
   </div>
@@ -908,6 +1579,14 @@
         <div class="form-field">
           <label for="req-requested-by">Requested By</label>
           <input id="req-requested-by" type="text" placeholder="e.g. John Doe" />
+        </div>
+        <div class="form-field">
+          <label for="req-department">Department</label>
+          <select id="req-department" required>
+            <option value="">Select department...</option>
+            <option value="Planta Este">Planta Este</option>
+            <option value="Planta Oeste">Planta Oeste</option>
+          </select>
         </div>
         <div class="form-field">
           <label for="req-assigned-to">Assigned Tech</label>
@@ -1010,12 +1689,12 @@
   <!-- Module scripts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-  <script src="js/config.js" defer></script>
-  <script src="js/api.js" defer></script>
-  <script src="js/state.js" defer></script>
-  <script src="js/utils.js" defer></script>
-  <script src="js/ui/auth.js" defer></script>
-  <script src="js/pages/pipeline.js" defer></script>
+  <script src="js/config.js?v=1787165154" defer></script>
+  <script src="js/api.js?v=1787165154" defer></script>
+  <script src="js/state.js?v=1787165154" defer></script>
+  <script src="js/utils.js?v=1787165154" defer></script>
+  <script src="js/ui/auth.js?v=1787165154" defer></script>
+  <script src="js/pages/pipeline.js?v=1787165154" defer></script>
 </body>
 
 </html>

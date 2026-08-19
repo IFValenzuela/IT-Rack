@@ -1,7 +1,7 @@
 /*M!999999\- enable the sandbox mode */ 
 -- MariaDB dump 10.19-12.3.2-MariaDB, for Linux (x86_64)
 --
--- Host: 127.0.0.1    Database: inventory_db
+-- Host: localhost    Database: inventory_db
 -- ------------------------------------------------------
 -- Server version	12.3.2-MariaDB
 
@@ -31,6 +31,7 @@ CREATE TABLE `devices` (
   `status` varchar(10) NOT NULL,
   `department` varchar(255) DEFAULT NULL,
   `addedBy` varchar(255) DEFAULT NULL,
+  `receivedBy` varchar(255) DEFAULT NULL,
   `createdAt` datetime DEFAULT NULL,
   `removedAt` datetime DEFAULT NULL,
   `reason` text DEFAULT NULL,
@@ -51,25 +52,29 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `devices` WRITE;
 /*!40000 ALTER TABLE `devices` DISABLE KEYS */;
 INSERT INTO `devices` VALUES
-('DEMO-CRIT-001','mrvuei7h-anj695','DEMO-SN-C001','PR-DEMO-07','in','Planta Este','admin','2026-06-17 12:16:03',NULL,NULL,NULL,NULL,NULL),
-('DEMO-CRIT-002','mrvuei97-749wje','DEMO-SN-C002','PR-DEMO-08','in','Planta Este','admin','2026-06-12 12:16:03',NULL,NULL,NULL,NULL,NULL),
-('DEMO-CRIT-003','mrvuei8m-7w5xhu','DEMO-SN-C003','PR-DEMO-09','in','Planta Oeste','admin','2026-06-02 12:16:03',NULL,NULL,NULL,NULL,NULL),
-('DEMO-FRESH-001','mrvuei7y-uu4oic','DEMO-SN-F001','PR-DEMO-01','in','Planta Este','admin','2026-07-22 12:16:03',NULL,NULL,NULL,NULL,NULL),
-('DEMO-FRESH-002','mrvuei8c-wp4xs8','DEMO-SN-F002','PR-DEMO-02','in','Planta Oeste','admin','2026-07-21 12:16:03',NULL,NULL,NULL,NULL,NULL),
-('DEMO-FRESH-003','mrvuei7y-uu4oic','DEMO-SN-F003','PR-DEMO-03','in','Planta Este','admin','2026-07-20 12:16:03',NULL,NULL,NULL,NULL,NULL),
-('DEMO-WARN-001','mrvuei9r-2zzpyj','DEMO-SN-W001','PR-DEMO-04','in','Planta Oeste','admin','2026-07-06 12:16:03',NULL,NULL,NULL,NULL,NULL),
-('DEMO-WARN-002','mrvueia3-1y629j','DEMO-SN-W002','PR-DEMO-05','in','Planta Oeste','admin','2026-07-04 12:16:03',NULL,NULL,NULL,NULL,NULL),
-('DEMO-WARN-003','mrvuei8c-wp4xs8','DEMO-SN-W003','PR-DEMO-06','out','Planta Este','admin','2026-06-30 12:16:03',NULL,NULL,NULL,NULL,NULL),
-('mrvuei77-agn2wo','mrvuei6q-x1n9ry','88979','234234','in','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
-('mrvuei7n-5oj4un','mrvuei7h-anj695','9687687','234234','in','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
-('mrvuei86-59nk3a','mrvuei7y-uu4oic','87576','234234','in','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
-('mrvuei8h-qyeqh3','mrvuei8c-wp4xs8','N/A','234234','in','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
-('mrvuei8r-9l6c4b','mrvuei8m-7w5xhu','N/A','234234','in','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
-('mrvuei92-p22l16','mrvuei8x-7a7voa','N/A','234234','in','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
-('mrvuei9c-14z2dw','mrvuei97-749wje','76567','234234','in','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
-('mrvuei9m-j7ru9v','mrvuei9h-zkewz3','765765','234234','in','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
-('mrvuei9y-mgbzc9','mrvuei9r-2zzpyj','76576','234234','in','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
-('mrvueia8-4czoey','mrvueia3-1y629j','N/A','234234','out','Planta Oeste','Ian Valenzuela','2026-07-22 01:50:50','2026-07-22 01:51:18','Se entrego a usuario','Juan Perez','Ian Valenzuela','Fernando Heredia');
+('DEMO-CRIT-001','mrvuei7h-anj695','DEMO-SN-C001','PR-DEMO-07','in','Planta Este','admin',NULL,'2026-06-17 12:16:03',NULL,NULL,NULL,NULL,NULL),
+('DEMO-CRIT-002','mrvuei97-749wje','DEMO-SN-C002','PR-DEMO-08','in','Planta Este','admin',NULL,'2026-06-12 12:16:03',NULL,NULL,NULL,NULL,NULL),
+('DEMO-CRIT-003','mrvuei8m-7w5xhu','DEMO-SN-C003','PR-DEMO-09','in','Planta Oeste','admin',NULL,'2026-06-02 12:16:03',NULL,NULL,NULL,NULL,NULL),
+('DEMO-FRESH-001','mrvuei7y-uu4oic','DEMO-SN-F001','PR-DEMO-01','in','Planta Este','admin',NULL,'2026-07-22 12:16:03',NULL,NULL,NULL,NULL,NULL),
+('DEMO-FRESH-002','mrvuei8c-wp4xs8','DEMO-SN-F002','PR-DEMO-02','in','Planta Oeste','admin',NULL,'2026-07-21 12:16:03',NULL,NULL,NULL,NULL,NULL),
+('DEMO-FRESH-003','mrvuei7y-uu4oic','DEMO-SN-F003','PR-DEMO-03','in','Planta Este','admin',NULL,'2026-07-20 12:16:03',NULL,NULL,NULL,NULL,NULL),
+('DEMO-WARN-001','mrvuei9r-2zzpyj','DEMO-SN-W001','PR-DEMO-04','in','Planta Oeste','admin',NULL,'2026-07-06 12:16:03',NULL,NULL,NULL,NULL,NULL),
+('DEMO-WARN-002','mrvueia3-1y629j','DEMO-SN-W002','PR-DEMO-05','in','Planta Oeste','admin',NULL,'2026-07-04 12:16:03',NULL,NULL,NULL,NULL,NULL),
+('DEMO-WARN-003','mrvuei8c-wp4xs8','DEMO-SN-W003','PR-DEMO-06','out','Planta Este','admin',NULL,'2026-06-30 12:16:03',NULL,NULL,NULL,NULL,NULL),
+('mrvuei77-agn2wo','mrvuei6q-x1n9ry','88979','234234','in','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
+('mrvuei7n-5oj4un','mrvuei7h-anj695','9687687','234234','in','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
+('mrvuei86-59nk3a','mrvuei7y-uu4oic','87576','234234','in','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
+('mrvuei8h-qyeqh3','mrvuei8c-wp4xs8','N/A','234234','in','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
+('mrvuei8r-9l6c4b','mrvuei8m-7w5xhu','N/A','234234','in','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
+('mrvuei92-p22l16','mrvuei8x-7a7voa','N/A','234234','in','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
+('mrvuei9c-14z2dw','mrvuei97-749wje','76567','234234','in','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
+('mrvuei9m-j7ru9v','mrvuei9h-zkewz3','765765','234234','in','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
+('mrvuei9y-mgbzc9','mrvuei9r-2zzpyj','76576','234234','in','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:49',NULL,NULL,NULL,NULL,'Fernando Heredia'),
+('mrvueia8-4czoey','mrvueia3-1y629j','N/A','234234','out','Planta Oeste','Ian Valenzuela',NULL,'2026-07-22 01:50:50','2026-07-22 01:51:18','Se entrego a usuario','Juan Perez','Ian Valenzuela','Fernando Heredia'),
+('mt0deokv-r89iie','mrvuei8c-wp4xs8','N/A','CS-3234','out','Planta Oeste','admin','Miguel Bravo','2026-08-19 10:33:37',NULL,NULL,NULL,NULL,NULL),
+('mt0dj588-7almje','mrvuei8c-wp4xs8','N/A','CS-3234','out','IT','admin','Miguel Bravo','2026-08-19 10:37:06',NULL,NULL,NULL,NULL,NULL),
+('mt0djegb-z4ydm9','mrvuei8c-wp4xs8','N/A','CS-3234','out','IT','admin','Miguel Bravo','2026-08-19 10:37:18',NULL,NULL,NULL,NULL,NULL),
+('mt0djl10-0g588z','mrvuei8c-wp4xs8','N/A','423432','out','Planta Oeste','admin','Miguel Bravo','2026-08-19 10:37:26',NULL,NULL,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `devices` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -244,6 +249,112 @@ COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
+-- Table structure for table `pipeline_history`
+--
+
+DROP TABLE IF EXISTS `pipeline_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pipeline_history` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `ticket_number` varchar(20) NOT NULL,
+  `status_name` varchar(60) NOT NULL,
+  `timestamp` datetime NOT NULL DEFAULT current_timestamp(),
+  `handled_by` varchar(255) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_ph_ticket` (`ticket_number`),
+  KEY `idx_ph_timestamp` (`timestamp`),
+  CONSTRAINT `1` FOREIGN KEY (`ticket_number`) REFERENCES `pipeline_requests` (`ticket_number`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `pipeline_history`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `pipeline_history` WRITE;
+/*!40000 ALTER TABLE `pipeline_history` DISABLE KEYS */;
+INSERT INTO `pipeline_history` VALUES
+(1,'TKT-00001','Ticket Created','2026-08-19 05:28:14','admin','Cable para HR'),
+(2,'TKT-00001','Manager Approval','2026-08-19 05:28:53','admin',NULL),
+(3,'TKT-00001','Cancelled','2026-08-19 05:51:24','admin',NULL),
+(4,'TKT-00002','Ticket Created','2026-08-19 05:57:54','admin','Cable para RH'),
+(5,'TKT-00002','Manager Approval','2026-08-19 09:31:20','admin',NULL),
+(6,'TKT-00002','Requisition / Quote','2026-08-19 10:18:26','admin',NULL),
+(7,'TKT-00002','Manager Approval','2026-08-19 10:18:40','admin',NULL),
+(8,'TKT-00002','Requisition / Quote','2026-08-19 10:18:41','admin',NULL),
+(9,'TKT-00002','Manager Approval','2026-08-19 10:23:03','admin',NULL),
+(10,'TKT-00002','Requisition / Quote','2026-08-19 10:23:04','admin',NULL),
+(11,'TKT-00002','Manager Approval','2026-08-19 10:26:38','admin',NULL),
+(12,'TKT-00002','Requisition / Quote','2026-08-19 10:26:39','admin',NULL),
+(13,'TKT-00002','Manager Approval','2026-08-19 10:26:42','admin',NULL),
+(14,'TKT-00002','Requisition / Quote','2026-08-19 10:26:42','admin',NULL),
+(15,'TKT-00002','PR','2026-08-19 10:28:29','admin',NULL),
+(16,'TKT-00002','Awaiting Approval','2026-08-19 10:28:30','admin',NULL),
+(17,'TKT-00002','Awaiting Purchasing','2026-08-19 10:28:31','admin',NULL),
+(18,'TKT-00002','Awaiting Approval','2026-08-19 10:28:32','admin',NULL),
+(19,'TKT-00002','Warehouse Delivery','2026-08-19 10:28:36','admin',NULL),
+(20,'TKT-00002','IT Transit Time','2026-08-19 10:28:37','admin',NULL),
+(21,'TKT-00002','Add to Jira','2026-08-19 10:28:38','admin',NULL),
+(22,'TKT-00002','Equipment Preparation','2026-08-19 10:28:58','admin','Jira ID: CS-3234'),
+(23,'TKT-00002','Requisition / Quote','2026-08-19 10:29:28','admin',NULL),
+(24,'TKT-00002','PR','2026-08-19 10:29:30','admin',NULL),
+(25,'TKT-00002','Awaiting Approval','2026-08-19 10:29:31','admin',NULL),
+(26,'TKT-00002','Awaiting Purchasing','2026-08-19 10:29:33','admin',NULL),
+(27,'TKT-00002','PR','2026-08-19 10:29:34','admin',NULL),
+(28,'TKT-00002','Warehouse Delivery','2026-08-19 10:29:36','admin',NULL),
+(29,'TKT-00002','IT Transit Time','2026-08-19 10:29:36','admin',NULL),
+(30,'TKT-00002','Add to Jira','2026-08-19 10:29:37','admin',NULL),
+(31,'TKT-00002','Equipment Preparation','2026-08-19 10:33:22','admin','Jira ID: 2342'),
+(32,'TKT-00002','Add to Jira','2026-08-19 10:33:47','admin',NULL),
+(33,'TKT-00002','Equipment Preparation','2026-08-19 10:37:11','admin','Jira ID: CS-3234'),
+(34,'TKT-00002','Add to Jira','2026-08-19 10:37:50','admin',NULL);
+/*!40000 ALTER TABLE `pipeline_history` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `pipeline_requests`
+--
+
+DROP TABLE IF EXISTS `pipeline_requests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pipeline_requests` (
+  `ticket_number` varchar(20) NOT NULL,
+  `device_model` varchar(255) NOT NULL,
+  `requested_by` varchar(255) DEFAULT NULL,
+  `current_status` varchar(60) NOT NULL DEFAULT 'Ticket',
+  `assigned_to` varchar(255) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `jira_ticket` varchar(100) DEFAULT NULL,
+  `checklist` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`checklist`)),
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `department` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`ticket_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `pipeline_requests`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `pipeline_requests` WRITE;
+/*!40000 ALTER TABLE `pipeline_requests` DISABLE KEYS */;
+INSERT INTO `pipeline_requests` VALUES
+('TKT-00001','DisplayPort to VGA Converter','Miguel Bravo','Cancelled','Ian Valenzuela','Cable para HR','CS-42342','{\"Intake\":true,\"Manager Approval\":true,\"Procurement / PO\":true,\"OS Imaging\":true,\"Software Install\":true,\"Ready for Delivery\":true,\"QA Check\":true}','2026-08-19 05:28:14','2026-08-19 06:02:07','Planta Oeste'),
+('TKT-00002','DisplayPort to VGA Converter','Miguel Bravo','Add to Jira','admin','Cable para RH','CS-3234',NULL,'2026-08-19 05:57:54','2026-08-19 10:37:50','Planta Oeste');
+/*!40000 ALTER TABLE `pipeline_requests` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
 -- Table structure for table `technicians`
 --
 
@@ -269,6 +380,37 @@ LOCK TABLES `technicians` WRITE;
 INSERT INTO `technicians` VALUES
 (1,'Ian Valenzuela',NULL);
 /*!40000 ALTER TABLE `technicians` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `tickets`
+--
+
+DROP TABLE IF EXISTS `tickets`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tickets` (
+  `id` varchar(50) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `requester` varchar(255) DEFAULT NULL,
+  `status` varchar(50) NOT NULL DEFAULT 'First Requirement',
+  `notes` text DEFAULT NULL,
+  `createdAt` datetime NOT NULL DEFAULT current_timestamp(),
+  `updatedAt` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tickets`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `tickets` WRITE;
+/*!40000 ALTER TABLE `tickets` DISABLE KEYS */;
+/*!40000 ALTER TABLE `tickets` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
@@ -305,7 +447,7 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 INSERT INTO `users` VALUES
-(1,'admin','admin@admin.com','$2b$10$Q/N/lt2Kat0GoOyQuxwk0eUB9uH1k2ydOGgQlDHcqeoY4eCPF2h2C','admin',NULL,'2026-03-03 03:06:14','2026-07-22 11:27:12',NULL,NULL),
+(1,'admin','admin@admin.com','$2b$10$Q/N/lt2Kat0GoOyQuxwk0eUB9uH1k2ydOGgQlDHcqeoY4eCPF2h2C','admin',NULL,'2026-03-03 03:06:14','2026-08-19 10:29:03',NULL,NULL),
 (4,'Ian Valenzuela','ifvalenzuela34@hotmail.com','$2b$10$q85IboyphinuRQCMRuxkQ.2mL45yURVzeLGQ2oNO4F.H8.MRxOCra','technician','Planta Oeste','2026-03-03 04:19:08','2026-07-22 01:43:01','60c62724d724a5e2a22e75f1bd576e5f3ce06794cac822c082b7e34b283dfabd','2026-03-03 08:50:56'),
 (5,'Jahaziel Gerardo','jahaziel@gmail.com','$2b$10$BFGrxS4w7lZo4jACUsGiDugCBa.LZbRGz8Xb10G4x0sVaeOuyZpK.','technician',NULL,'2026-03-03 05:08:29','2026-03-03 05:08:51',NULL,NULL),
 (6,'Delivery Window','skyworks@skyworks','$2b$10$19lXt6XwYbpe9x4/aVciUOQ/pcRT.mEvi01j36rxOXvW3yz8a7lq2','delivery',NULL,'2026-03-03 05:40:24','2026-03-03 05:41:17',NULL,NULL);
@@ -323,4 +465,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-07-22 12:47:09
+-- Dump completed on 2026-08-19 11:55:45

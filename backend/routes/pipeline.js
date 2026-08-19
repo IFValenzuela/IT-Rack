@@ -9,17 +9,17 @@ router.use(authenticateToken);
 
 // ── Pipeline status definitions (sequential order) ──────────
 const PIPELINE_STATUSES = [
-  'Ticket',
+  'Ticket Created',
   'Manager Approval',
   'Requisition / Quote',
-  'PR (Purchase Request)',
-  'Approval',
-  'Waiting on Purchasing',
+  'PR',
+  'Awaiting Approval',
+  'Awaiting Purchasing',
   'Warehouse Delivery',
-  'IT Pickup from Warehouse',
+  'IT Transit Time',
   'Add to Jira',
-  'IT Preparation',
-  'Final Delivery',
+  'Equipment Preparation',
+  'Delivery'
 ];
 
 const VALID_STATUSES = [...PIPELINE_STATUSES, 'Cancelled'];
@@ -159,10 +159,9 @@ router.get('/stats/stage-durations', async (_req, res) => {
         AND h2.status_name != 'Cancelled'
       GROUP BY h1.status_name, h2.status_name
       ORDER BY FIELD(h1.status_name,
-        'Ticket','Manager Approval','Requisition / Quote',
-        'PR (Purchase Request)','Approval','Waiting on Purchasing',
-        'Warehouse Delivery','IT Pickup from Warehouse','Add to Jira',
-        'IT Preparation','Final Delivery')
+        'Ticket Created', 'Manager Approval', 'Requisition / Quote', 'PR',
+        'Awaiting Approval', 'Awaiting Purchasing', 'Warehouse Delivery', 'IT Transit Time',
+        'Add to Jira', 'Equipment Preparation', 'Delivery')
     `);
     res.json(rows);
   } catch (e) {
@@ -184,7 +183,7 @@ router.get('/stats/summary', async (_req, res) => {
       'SELECT COUNT(*) AS total FROM pipeline_requests'
     );
     const [[{ completed }]] = await pool.query(
-      "SELECT COUNT(*) AS completed FROM pipeline_requests WHERE current_status = 'Final Delivery'"
+      "SELECT COUNT(*) AS completed FROM pipeline_requests WHERE current_status = 'Delivery'"
     );
     const [[{ cancelled }]] = await pool.query(
       "SELECT COUNT(*) AS cancelled FROM pipeline_requests WHERE current_status = 'Cancelled'"
@@ -196,12 +195,12 @@ router.get('/stats/summary', async (_req, res) => {
       SELECT ROUND(AVG(TIMESTAMPDIFF(SECOND, first_ts.ts, last_ts.ts)) / 3600, 2) AS avg_cycle_hours
       FROM (
         SELECT ticket_number, MIN(timestamp) AS ts
-        FROM pipeline_history WHERE status_name = 'Ticket'
+        FROM pipeline_history WHERE status_name = 'Ticket Created'
         GROUP BY ticket_number
       ) first_ts
       JOIN (
         SELECT ticket_number, MAX(timestamp) AS ts
-        FROM pipeline_history WHERE status_name = 'Final Delivery'
+        FROM pipeline_history WHERE status_name = 'Delivery'
         GROUP BY ticket_number
       ) last_ts ON first_ts.ticket_number = last_ts.ticket_number
     `);
@@ -223,7 +222,7 @@ router.get('/stats/summary', async (_req, res) => {
   }
 });
 
-// ── GET /api/pipeline/:ticket_number — single request + history
+// ── GET /api/pipeline/:ticket_number — single request + history + devices
 router.get('/:ticket_number', async (req, res) => {
   try {
     const [[request]] = await pool.query(
@@ -236,7 +235,19 @@ router.get('/:ticket_number', async (req, res) => {
       'SELECT * FROM pipeline_history WHERE ticket_number = ? ORDER BY timestamp ASC, id ASC',
       [req.params.ticket_number]
     );
-    res.json({ request, history });
+    
+    let devices = [];
+    try {
+      const [devRows] = await pool.query(
+        'SELECT serial, asset_tag FROM devices WHERE prNumber = ?',
+        [req.params.ticket_number]
+      );
+      devices = devRows;
+    } catch (e) {
+      console.warn("Could not fetch devices for ticket:", e.message);
+    }
+    
+    res.json({ request: { ...request, devices }, history });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -244,7 +255,7 @@ router.get('/:ticket_number', async (req, res) => {
 
 // ── POST /api/pipeline — create new request ──────────────────
 router.post('/', async (req, res) => {
-  const { requested_by, assigned_to, notes, jira_ticket } = req.body;
+  const { requested_by, assigned_to, notes, jira_ticket, department } = req.body;
 
   const conn = await pool.getConnection();
   try {
@@ -259,13 +270,13 @@ router.post('/', async (req, res) => {
     }
 
     const ticketNumber = await generateTicketNumber(conn);
-    const initialStatus = 'Ticket';
+    const initialStatus = 'Ticket Created';
 
     await conn.query(
       `INSERT INTO pipeline_requests
-         (ticket_number, device_model, requested_by, current_status, assigned_to, notes, jira_ticket, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [ticketNumber, deviceModel, requested_by || null, initialStatus, assigned_to || null, notes || null, jira_ticket || null]
+         (ticket_number, device_model, requested_by, department, current_status, assigned_to, notes, jira_ticket, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [ticketNumber, deviceModel, requested_by || null, department || null, initialStatus, assigned_to || null, notes || null, jira_ticket || null]
     );
 
     await conn.query(
@@ -286,6 +297,42 @@ router.post('/', async (req, res) => {
 });
 
 // ── PUT /api/pipeline/:ticket_number/advance — next stage ────
+// ── PUT /api/pipeline/:ticket_number — partial update (assigned_to, checklist)
+router.put('/:ticket_number', async (req, res) => {
+  const { assigned_to, checklist } = req.body;
+  const ticketNumber = req.params.ticket_number;
+  
+  try {
+    const updates = [];
+    const params = [];
+    
+    if (assigned_to !== undefined) {
+      updates.push("assigned_to = ?");
+      params.push(assigned_to || null);
+    }
+    if (checklist !== undefined) {
+      updates.push("checklist = ?");
+      params.push(JSON.stringify(checklist));
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+    
+    params.push(ticketNumber);
+    const sql = `UPDATE pipeline_requests SET ${updates.join(', ')} WHERE ticket_number = ?`;
+    
+    const [result] = await pool.query(sql, params);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+    
+    res.json({ ok: true, ticket_number: ticketNumber });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.put('/:ticket_number/advance', async (req, res) => {
   const { target_status, notes } = req.body;
   const ticketNumber = req.params.ticket_number;
@@ -320,11 +367,7 @@ router.put('/:ticket_number/advance', async (req, res) => {
       }
       const targetIdx = PIPELINE_STATUSES.indexOf(target_status);
 
-      // Forward moves allowed for all; backward moves only for admin
-      if (targetIdx < currentIdx && req.user.role !== 'admin') {
-        await conn.rollback();
-        return res.status(403).json({ error: 'Only admins can revert to a previous stage' });
-      }
+      // Backward moves allowed to support going back and forth
       if (targetIdx === currentIdx) {
         await conn.rollback();
         return res.status(400).json({ error: 'Already at this stage' });
@@ -350,19 +393,19 @@ router.put('/:ticket_number/advance', async (req, res) => {
       }
     }
 
-    if (nextStatus === 'Final Delivery') {
+    // Block advance past Equipment Preparation if no serial number has been added
+    if (request.current_status === 'Equipment Preparation' || nextStatus === 'Delivery') {
       const [[serialRow]] = await conn.query(
         `SELECT COUNT(*) AS serial_count
          FROM devices
          WHERE prNumber = ?
            AND serial IS NOT NULL
-           AND TRIM(serial) <> ''
-           AND UPPER(TRIM(serial)) <> 'N/A'`,
+           AND TRIM(serial) <> ''`,
         [ticketNumber]
       );
       if (!serialRow || Number(serialRow.serial_count) === 0) {
         await conn.rollback();
-        return res.status(400).json({ error: 'A real serial number is required before Final Delivery' });
+        return res.status(400).json({ error: 'A serial number must be added before advancing past Equipment Preparation. Please add the device serial first.' });
       }
     }
 
