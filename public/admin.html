@@ -70,7 +70,7 @@
         <div class="panel-header" style="cursor:pointer;" id="demo-mode-toggle">
           <div>
             <h2 style="font-size:.95rem;color:var(--text-muted);">Demo Mode</h2>
-            <p class="panel-subtitle">Inject backdated sample devices for presentations. Remove them after.</p>
+            <p class="panel-subtitle">Prepare a removable presentation set using the records already in this system.</p>
           </div>
           <div class="panel-header-actions">
             <svg id="demo-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s var(--ease-out);"><polyline points="6 9 12 15 18 9"/></svg>
@@ -78,12 +78,11 @@
         </div>
         <div id="demo-mode-body" style="display:none;padding:16px 0 4px;">
           <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <button class="btn primary" id="btn-demo-seed">Inject Demo Devices</button>
-            <button class="btn ghost" style="color:var(--danger);border-color:var(--danger)" id="btn-demo-cleanup">Remove Demo Devices</button>
+            <button class="btn primary" id="btn-demo-seed">Prepare Presentation Demo</button>
+            <button class="btn ghost" style="color:var(--danger);border-color:var(--danger)" id="btn-demo-cleanup">Remove Presentation Demo</button>
           </div>
           <p style="margin-top:12px;font-size:.8rem;color:var(--text-muted);">
-            Adds <strong>9 devices</strong>: 3 fresh (no badge), 3 from 16 days ago <span class="stock-age-badge warning" style="font-size:.65rem;">2+ weeks</span>, 3 from 35 days ago <span class="stock-age-badge critical" style="font-size:.65rem;">1+ month</span>.
-            All have serials starting with <code>DEMO-</code> and are safely removed with the button above.
+            Reuses existing device, phone, and pipeline records with backdated timestamps. Technical identifiers start with <code>DEMO-</code> and are safely removed with the button above.
           </p>
         </div>
       </section>

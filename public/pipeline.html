@@ -274,43 +274,32 @@
       display: flex;
       gap: 10px;
       padding: 0 0 8px;
-      align-items: stretch;
+      align-items: flex-start;
       width: max-content;
     }
 
     .pipeline-column {
       --col-accent: var(--blue);
-      background-color: #ffffff;
-      border-radius: var(--radius-lg);
-      padding: 0 10px 10px;
+      background-color: rgba(241, 245, 249, 0.5);
+      border-radius: 12px;
+      padding: 8px;
+      gap: 8px;
+      height: fit-content;
+      min-height: 180px;
       min-width: 260px;
       max-width: 300px;
       width: 280px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
-      border: 1px solid var(--border-subtle);
-      box-shadow: var(--shadow-subtle);
-      transition: box-shadow 0.15s var(--ease-out);
+      border: 1px solid rgba(226, 232, 240, 0.6);
+      transition: opacity 0.15s var(--ease-out);
       position: relative;
-      overflow: hidden;
-    }
-
-    /* 3px top accent bar — column identity */
-    .pipeline-column::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: var(--col-accent);
-      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      overflow: visible;
     }
 
     .pipeline-column.drag-over {
-      box-shadow: 0 0 0 2px var(--blue);
-      background-color: var(--blue-soft);
+      opacity: 0.78;
     }
 
     .pipeline-column.cancelled-col {
@@ -322,8 +311,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
-      padding: 14px 6px 8px;
+      margin-bottom: 0;
+      padding: 11px 6px 8px;
+      border-top: 3px solid var(--col-accent);
       border-bottom: 1px solid var(--border-subtle);
     }
 
@@ -354,10 +344,7 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      min-height: 50px;
-      flex: 1;
-      max-height: 65vh;
-      overflow-y: auto;
+      overflow: visible;
       padding-right: 2px;
       scrollbar-width: thin;
       scrollbar-color: rgba(0, 0, 0, 0.08) transparent;
@@ -400,19 +387,21 @@
       display: flex;
       flex-direction: column;
       gap: 0;
-      background: var(--bg);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 10px 12px;
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      border-radius: 8px;
+      padding: 12px;
       cursor: pointer;
-      transition: box-shadow 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+      transition: box-shadow 0.15s var(--ease-out), border-color 0.15s var(--ease-out), transform 0.15s var(--ease-out);
       position: relative;
       user-select: none;
     }
 
     .pipeline-card:hover {
-      box-shadow: var(--shadow-subtle);
+      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.11), 0 8px 18px rgba(15, 23, 42, 0.07);
       border-color: #c0c9d6;
+      transform: translateY(-1px);
     }
 
     .pipeline-card:active {

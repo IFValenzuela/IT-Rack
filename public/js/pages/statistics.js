@@ -1019,6 +1019,9 @@ function renderSLAExplorerResults() {
     pipelineExplorerChartInstance.data.datasets[0].backgroundColor = bgColors;
     pipelineExplorerChartInstance.update();
   } else {
+    if (typeof ChartDataLabels !== 'undefined') {
+      Chart.register(ChartDataLabels);
+    }
     pipelineExplorerChartInstance = new Chart(chartCanvas.getContext('2d'), {
       type: 'doughnut',
       data: {
@@ -1037,6 +1040,17 @@ function renderSLAExplorerResults() {
         cutout: '65%',
         plugins: {
           legend: { display: false },
+          datalabels: {
+            color: '#ffffff',
+            font: { weight: 'bold', size: 12 },
+            formatter: (value, context) => {
+              const chartTotal = context.dataset.data.reduce((sum, item) => sum + item, 0);
+              const percentage = chartTotal ? Math.round((value / chartTotal) * 100) : 0;
+              return percentage > 4 ? `${percentage}%` : '';
+            },
+            textShadowBlur: 4,
+            textShadowColor: 'rgba(0, 0, 0, 0.45)',
+          },
           tooltip: {
             backgroundColor: 'rgba(15, 23, 42, 0.9)',
             titleFont: { size: 13 },

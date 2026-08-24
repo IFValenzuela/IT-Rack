@@ -172,63 +172,146 @@ router.delete('/clear-all', async (_req, res) => {
 
 // ── Demo Mode ────────────────────────────────────────────────
 
-// POST /api/admin/demo/seed  — injects demo devices backdated for yellow/red badges
+// POST /api/admin/demo/seed  — builds a presentation set from existing records
 router.post('/demo/seed', async (req, res) => {
+  const conn = await pool.getConnection();
   try {
-    const [models] = await pool.query(
+    const [models] = await conn.query(
       "SELECT id FROM models WHERE id NOT LIKE 'DEMO-%'"
     );
-    if (!models.length) {
-      return res.status(400).json({ error: 'No models found. Add at least one model before seeding demo data.' });
+    const [deviceTemplates] = await conn.query(
+      "SELECT * FROM devices WHERE id NOT LIKE 'DEMO-%' ORDER BY createdAt DESC"
+    );
+    if (!models.length || !deviceTemplates.length) {
+      return res.status(400).json({ error: 'Add at least one existing model and device before seeding presentation data.' });
     }
-    
+
     const addedBy = req.user.username;
-    const depts = ['Planta Oeste', 'Planta Este'];
-    const statuses = ['in', 'out', 'in']; // Weight it towards 'in' storage
-    
-    // Helper to get random item
-    const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
-    const getModelId = () => getRandom(models).id;
+    await conn.beginTransaction();
+    await conn.query("DELETE FROM pipeline_requests WHERE ticket_number LIKE 'DEMO-%'");
+    await conn.query("DELETE FROM phones WHERE id LIKE 'DEMO-%'");
+    await conn.query("DELETE FROM devices WHERE id LIKE 'DEMO-%'");
 
-    // Remove any leftover demo data first
-    await pool.query("DELETE FROM devices WHERE id LIKE 'DEMO-%'");
+    const ageDays = [0, 1, 2, 16, 18, 22, 35, 40, 50];
+    for (let index = 0; index < 9; index++) {
+      const source = deviceTemplates[index % deviceTemplates.length];
+      const daysAgo = ageDays[index % ageDays.length];
+      const status = index === 8 ? 'out' : 'in';
+      await conn.query(
+        `INSERT INTO devices
+         (id, modelId, serial, prNumber, status, department, addedBy, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL ? DAY))`,
+        [
+          `DEMO-${index < 3 ? 'FRESH' : index < 6 ? 'WARN' : 'CRIT'}-${String(index % 3 + 1).padStart(3, '0')}`,
+          source.modelId || models[index % models.length].id,
+          `DEMO-${String(source.serial || 'SERIAL').replace(/[^a-z0-9]/gi, '').slice(0, 18)}-${String(index + 1).padStart(3, '0')}`,
+          `DEMO-${String(source.prNumber || 'PR').replace(/[^a-z0-9]/gi, '').slice(0, 12)}-${String(index + 1).padStart(3, '0')}`,
+          status,
+          source.department || null,
+          addedBy,
+          daysAgo,
+        ]
+      );
+    }
 
-    const insertDemo = async (id, serial, pr, daysAgo) => {
-      const sql = `INSERT INTO devices (id, modelId, serial, prNumber, status, department, addedBy, createdAt) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL ? DAY))`;
-      await pool.query(sql, [
-        id, getModelId(), serial, pr, getRandom(statuses), getRandom(depts), addedBy, daysAgo
-      ]);
-    };
+    const [phoneTemplates] = await conn.query(
+      "SELECT * FROM phones WHERE id NOT LIKE 'DEMO-%' ORDER BY assignedAt DESC"
+    );
+    for (let index = 0; index < Math.min(6, phoneTemplates.length * 2); index++) {
+      const source = phoneTemplates[index % phoneTemplates.length];
+      const daysAgo = [1, 4, 9, 15, 23, 31][index];
+      await conn.query(
+        `INSERT INTO phones
+         (id, assignedBy, receivedBy, employeeNumber, phoneModel, imei, phoneNumber,
+          assignedAt, signatureName, signatureImage, photoImage, notes, transactionType,
+          createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL ? DAY), ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          `DEMO-PHONE-${String(index + 1).padStart(3, '0')}`,
+          source.assignedBy,
+          source.receivedBy,
+          source.employeeNumber,
+          source.phoneModel,
+          source.imei,
+          source.phoneNumber,
+          daysAgo,
+          source.signatureName,
+          source.signatureImage,
+          source.photoImage,
+          source.notes,
+          source.transactionType || 'delivery',
+        ]
+      );
+    }
 
-    // 3 fresh devices (no badge)
-    await insertDemo('DEMO-FRESH-001', 'DEMO-SN-F001', 'PR-DEMO-01', 0);
-    await insertDemo('DEMO-FRESH-002', 'DEMO-SN-F002', 'PR-DEMO-02', 1);
-    await insertDemo('DEMO-FRESH-003', 'DEMO-SN-F003', 'PR-DEMO-03', 2);
+    const [pipelineTemplates] = await conn.query(
+      "SELECT * FROM pipeline_requests WHERE ticket_number NOT LIKE 'DEMO-%' ORDER BY created_at DESC"
+    );
+    const pipelineStages = [
+      'Ticket Created',
+      'Manager Approval',
+      'Requisition / Quote',
+      'PR',
+      'Awaiting Approval',
+      'Awaiting Purchasing',
+      'Warehouse Delivery',
+      'IT Transit Time',
+      'Add to Jira',
+      'Equipment Preparation',
+      'Delivery',
+    ];
+    let pipelineCount = 0;
+    for (let index = 0; index < pipelineStages.length && pipelineTemplates.length; index++) {
+      const source = pipelineTemplates[index % pipelineTemplates.length];
+      const ticketNumber = `DEMO-TKT-${String(index + 1).padStart(3, '0')}`;
+      const daysAgo = pipelineStages.length - index;
+      await conn.query(
+        `INSERT INTO pipeline_requests
+         (ticket_number, device_model, requested_by, current_status, assigned_to, notes,
+          jira_ticket, checklist, created_at, updated_at, department)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL ? DAY), NOW(), ?)`,
+        [ticketNumber, source.device_model, source.requested_by, pipelineStages[index], source.assigned_to,
+        source.notes, source.jira_ticket, source.checklist, daysAgo, source.department]
+      );
+      for (let stageIndex = 0; stageIndex <= index; stageIndex++) {
+        await conn.query(
+          'INSERT INTO pipeline_history (ticket_number, status_name, handled_by, notes, timestamp) VALUES (?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL ? DAY))',
+          [ticketNumber, pipelineStages[stageIndex], source.assigned_to || source.requested_by || addedBy,
+          stageIndex === 0 ? source.notes : null, daysAgo + index - stageIndex]
+        );
+      }
+      pipelineCount++;
+    }
 
-    // 3 devices 16+ days old → yellow "2+ weeks" badge
-    await insertDemo('DEMO-WARN-001', 'DEMO-SN-W001', 'PR-DEMO-04', 16);
-    await insertDemo('DEMO-WARN-002', 'DEMO-SN-W002', 'PR-DEMO-05', 18);
-    await insertDemo('DEMO-WARN-003', 'DEMO-SN-W003', 'PR-DEMO-06', 22);
-
-    // 3 devices 35+ days old → red "1+ month" badge
-    await insertDemo('DEMO-CRIT-001', 'DEMO-SN-C001', 'PR-DEMO-07', 35);
-    await insertDemo('DEMO-CRIT-002', 'DEMO-SN-C002', 'PR-DEMO-08', 40);
-    await insertDemo('DEMO-CRIT-003', 'DEMO-SN-C003', 'PR-DEMO-09', 50);
-
-    res.json({ ok: true, inserted: 9 });
+    await conn.commit();
+    res.json({ ok: true, inserted: { devices: 9, phones: Math.min(6, phoneTemplates.length * 2), pipeline: pipelineCount } });
   } catch (e) {
+    await conn.rollback();
     res.status(500).json({ error: e.message });
+  } finally {
+    conn.release();
   }
 });
 
-// DELETE /api/admin/demo/cleanup  — removes all demo devices
+// DELETE /api/admin/demo/cleanup  — removes all presentation demo records
 router.delete('/demo/cleanup', async (_req, res) => {
+  const conn = await pool.getConnection();
   try {
-    const [result] = await pool.query("DELETE FROM devices WHERE id LIKE 'DEMO-%'");
-    res.json({ ok: true, removed: result.affectedRows });
+    await conn.beginTransaction();
+    const [pipelineResult] = await conn.query("DELETE FROM pipeline_requests WHERE ticket_number LIKE 'DEMO-%'");
+    const [phoneResult] = await conn.query("DELETE FROM phones WHERE id LIKE 'DEMO-%'");
+    const [deviceResult] = await conn.query("DELETE FROM devices WHERE id LIKE 'DEMO-%'");
+    await conn.commit();
+    res.json({ ok: true, removed: {
+      devices: deviceResult.affectedRows,
+      phones: phoneResult.affectedRows,
+      pipeline: pipelineResult.affectedRows,
+    } });
   } catch (e) {
+    await conn.rollback();
     res.status(500).json({ error: e.message });
+  } finally {
+    conn.release();
   }
 });
 

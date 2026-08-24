@@ -397,7 +397,7 @@ function initDemoModePanel() {
   document.getElementById('btn-demo-cleanup').addEventListener('click', cleanupDemoData);
 }
 
-/** Inject backdated demo devices (for presentation). */
+/** Build removable presentation data from existing records. */
 async function seedDemoData() {
   const btn = document.getElementById('btn-demo-seed');
   btn.disabled = true;
@@ -410,18 +410,19 @@ async function seedDemoData() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    showToast('9 demo devices injected. Go to All Devices to see the badges.');
+    const counts = data.inserted || {};
+    showToast(`Presentation data ready: ${counts.devices || 0} devices, ${counts.phones || 0} phones, ${counts.pipeline || 0} pipeline requests.`);
   } catch (err) {
     showToast(err.message || 'Failed to inject demo data.');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Inject Demo Devices';
+    btn.textContent = 'Prepare Presentation Demo';
   }
 }
 
-/** Remove all demo devices (serials starting with DEMO-). */
+/** Remove all presentation records marked with DEMO-. */
 async function cleanupDemoData() {
-  if (!confirm('Remove all demo devices (DEMO-*) from the inventory?')) return;
+  if (!confirm('Remove all presentation demo records (DEMO-*)?')) return;
   const btn = document.getElementById('btn-demo-cleanup');
   btn.disabled = true;
   btn.textContent = 'Removing…';
@@ -433,11 +434,12 @@ async function cleanupDemoData() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    showToast(`${data.removed} demo device${data.removed !== 1 ? 's' : ''} removed.`);
+    const removed = data.removed || {};
+    showToast(`Removed ${removed.devices || 0} devices, ${removed.phones || 0} phones, and ${removed.pipeline || 0} pipeline requests.`);
   } catch (err) {
     showToast(err.message || 'Failed to remove demo data.');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Remove Demo Devices';
+    btn.textContent = 'Remove Presentation Demo';
   }
 }
