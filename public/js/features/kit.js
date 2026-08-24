@@ -40,13 +40,13 @@ async function openNewHireKitDialog() {
   nhkState.addedBy       = (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'delivery')
     ? currentUser.username
     : '';
-  document.getElementById('new-hire-kit-dialog').classList.remove('hidden');
+  openDialog('new-hire-kit-dialog');
   nhkRenderStep();
 }
 
 /** Close the New Hire Kit wizard. */
 function closeNewHireKitDialog() {
-  document.getElementById('new-hire-kit-dialog').classList.add('hidden');
+  closeDialog('new-hire-kit-dialog');
 }
 
 /** Update the step-indicator dots and connectors. */
@@ -99,7 +99,7 @@ function nhkRenderStep1(container) {
 
   container.innerHTML = `
     <div class="nhk-hire-name-row">
-      <label for="nhk-kit-id-input">Kit ID — Ticket # or New Hire Name <span style="color:var(--danger)">*</span></label>
+      <label for="nhk-kit-id-input">Kit ID - Ticket # or New Hire Name <span style="color:var(--danger)">*</span></label>
       <input id="nhk-kit-id-input" type="text" placeholder="e.g. Jane-Smith-2026 or PR-20345" value="${escHtml(nhkState.kitId)}" autocomplete="off" />
       <p style="font-size:0.7rem;color:var(--text-muted);margin:3px 0 0;">This ID links all kit devices so you can deploy them all later with one click.</p>
     </div>
@@ -207,7 +207,7 @@ function nhkRenderStep2(container) {
             </div>
             ${!otherNa
               ? `<input type="text" class="nhk-new-serial-input" data-item-name="Other" placeholder="e.g. SN-ABC123" value="${escHtml(currentSerial)}" autocomplete="off" style="width:100%;box-sizing:border-box;" />`
-              : `<span class="nhk-no-serial-label">N/A — no serial</span>`
+              : `<span class="nhk-no-serial-label">N/A - no serial</span>`
             }
           </div>
         </div>
@@ -329,7 +329,7 @@ function _nhkCollectStep2Fields(container) {
 function nhkRenderStep3(container) {
   const items = nhkState.selectedItems.map((item) => {
     const displayName = item === 'Other' ? (nhkState.otherItemText || 'Other') : item;
-    const serial      = nhkState.serialInputs[item] || '—';
+    const serial      = nhkState.serialInputs[item] || '-';
     return `
       <div class="nhk-confirm-item">
         <span class="nhk-ci-model">${escHtml(displayName)}</span>
@@ -551,7 +551,7 @@ async function deployKit(kitId) {
     resultsEl.innerHTML = `<p>Kit "${escHtml(kitId)}" deployed by ${escHtml(deliveredBy)}. ${items.length} device${items.length > 1 ? 's' : ''} removed from stock.</p>`;
   }
   if (deployBtn) deployBtn.classList.add('hidden');
-  showToast(`Kit "${kitId}" deployed by ${deliveredBy} — ${items.length} device${items.length > 1 ? 's' : ''} removed.`);
+  showToast(`Kit "${kitId}" deployed by ${deliveredBy} - ${items.length} device${items.length > 1 ? 's' : ''} removed.`);
 }
 
 /** Rebuild the Kit Deploy dropdown to reflect current in-stock kits. */
@@ -565,8 +565,8 @@ function renderKitDeployDropdown() {
   )].sort((a, b) => a.localeCompare(b));
 
   sel.innerHTML = kitIds.length
-    ? '<option value="">— Select a kit —</option>'
-    : '<option value="">— No kits in stock —</option>';
+    ? '<option value="">Select a kit</option>'
+    : '<option value="">No kits in stock</option>';
 
   kitIds.forEach((id) => {
     const count = state.devices.filter((d) => d.kit_id === id && d.status === 'in').length;

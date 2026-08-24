@@ -220,7 +220,7 @@ function renderPhonesView() {
             <td>${formatDateTime(p.assignedAt)}</td>
             <td><strong>${escHtml(p.phoneModel)}</strong><div style="color:var(--text-muted);font-size:.72rem;">${escHtml(p.assignedBy)}</div></td>
             <td>${escHtml(p.receivedBy)}</td>
-            <td>${escHtml(p.employeeNumber || '—')}</td>
+            <td>${escHtml(p.employeeNumber || '-')}</td>
             <td>${escHtml(p.imei)}</td>
             <td>${escHtml(p.phoneNumber)}</td>
             <td>${p.signatureImage ? 'Yes' : 'No'}</td>
@@ -248,12 +248,12 @@ function getPhoneReceiptMarkup(record) {
       <div class="phone-receipt-grid">
         <div><span>${labelAssignedBy}</span><strong>${escHtml(record.assignedBy)}</strong></div>
         <div><span>${labelReceivedBy}</span><strong>${escHtml(record.receivedBy)}</strong></div>
-        <div><span>Employee #</span><strong>${escHtml(record.employeeNumber || '—')}</strong></div>
+        <div><span>Employee #</span><strong>${escHtml(record.employeeNumber || '-')}</strong></div>
         <div><span>Phone model</span><strong>${escHtml(record.phoneModel)}</strong></div>
         <div><span>IMEI</span><strong>${escHtml(record.imei)}</strong></div>
         <div><span>Phone number</span><strong>${escHtml(record.phoneNumber)}</strong></div>
         <div><span>Date</span><strong>${formatDateTime(record.assignedAt)}</strong></div>
-        <div><span>Notes</span><strong>${escHtml(record.notes || '—')}</strong></div>
+        <div><span>Notes</span><strong>${escHtml(record.notes || '-')}</strong></div>
       </div>
       <div class="phone-receipt-media ${record.photoImage ? '' : 'phone-receipt-single-media'}">
         ${record.signatureImage ? `

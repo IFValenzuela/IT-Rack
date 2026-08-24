@@ -45,9 +45,9 @@ function renderAdminUsers() {
           <tr>
             <td><strong>${escHtml(u.username)}</strong>${u.id === currentUser.id ? ' <span class="badge-you">you</span>' : ''}</td>
             <td><span class="role-badge ${(ROLE_LABELS[u.role] || {}).cls || ''}">${(ROLE_LABELS[u.role] || {}).label || escHtml(u.role)}</span></td>
-            <td style="color:var(--text-muted)">${escHtml(u.department || '—')}</td>
+            <td style="color:var(--text-muted)">${escHtml(u.department || '-')}</td>
             <td style="color:var(--text-muted);font-size:.8rem">${u.lastLogin ? formatDateTime(u.lastLogin) : 'Never'}</td>
-            <td style="color:var(--text-muted);font-size:.8rem">${u.createdAt ? formatDate(u.createdAt) : '—'}</td>
+            <td style="color:var(--text-muted);font-size:.8rem">${u.createdAt ? formatDate(u.createdAt) : '-'}</td>
             <td class="row-actions">
               <span class="action-link js-edit-user" data-id="${u.id}">Edit</span>
               ${u.id !== currentUser.id ? `<span class="action-link action-link-danger js-delete-user" data-id="${u.id}" data-username="${escHtml(u.username)}">Delete</span>` : ''}
@@ -77,7 +77,7 @@ function openAddUserDialog() {
   document.getElementById('new-user-username').disabled = false;
   document.getElementById('new-user-password').required = true;
   document.getElementById('password-field-label').innerHTML = 'Password <span style="color:var(--danger)">*</span>';
-  document.getElementById('add-user-dialog').classList.remove('hidden');
+  openDialog('add-user-dialog');
 }
 
 /** Open the Edit User dialog pre-filled with existing user data. */
@@ -93,12 +93,12 @@ function openEditUser(id) {
   document.getElementById('new-user-password').value = '';
   document.getElementById('new-user-password').required = false;
   document.getElementById('password-field-label').innerHTML = 'New Password <span style="color:var(--text-muted);font-size:.8em">(leave blank to keep)</span>';
-  document.getElementById('new-user-role').value = u.role;  document.getElementById('new-user-department').value  = u.department || '';  document.getElementById('add-user-dialog').classList.remove('hidden');
+  document.getElementById('new-user-role').value = u.role;  document.getElementById('new-user-department').value  = u.department || '';  openDialog('add-user-dialog');
 }
 
 /** Close (and reset) the add/edit user dialog. */
 function closeAddUserDialog() {
-  document.getElementById('add-user-dialog').classList.add('hidden');
+  closeDialog('add-user-dialog');
   document.getElementById('add-user-form').reset();
   editingUserId = null;
 }
@@ -217,7 +217,7 @@ function renderKitAccessories() {
             </td>
             <td><strong>${escHtml(a.name)}</strong></td>
             <td style="color:var(--text-muted)">${escHtml(a.category)}</td>
-            <td>${a.no_serial ? '<span class="role-badge role-viewer">N/A</span>' : '—'}</td>
+            <td>${a.no_serial ? '<span class="role-badge role-viewer">N/A</span>' : '-'}</td>
             <td class="row-actions">
               <span class="action-link js-edit-accessory" data-id="${a.id}">Edit</span>
               ${a.name !== 'Other' ? `<span class="action-link action-link-danger js-delete-accessory" data-id="${a.id}" data-name="${escHtml(a.name)}">Delete</span>` : ''}
@@ -303,7 +303,7 @@ function openAddAccessoryDialog() {
   document.getElementById('btn-save-accessory').textContent = 'Add Item';
   document.getElementById('add-accessory-form').reset();
   document.getElementById('edit-accessory-id').value = '';
-  document.getElementById('add-accessory-dialog').classList.remove('hidden');
+  openDialog('add-accessory-dialog');
 }
 
 /** Open the Edit Accessory dialog pre-filled. */
@@ -316,12 +316,12 @@ function openEditAccessory(id) {
   document.getElementById('acc-name').value = a.name;
   document.getElementById('acc-category').value = a.category;
   document.getElementById('acc-no-serial').checked = !!a.no_serial;
-  document.getElementById('add-accessory-dialog').classList.remove('hidden');
+  openDialog('add-accessory-dialog');
 }
 
 /** Close the Accessory dialog. */
 function closeAddAccessoryDialog() {
-  document.getElementById('add-accessory-dialog').classList.add('hidden');
+  closeDialog('add-accessory-dialog');
   document.getElementById('add-accessory-form').reset();
 }
 
@@ -390,7 +390,7 @@ function initDemoModePanel() {
   toggle.addEventListener('click', () => {
     const open = body.style.display !== 'none';
     body.style.display = open ? 'none' : 'block';
-    icon.textContent   = open ? '▶' : '▼';
+    icon.style.transform = open ? '' : 'rotate(180deg)';
   });
 
   document.getElementById('btn-demo-seed').addEventListener('click', seedDemoData);
@@ -410,12 +410,12 @@ async function seedDemoData() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    showToast(`✓ 9 demo devices injected. Go to All Devices to see the badges.`);
+    showToast('9 demo devices injected. Go to All Devices to see the badges.');
   } catch (err) {
     showToast(err.message || 'Failed to inject demo data.');
   } finally {
     btn.disabled = false;
-    btn.textContent = '▶ Inject Demo Devices';
+    btn.textContent = 'Inject Demo Devices';
   }
 }
 
@@ -433,11 +433,11 @@ async function cleanupDemoData() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    showToast(`✓ ${data.removed} demo device${data.removed !== 1 ? 's' : ''} removed.`);
+    showToast(`${data.removed} demo device${data.removed !== 1 ? 's' : ''} removed.`);
   } catch (err) {
     showToast(err.message || 'Failed to remove demo data.');
   } finally {
     btn.disabled = false;
-    btn.textContent = '✕ Remove Demo Devices';
+    btn.textContent = 'Remove Demo Devices';
   }
 }

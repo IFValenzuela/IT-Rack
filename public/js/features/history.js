@@ -100,7 +100,7 @@ function renderHistoryView() {
     const statusClass = h.type === 'in' ? 'status-in' : 'status-out';
     const label       = h.type === 'in' ? 'Added to stock' : 'Removed from stock';
     const technician  = h.addedBy || h.deliveredBy || '';
-    const dash        = '<span style="color:var(--text-muted)">—</span>';
+    const dash        = '<span style="color:var(--text-muted)">-</span>';
     const reason      = h.reason      || (h.type === 'in' ? dash : '');
     const destination = h.destination || (h.type === 'in' ? dash : '');
     let rowClass = '';

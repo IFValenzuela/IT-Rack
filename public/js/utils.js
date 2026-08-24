@@ -82,18 +82,139 @@ function getStockAgeInfo(createdAtIso) {
 
 /**
  * Show a non-blocking toast notification.
+ * Pauses auto-dismiss timer when the browser tab is hidden (Apple principle:
+ * invisible feedback is wasted — the user should see the full toast duration).
  * @param {string} message
  */
 function showToast(message) {
   const toast = document.getElementById('toast');
   if (!toast) return;
+
+  // Clear any pending dismiss from a previous toast
+  if (showToast._timer) { clearTimeout(showToast._timer); showToast._timer = null; }
+  if (showToast._hideTimer) { clearTimeout(showToast._hideTimer); showToast._hideTimer = null; }
+  if (showToast._visHandler) { document.removeEventListener('visibilitychange', showToast._visHandler); }
+
   toast.textContent = message;
   toast.classList.remove('hidden');
-  requestAnimationFrame(() => toast.classList.add('visible'));
-  setTimeout(() => {
-    toast.classList.remove('visible');
-    setTimeout(() => toast.classList.add('hidden'), 200);
-  }, 2100);
+  // Double-rAF ensures the browser has painted the un-hidden state before adding the transition class
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('visible')));
+
+  const DISPLAY_MS = 2400;
+  let remaining = DISPLAY_MS;
+  let startedAt = Date.now();
+
+  function scheduleDismiss() {
+    startedAt = Date.now();
+    showToast._timer = setTimeout(() => {
+      toast.classList.remove('visible');
+      showToast._hideTimer = setTimeout(() => toast.classList.add('hidden'), 280);
+      cleanup();
+    }, remaining);
+  }
+
+  function onVisChange() {
+    if (document.hidden) {
+      // Pause: save how much time is left
+      clearTimeout(showToast._timer);
+      remaining -= (Date.now() - startedAt);
+      if (remaining <= 0) remaining = 100;
+    } else {
+      // Resume after tab returns
+      scheduleDismiss();
+    }
+  }
+
+  function cleanup() {
+    document.removeEventListener('visibilitychange', onVisChange);
+    showToast._visHandler = null;
+  }
+
+  showToast._visHandler = onVisChange;
+  document.addEventListener('visibilitychange', onVisChange);
+  scheduleDismiss();
+}
+
+/**
+ * Open a dialog/modal backdrop with animated entrance.
+ * @param {string|HTMLElement} el  ID string or element
+ */
+function openDialog(el) {
+  const dlg = typeof el === 'string' ? document.getElementById(el) : el;
+  if (!dlg) return;
+  dlg.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Close a dialog/modal backdrop with an animated exit.
+ * Plays a reverse scale+opacity animation before hiding, so the
+ * disappearance isn't a jarring instant cut (Apple: spatial consistency).
+ * @param {string|HTMLElement} el  ID string or element
+ */
+function closeDialog(el) {
+  const dlg = typeof el === 'string' ? document.getElementById(el) : el;
+  if (!dlg || dlg.classList.contains('hidden')) return;
+  const panel = dlg.querySelector('.dialog') || dlg.querySelector('.slide-over-drawer');
+
+  // If the browser supports animate(), play an exit; otherwise just hide.
+  if (panel && panel.animate) {
+    const anim = panel.animate(
+      [
+        { opacity: 1, transform: 'scale(1)' },
+        { opacity: 0, transform: 'scale(0.97)' }
+      ],
+      { duration: 150, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' }
+    );
+    // Fade the backdrop in parallel
+    dlg.animate(
+      [{ opacity: 1 }, { opacity: 0 }],
+      { duration: 150, easing: 'ease-out', fill: 'forwards' }
+    );
+    anim.onfinish = () => {
+      dlg.classList.add('hidden');
+      document.body.style.overflow = '';
+      // Reset so re-opening plays the CSS entrance animation fresh
+      panel.getAnimations().forEach(a => a.cancel());
+      dlg.getAnimations().forEach(a => a.cancel());
+    };
+  } else {
+    dlg.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * Apply staggered fade-in to child elements of a container.
+ * Each child gets a small delay so content cascades in naturally
+ * instead of all appearing at once (Apple: hint direction of gesture).
+ * @param {HTMLElement} container
+ * @param {string} [selector='> *']  Children to stagger
+ * @param {number} [delayMs=40]  Delay between each child
+ */
+function staggerIn(container, selector, delayMs) {
+  if (!container) return;
+  const sel = selector || '> *';
+  const delay = delayMs || 40;
+  const children = container.querySelectorAll(':scope ' + sel);
+  children.forEach((child, i) => {
+    child.style.opacity = '0';
+    child.style.transform = 'translateY(6px)';
+    child.style.transition = 'none';
+    requestAnimationFrame(() => {
+      child.style.transition = 'opacity 0.3s cubic-bezier(0.23,1,0.32,1), transform 0.3s cubic-bezier(0.23,1,0.32,1)';
+      child.style.transitionDelay = (i * delay) + 'ms';
+      child.style.opacity = '1';
+      child.style.transform = 'translateY(0)';
+    });
+    // Clean up inline styles after animation settles
+    setTimeout(() => {
+      child.style.transition = '';
+      child.style.transitionDelay = '';
+      child.style.opacity = '';
+      child.style.transform = '';
+    }, 300 + (i * delay) + 50);
+  });
 }
 
 /**

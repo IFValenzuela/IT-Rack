@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Ticket Tracking — IT Rack Inventory</title>
+  <title>Ticket Tracking | IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
   <style>
     /* Kanban Board Styles */
     .kanban-board {
@@ -57,14 +57,19 @@
       border-radius: 6px;
       padding: 0.75rem;
       cursor: grab;
-      transition: box-shadow 0.2s, transform 0.2s;
+      transition: box-shadow 0.2s var(--ease-out), transform 0.2s var(--ease-out);
     }
     .kanban-card:active {
       cursor: grabbing;
+      transform: scale(0.98);
     }
     .kanban-card:hover {
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      transform: translateY(-2px);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .kanban-card:hover {
+        transform: translateY(-2px);
+      }
     }
     .kanban-card-title {
       font-weight: 600;
@@ -84,6 +89,14 @@
     .kanban-card-actions button {
       padding: 0.25rem 0.5rem;
       font-size: 0.75rem;
+      transition: background-color 0.15s var(--ease-out), color 0.15s var(--ease-out), transform 0.15s var(--ease-out);
+    }
+    .kanban-card-actions button:active {
+      transform: scale(0.97);
+    }
+    .kanban-card-actions button:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
     }
     .btn-create-ticket {
       margin-bottom: 1rem;
@@ -115,7 +128,7 @@
         <a class="nav-tab active" href="tickets.html">Tickets</a>
         <a class="nav-tab" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
-        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">Admin</a>
       </nav>
     </div>
   </header>

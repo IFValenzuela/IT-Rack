@@ -3,10 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Category Details — IT Rack Inventory</title>
+  <title>Category Details | IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Category detailed statistics and inventory list." />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
   <style>
     /* ── Toolbar ──────────────────────────────────────────── */
     .stats-toolbar {
@@ -40,13 +40,22 @@
       color: var(--text-muted);
       cursor: pointer;
       text-decoration: none;
-      transition: all 0.15s ease;
+      transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
     }
 
     .back-btn:hover {
       background: var(--blue-soft);
       color: var(--blue);
       border-color: var(--blue);
+    }
+
+    .back-btn:active {
+      transform: scale(0.97);
+    }
+
+    .back-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
     }
 
     .stats-toolbar-right {
@@ -68,13 +77,22 @@
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
     }
 
     .stats-export-btn:hover {
       background: var(--blue);
       color: #fff;
       border-color: var(--blue);
+    }
+
+    .stats-export-btn:active {
+      transform: scale(0.97);
+    }
+
+    .stats-export-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
     }
 
     /* ── Filter Row ───────────────────────────────────────── */
@@ -114,6 +132,11 @@
       background: var(--card-bg);
       font-size: 0.8rem;
       color: var(--text-main);
+    }
+
+    .filter-select:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
     }
 
     /* ── Charts Grid ──────────────────────────────────────── */
@@ -183,7 +206,7 @@
       border-radius: 6px;
       background: #f8fafc;
       border: 1px solid var(--border-subtle);
-      transition: background 0.15s;
+      transition: background 0.15s var(--ease-out);
       font-size: 0.78rem;
     }
 
@@ -325,7 +348,7 @@
         <a class="nav-tab" href="pipeline.html">Pipeline</a>
         <a class="nav-tab" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
-        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">Admin</a>
       </nav>
     </div>
   </header>

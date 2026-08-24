@@ -144,7 +144,7 @@ function attachPipelineListeners() {
   const btnNewReq = document.getElementById('btn-new-request');
   if (btnNewReq) {
     btnNewReq.addEventListener('click', () => {
-      document.getElementById('new-request-dialog').classList.remove('hidden');
+      openDialog('new-request-dialog');
       document.getElementById('new-request-form').reset();
       resetNewRequestSelections();
       document.getElementById('req-jira-ticket').focus();
@@ -154,7 +154,7 @@ function attachPipelineListeners() {
   const btnCancelReq = document.getElementById('btn-cancel-request');
   if (btnCancelReq) {
     btnCancelReq.addEventListener('click', () => {
-      document.getElementById('new-request-dialog').classList.add('hidden');
+      closeDialog('new-request-dialog');
       document.getElementById('new-request-form').reset();
       resetNewRequestSelections();
     });
@@ -273,9 +273,10 @@ function attachPipelineListeners() {
       if (e.target.id === 'ticket-detail-modal') closeTicketDetailModal();
     });
   }
-  
+
   const btnCloseDetail = document.getElementById('btn-close-ticket-detail');
   if (btnCloseDetail) btnCloseDetail.addEventListener('click', closeTicketDetailModal);
+
 }
 
 // ── Data Loading ─────────────────────────────────────────────
@@ -354,7 +355,7 @@ function renderSummary(summary) {
       ? '<1'
       : Math.round(summary.avgCycleHours);
   } else {
-    cycleEl.textContent = '—';
+    cycleEl.textContent = '-';
   }
 }
 
@@ -433,6 +434,9 @@ function renderBoard() {
     });
     board.appendChild(cancelCol);
   }
+
+  // Stagger cards in
+  document.querySelectorAll('.col-cards').forEach(c => staggerIn(c, '.pipeline-card', 35));
 
   // Inject empty-state placeholders for columns with no cards
   document.querySelectorAll('.col-cards').forEach(container => {
@@ -558,13 +562,7 @@ function createCard(req) {
   let currentIdx = PIPELINE_STATUSES.indexOf(req.current_status);
   if (currentIdx === -1) currentIdx = 0; // fallback
   const stageNumber = currentIdx + 1;
-  const totalStages = 6;
-
-  let segmentsHtml = '';
-  for (let i = 1; i <= totalStages; i++) {
-    const activeClass = i <= stageNumber ? 'active' : '';
-    segmentsHtml += `<div class="pipeline-progress-seg ${activeClass}"></div>`;
-  }
+  const totalStages = PIPELINE_STATUSES.length;
 
   card.innerHTML = `
     <div class="pipeline-card-header">
@@ -576,13 +574,7 @@ function createCard(req) {
     <div class="pipeline-card-subtitle">${escHtml(requester)} &middot; ${escHtml(dept)}</div>
     
     <div class="pipeline-progress-wrapper">
-      <div class="pipeline-progress-meta">
-        <span>Progress</span>
-        <span>Stage ${stageNumber} of ${totalStages}</span>
-      </div>
-      <div class="pipeline-progress-bars">
-        ${segmentsHtml}
-      </div>
+      <span class="pipeline-stage-label">Stage ${stageNumber} of ${totalStages}</span>
     </div>
     
     <div class="pipeline-card-footer">
@@ -628,7 +620,7 @@ let detailModalReq = null;
 async function openTicketDetailModal(cardReq) {
   detailModalReq = cardReq;
   const modal = document.getElementById('ticket-detail-modal');
-  if (modal) modal.classList.remove('hidden');
+  if (modal) openDialog(modal);
 
   // Fetch fresh ticket data + complete history
   let req = cardReq;
@@ -710,7 +702,10 @@ async function openTicketDetailModal(cardReq) {
         const advBtn = document.createElement('button');
         advBtn.type = 'button';
         advBtn.className = 'drawer-btn-advance';
-        advBtn.innerHTML = `<span>Advance to ${escHtml(nextStage)}</span><span>&rarr;</span>`;
+        const advLabel = req.current_status === 'Requisition / Quote'
+          ? 'Item received - advance to IT Transit'
+          : `Advance to ${nextStage}`;
+        advBtn.innerHTML = `<span>${escHtml(advLabel)}</span><span>&rarr;</span>`;
         advBtn.addEventListener('click', () => {
           closeTicketDetailModal();
           if (req.current_status === 'Add to Jira') {
@@ -721,6 +716,9 @@ async function openTicketDetailModal(cardReq) {
             openSerialActionDialog(req.ticket_number, nextStage);
           } else if (nextStage === 'Delivery') {
             openSerialActionDialog(req.ticket_number, nextStage);
+          } else if (req.current_status === 'Requisition / Quote') {
+            // Skip the 4 external procurement stages — jump directly to IT Transit Time
+            advanceTicket(req.ticket_number, 'IT Transit Time');
           } else {
             advanceTicket(req.ticket_number, nextStage);
           }
@@ -737,14 +735,14 @@ async function openTicketDetailModal(cardReq) {
 
   // 3. Metadata Grid
   const stageEl = document.getElementById('td-current-stage');
-  if (stageEl) stageEl.textContent = req.current_status || '—';
+  if (stageEl) stageEl.textContent = req.current_status || '-';
   
   const timeInStage = getTimeInStage(req.updated_at);
   const timeEl = document.getElementById('td-time-in-stage');
-  if (timeEl) timeEl.textContent = timeInStage.label || '—';
+  if (timeEl) timeEl.textContent = timeInStage.label || '-';
   
   const reqEl = document.getElementById('td-requester');
-  if (reqEl) reqEl.textContent = req.requested_by || '—';
+  if (reqEl) reqEl.textContent = req.requested_by || '-';
   
   const deptEl = document.getElementById('td-department');
   if (deptEl) deptEl.textContent = req.department || 'General';
@@ -864,7 +862,7 @@ async function openTicketDetailModal(cardReq) {
 
 function closeTicketDetailModal() {
   const modal = document.getElementById('ticket-detail-modal');
-  if (modal) modal.classList.add('hidden');
+  if (modal) closeDialog(modal);
   detailModalReq = null;
 }
 
@@ -1026,7 +1024,7 @@ function openJiraActionDialog(ticketNumber, nextStage) {
     input.readOnly = false;
     input.title = '';
   }
-  dialog.classList.remove('hidden');
+  openDialog(dialog);
   setTimeout(() => input.focus(), 0);
 }
 
@@ -1088,7 +1086,7 @@ function openSerialActionDialog(ticketNumber, nextStage) {
   if (receivedByInput) {
     receivedByInput.value = req.requested_by || req.assigned_to || '';
   }
-  dialog.classList.remove('hidden');
+  openDialog(dialog);
   setTimeout(() => (isNonSerialized ? (ticketInput || departmentInput || receivedByInput) : (serialInput || ticketInput || departmentInput || receivedByInput))?.focus?.(), 0);
 }
 
@@ -1216,13 +1214,13 @@ async function submitSerialAction(mode) {
 
 function closeSerialActionDialog() {
   const dialog = document.getElementById('serial-action-dialog');
-  dialog.classList.add('hidden');
+  closeDialog(dialog);
   serialActionContext = null;
 }
 
 function closeJiraActionDialog() {
   const dialog = document.getElementById('jira-action-dialog');
-  dialog.classList.add('hidden');
+  closeDialog(dialog);
   jiraActionContext = null;
 }
 
@@ -1342,12 +1340,12 @@ function openConfirmActionDialog({ title, message, confirmText, confirmClass, ac
   messageEl.textContent = message;
   confirmBtn.textContent = confirmText;
   confirmBtn.className = `btn ${confirmClass === 'danger' ? 'danger' : 'primary'}`;
-  dialog.classList.remove('hidden');
+  openDialog(dialog);
 }
 
 function closeConfirmActionDialog() {
   const dialog = document.getElementById('confirm-action-dialog');
-  dialog.classList.add('hidden');
+  closeDialog(dialog);
   confirmAction = null;
 }
 
@@ -1418,7 +1416,7 @@ async function handleNewRequest(e) {
       notes: notes || null,
     });
     showToast(`Created ${result.ticket_number}`);
-    document.getElementById('new-request-dialog').classList.add('hidden');
+    closeDialog('new-request-dialog');
     document.getElementById('new-request-form').reset();
     toggleCustomModelField();
     resetNewRequestSelections();
@@ -1437,7 +1435,7 @@ async function showTimeline(ticketNumber) {
     const title = document.getElementById('timeline-title');
     const list = document.getElementById('timeline-list');
 
-    title.textContent = `${data.request.ticket_number} — ${data.request.device_model}`;
+    title.textContent = `${data.request.ticket_number} - ${data.request.device_model}`;
 
     list.innerHTML = data.history.map(h => `
       <li class="timeline-item">

@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Admin — IT Rack Inventory</title>
+  <title>Admin | IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 
 <body>
@@ -28,7 +28,7 @@
         <a class="nav-tab" href="pipeline.html">Pipeline</a>
         <a class="nav-tab" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
-        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">Admin</a>
       </nav>
     </div>
   </header>
@@ -69,17 +69,17 @@
       <section class="panel" id="demo-mode-panel" style="margin-top:28px;border:1.5px dashed var(--border);opacity:0.75;">
         <div class="panel-header" style="cursor:pointer;" id="demo-mode-toggle">
           <div>
-            <h2 style="font-size:.95rem;color:var(--text-muted);">🧪 Demo Mode</h2>
+            <h2 style="font-size:.95rem;color:var(--text-muted);">Demo Mode</h2>
             <p class="panel-subtitle">Inject backdated sample devices for presentations. Remove them after.</p>
           </div>
           <div class="panel-header-actions">
-            <span id="demo-toggle-icon" style="font-size:1.2rem;color:var(--text-muted);">▶</span>
+            <svg id="demo-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s var(--ease-out);"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
         </div>
         <div id="demo-mode-body" style="display:none;padding:16px 0 4px;">
           <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <button class="btn primary" id="btn-demo-seed">▶ Inject Demo Devices</button>
-            <button class="btn ghost" style="color:var(--danger);border-color:var(--danger)" id="btn-demo-cleanup">✕ Remove Demo Devices</button>
+            <button class="btn primary" id="btn-demo-seed">Inject Demo Devices</button>
+            <button class="btn ghost" style="color:var(--danger);border-color:var(--danger)" id="btn-demo-cleanup">Remove Demo Devices</button>
           </div>
           <p style="margin-top:12px;font-size:.8rem;color:var(--text-muted);">
             Adds <strong>9 devices</strong>: 3 fresh (no badge), 3 from 16 days ago <span class="stock-age-badge warning" style="font-size:.65rem;">2+ weeks</span>, 3 from 35 days ago <span class="stock-age-badge critical" style="font-size:.65rem;">1+ month</span>.
@@ -111,7 +111,7 @@
         <div class="form-field">
           <label for="new-user-department">Department</label>
           <select id="new-user-department">
-            <option value="">&mdash; None / Not assigned &mdash;</option>
+            <option value="">None / Not assigned</option>
             <option value="Planta Oeste">Planta Oeste</option>
             <option value="Planta Este">Planta Este</option>
           </select>
@@ -119,10 +119,10 @@
         <div class="form-field">
           <label for="new-user-role">Role <span style="color:var(--danger)">*</span></label>
           <select id="new-user-role" required>
-            <option value="technician">Technician &mdash; can add &amp; edit devices</option>
-            <option value="delivery">Delivery Window &mdash; full person list, no adding people</option>
-            <option value="viewer">Viewer &mdash; read-only access</option>
-            <option value="admin">Admin &mdash; full access + admin panel</option>
+            <option value="technician">Technician - can add &amp; edit devices</option>
+            <option value="delivery">Delivery Window - full person list, no adding people</option>
+            <option value="viewer">Viewer - read-only access</option>
+            <option value="admin">Admin - full access + admin panel</option>
           </select>
         </div>
         <div class="dialog-footer">

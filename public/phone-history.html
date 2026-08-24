@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Phone History — IT Rack Inventory</title>
+  <title>Phone History | IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 
 <body>
@@ -28,7 +28,7 @@
         <a class="nav-tab" href="pipeline.html">Pipeline</a>
         <a class="nav-tab" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
-        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">Admin</a>
       </nav>
     </div>
   </header>
@@ -42,7 +42,7 @@
             <p class="panel-subtitle">Complete record of all phone assignments. Use the filters below to search and narrow results.</p>
           </div>
           <div class="panel-header-actions">
-            <a class="btn ghost" href="phones.html">＋ New Assignment</a>
+            <a class="btn primary" href="phones.html">+ New Assignment</a>
             <button class="btn ghost" id="btn-ph-sort" data-order="desc">Newest First</button>
           </div>
         </div>
@@ -116,7 +116,7 @@
     <div class="dialog" style="max-width:640px;">
       <div class="dialog-header">
         <h2 id="ph-detail-title" style="margin:0;">Phone Assignment Detail</h2>
-        <button type="button" class="btn ghost btn-sm" id="btn-ph-detail-close">✕ Close</button>
+        <button type="button" class="btn ghost btn-sm" id="btn-ph-detail-close">Close</button>
       </div>
       <div id="ph-detail-body" style="padding:18px 24px 24px;"></div>
     </div>

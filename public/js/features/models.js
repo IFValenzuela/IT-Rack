@@ -429,7 +429,7 @@ function renderModelHistoryTable(modelId) {
       const statusClass  = h.type === 'in' ? 'status-in' : 'status-out';
       const label        = h.type === 'in' ? 'Added' : 'Removed';
       const technician   = h.addedBy || h.deliveredBy || '';
-      const dash         = '<span style="color:var(--text-muted)">—</span>';
+      const dash         = '<span style="color:var(--text-muted)">-</span>';
       const reason       = h.reason || (h.type === 'in' ? dash : '');
       const destination  = h.destination || (h.type === 'in' ? dash : '');
       let rowClass = '';
@@ -480,13 +480,13 @@ function renderModelHistoryTable(modelId) {
 
 /** Show the Add Model dialog. */
 function openAddModelDialog() {
-  document.getElementById('add-model-dialog').classList.remove('hidden');
+  openDialog('add-model-dialog');
   document.getElementById('model-name-input').focus();
 }
 
 /** Hide and reset the Add Model dialog. */
 function closeAddModelDialog() {
-  document.getElementById('add-model-dialog').classList.add('hidden');
+  closeDialog('add-model-dialog');
   document.getElementById('add-model-form').reset();
   const catInput = document.getElementById('model-category-input');
   if (catInput) catInput.value = '';

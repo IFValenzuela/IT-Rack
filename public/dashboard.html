@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>All Devices — IT Rack Inventory</title>
+  <title>All Devices | IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 
 <body>
@@ -28,7 +28,7 @@
         <a class="nav-tab" href="pipeline.html">Pipeline</a>
         <a class="nav-tab" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
-        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">Admin</a>
       </nav>
     </div>
   </header>
@@ -97,11 +97,11 @@
       <section class="panel hidden" id="removed-devices-panel">
         <div class="panel-header">
           <div>
-            <h2>Removed / Assigned &mdash; <span id="removed-count-label">0 records</span></h2>
+            <h2>Removed / Assigned <span id="removed-count-label" style="font-weight:400;color:var(--text-muted);font-size:0.88em;">(0 records)</span></h2>
             <p class="panel-subtitle">Archived inventory. Filters here are independent from the active stock above.</p>
           </div>
           <div class="panel-header-actions">
-            <button type="button" class="btn-link" id="btn-close-removed">Close Archive &#10005;</button>
+            <button type="button" class="btn-link" id="btn-close-removed">Close Archive</button>
           </div>
         </div>
         <div id="removed-cat-pills" class="pill-bar-row"></div>

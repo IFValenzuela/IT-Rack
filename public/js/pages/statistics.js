@@ -236,6 +236,7 @@ function renderStatusCards(s) {
       <div class="metric-icon models">${IC.barChart}</div>
       <div class="metric-body"><div class="metric-value">${s.models}</div><div class="metric-label">Active Models</div></div>
     </div>`;
+  staggerIn(document.getElementById('status-cards'), '.metric-card', 50);
 }
 
 /* ── Horizontal Bar Chart ──────────────────────────────── */
@@ -264,6 +265,7 @@ function renderBarChart(categories, total) {
         <span class="bar-arrow">${IC.chevRight}</span>
       </button>`;
   }).join('');
+  staggerIn(container, '.bar-row', 35);
 }
 
 /* ── Toolbar Events ────────────────────────────────────── */

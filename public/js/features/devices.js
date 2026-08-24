@@ -48,6 +48,7 @@ function renderDashboard() {
       });
       list.appendChild(card);
     });
+  staggerIn(list, '.dash-model-card', 30);
 }
 
 /** Reset both in-stock and removed pagination to their defaults. */
@@ -279,7 +280,7 @@ function renderDevicesView() {
             : +new Date(a[dateField]) - +new Date(b[dateField]));
           const prNums    = [...new Set(kitItems.map(d => d.prNumber).filter(Boolean))].join(', ');
           const itemCount = `${kitItems.length} item${kitItems.length !== 1 ? 's' : ''}`;
-          const prLabel   = prNums ? ` &mdash; PR / Ticket: <span style="opacity:.7">${escHtml(prNums)}</span>` : '';
+          const prLabel   = prNums ? ` - PR / Ticket: <span style="opacity:.7">${escHtml(prNums)}</span>` : '';
           const subHeader = `<tr class="kit-sub-header${revealClass} js-kit-header" data-kit-id="${escHtml(kitId)}" style="cursor:pointer;" title="Click to remove entire kit">
             <td colspan="${colCount}" class="kit-ticket-cell">Kit: <strong>${escHtml(kitId)}</strong>${prLabel} <span class="kit-count">${itemCount}</span></td>
           </tr>`;
@@ -369,7 +370,7 @@ function renderDevicesView() {
         const prNums      = [...new Set(items.map(d => d.prNumber).filter(Boolean))].join(', ');
         const itemCount   = `${items.length} item${items.length !== 1 ? 's' : ''}`;
         const revealClass = groupIdx >= previousVisibleCount ? ' row-reveal' : '';
-        const prLabel     = prNums ? ` &mdash; PR / Ticket: <span style="opacity:.7">${escHtml(prNums)}</span>` : '';
+        const prLabel     = prNums ? ` - PR / Ticket: <span style="opacity:.7">${escHtml(prNums)}</span>` : '';
         const subHeader   = `<tr class="kit-sub-header${revealClass}">
           <td colspan="${colCount}" class="kit-ticket-cell">Kit: <strong>${escHtml(kitId)}</strong>${prLabel} <span class="kit-count">${itemCount}</span></td>
         </tr>`;
@@ -456,7 +457,7 @@ function openRemoveSerialDialog(deviceId, kitId = null) {
       : 'This serial will leave active stock but stay recorded under "Removed / Assigned".';
   }
 
-  document.getElementById('remove-serial-dialog').classList.remove('hidden');
+  openDialog('remove-serial-dialog');
   populateDeliveredBySelect();
   document.getElementById('remove-reason-input').focus();
 }
@@ -465,7 +466,7 @@ function openRemoveSerialDialog(deviceId, kitId = null) {
 function closeRemoveSerialDialog() {
   pendingRemoveDeviceId = null;
   pendingRemoveKitId = null;
-  document.getElementById('remove-serial-dialog').classList.add('hidden');
+  closeDialog('remove-serial-dialog');
   document.getElementById('remove-serial-form').reset();
 }
 

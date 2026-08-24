@@ -3,10 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Statistics — IT Rack Inventory</title>
+  <title>Statistics | IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="IT rack device statistics dashboard with category breakdown, filtering, and drill-down." />
-  <link rel="stylesheet" href="style.css?v=1787160378" />
+  <link rel="stylesheet" href="style.css?v=4" />
   <style>
     /* ================================================================
        STATISTICS DASHBOARD — High-density corporate layout
@@ -58,7 +58,7 @@
       width: 220px;
       background: var(--card-bg);
       color: var(--text-main);
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
     }
 
     .stats-search input:focus {
@@ -84,13 +84,17 @@
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
     }
 
     .stats-export-btn:hover {
       background: var(--blue);
       color: #fff;
       border-color: var(--blue);
+    }
+
+    .stats-export-btn:active {
+      transform: scale(0.97);
     }
 
     /* ── Filter Row ───────────────────────────────────────── */
@@ -136,12 +140,16 @@
       background: transparent;
       cursor: pointer;
       color: var(--text-muted);
-      transition: all 0.15s ease;
+      transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
       border-right: 1px solid var(--border-subtle);
     }
 
     .bld-btn:last-child {
       border-right: none;
+    }
+
+    .bld-btn:active {
+      transform: scale(0.97);
     }
 
     .bld-btn.active {
@@ -172,7 +180,11 @@
       color: var(--text-muted);
       border-radius: 6px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
+    }
+
+    .sort-btn:active {
+      transform: scale(0.97);
     }
 
     .sort-btn.active {
@@ -203,12 +215,14 @@
       border: 1px solid var(--border-subtle);
       border-radius: 10px;
       box-shadow: 0 1px 4px rgba(5, 25, 51, 0.05);
-      transition: box-shadow 0.15s ease, transform 0.15s ease;
+      transition: box-shadow 0.15s var(--ease-out), transform 0.15s var(--ease-out);
     }
 
-    .metric-card:hover {
-      box-shadow: 0 4px 14px rgba(5, 25, 51, 0.1);
-      transform: translateY(-1px);
+    @media (hover: hover) and (pointer: fine) {
+      .metric-card:hover {
+        box-shadow: 0 4px 14px rgba(5, 25, 51, 0.1);
+        transform: translateY(-1px);
+      }
     }
 
     .metric-icon {
@@ -312,7 +326,7 @@
       cursor: pointer;
       font: inherit;
       text-align: left;
-      transition: background 0.12s ease;
+      transition: background 0.12s var(--ease-out);
     }
 
     .bar-row:last-child {
@@ -321,6 +335,10 @@
 
     .bar-row:hover {
       background: var(--blue-soft);
+    }
+
+    .bar-row:active {
+      transform: scale(0.97);
     }
 
     .bar-icon {
@@ -380,12 +398,14 @@
       color: var(--text-muted);
       display: flex;
       opacity: 0;
-      transition: opacity 0.15s ease, transform 0.15s ease;
+      transition: opacity 0.15s var(--ease-out), transform 0.15s var(--ease-out);
     }
 
-    .bar-row:hover .bar-arrow {
-      opacity: 1;
-      transform: translateX(2px);
+    @media (hover: hover) and (pointer: fine) {
+      .bar-row:hover .bar-arrow {
+        opacity: 1;
+        transform: translateX(2px);
+      }
     }
 
     .bar-empty {
@@ -403,7 +423,7 @@
       z-index: 200;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.3s var(--ease-out);
     }
 
     .drawer-backdrop.open {
@@ -424,7 +444,7 @@
       flex-direction: column;
       box-shadow: -6px 0 30px rgba(5, 25, 51, 0.18);
       transform: translateX(100%);
-      transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 0.32s var(--ease-drawer);
     }
 
     .drawer-panel.open {
@@ -482,13 +502,17 @@
       cursor: pointer;
       color: var(--text-muted);
       flex-shrink: 0;
-      transition: all 0.15s ease;
+      transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
     }
 
     .drawer-close-btn:hover {
       background: var(--danger);
       color: #fff;
       border-color: var(--danger);
+    }
+
+    .drawer-close-btn:active {
+      transform: scale(0.97);
     }
 
     .drawer-body {
@@ -516,11 +540,15 @@
       cursor: pointer;
       font: inherit;
       text-align: left;
-      transition: background 0.12s ease;
+      transition: background 0.12s var(--ease-out);
     }
 
     .dw-model-header:hover {
       background: var(--blue-soft);
+    }
+
+    .dw-model-header:active {
+      transform: scale(0.97);
     }
 
     .dw-model-header.expanded {
@@ -532,7 +560,7 @@
       flex: 0 0 14px;
       display: flex;
       color: var(--text-muted);
-      transition: transform 0.2s ease;
+      transition: transform 0.2s var(--ease-out);
     }
 
     .dw-model-name {
@@ -743,8 +771,12 @@
       border: 2px solid var(--border-subtle);
       background: #f8fafc;
       color: var(--text-muted);
-      transition: all 0.2s ease;
+      transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out);
       user-select: none;
+    }
+
+    .cat-chip:active {
+      transform: scale(0.97);
     }
 
     .cat-chip:hover {
@@ -807,7 +839,7 @@
     .exp-select:focus {
       outline: none;
       border-color: var(--blue);
-      box-shadow: 0 0 0 2px rgba(0, 125, 184, 0.15);
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
     }
 
     /* ── Explorer Results ───────────────────────────────────── */
@@ -859,7 +891,7 @@
       border-radius: 8px;
       background: #f8fafc;
       border: 1px solid var(--border-subtle);
-      transition: background 0.15s;
+      transition: background 0.15s var(--ease-out);
     }
 
     .explorer-stat-item:hover {
@@ -948,7 +980,7 @@
         <a class="nav-tab" href="pipeline.html">Pipeline</a>
         <a class="nav-tab active" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
-        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">Admin</a>
       </nav>
     </div>
   </header>
@@ -962,7 +994,7 @@
 
     <!-- Empty state -->
     <div id="stats-empty" class="stats-empty hidden">
-      <div class="empty-icon">📊</div>
+      <div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="5" width="4" height="16"/><rect x="17" y="8" width="4" height="13"/></svg></div>
       <h3>No Device Data</h3>
       <p>Add models and devices from the <a href="dashboard.html">Dashboard</a> to populate statistics.</p>
     </div>

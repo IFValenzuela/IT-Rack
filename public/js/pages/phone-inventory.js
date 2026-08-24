@@ -154,7 +154,7 @@ function renderTable() {
       <tr>
         <td><strong>${escHtml(p.phoneModel)}</strong></td>
         <td>${escHtml(p.receivedBy)}</td>
-        <td>${escHtml(p.employeeNumber || '—')}</td>
+        <td>${escHtml(p.employeeNumber || '-')}</td>
         <td class="mono">${escHtml(p.imei)}</td>
         <td>${escHtml(p.phoneNumber)}</td>
         <td>${formatDate(p.assignedAt)}</td>
@@ -177,7 +177,7 @@ function renderTable() {
       <tr>
         <td><strong>${escHtml(p.phoneModel)}</strong></td>
         <td><span style="color:var(--text-muted)">${escHtml(p.receivedBy)}</span></td>
-        <td><span style="color:var(--text-muted)">${escHtml(p.employeeNumber || '—')}</span></td>
+        <td><span style="color:var(--text-muted)">${escHtml(p.employeeNumber || '-')}</span></td>
         <td class="mono">${escHtml(p.imei)}</td>
         <td>${escHtml(p.phoneNumber)}</td>
         <td>${formatDate(p.assignedAt)}</td>
@@ -235,13 +235,13 @@ function openPhoneDetail(id) {
   const body    = document.getElementById('ph-detail-body');
 
   const typeLabel = record.transactionType === 'return_admin' ? 'Admin Return' : (record.transactionType === 'return' ? 'Return' : 'Delivery');
-  if (title) title.textContent = record.phoneModel + ' — ' + typeLabel;
+  if (title) title.textContent = record.phoneModel + ' - ' + typeLabel;
 
   body.innerHTML =
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-bottom:18px;">' +
       '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Assigned By</span><div style="font-weight:600;">' + escHtml(record.assignedBy) + '</div></div>' +
       '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Received By</span><div style="font-weight:600;">' + escHtml(record.receivedBy) + '</div></div>' +
-      '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Employee #</span><div style="font-weight:600;">' + escHtml(record.employeeNumber || '—') + '</div></div>' +
+      '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Employee #</span><div style="font-weight:600;">' + escHtml(record.employeeNumber || '-') + '</div></div>' +
       '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Phone Model</span><div style="font-weight:600;">' + escHtml(record.phoneModel) + '</div></div>' +
       '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">IMEI</span><div style="font-weight:600;font-family:monospace;">' + escHtml(record.imei) + '</div></div>' +
       '<div><span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">Phone #</span><div style="font-weight:600;">' + escHtml(record.phoneNumber) + '</div></div>' +

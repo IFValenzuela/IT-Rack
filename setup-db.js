@@ -15,12 +15,17 @@ const DB_PASSWORD = process.env.DB_PASSWORD || '';
 const DB_NAME = process.env.DB_NAME || 'inventory_db';
 
 (async () => {
+  const socketPath = process.env.DB_SOCKET && fs.existsSync(process.env.DB_SOCKET)
+    ? process.env.DB_SOCKET
+    : null;
+
   const conn = await mysql.createConnection({
-    host: DB_HOST,
+    host: socketPath ? 'localhost' : DB_HOST,
     user: DB_USER,
     password: DB_PASSWORD,
     port: DB_PORT,
     multipleStatements: true,
+    ...(socketPath ? { socketPath } : {}),
   });
 
   console.log(`Connected to MariaDB at ${DB_HOST}:${DB_PORT} as ${DB_USER}.`);

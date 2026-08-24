@@ -61,6 +61,8 @@ async function fetchAiInsights() {
     
     if (loading) loading.classList.add('hidden');
     if (results) results.classList.remove('hidden');
+    if (issuesListEl) staggerIn(issuesListEl, '.ai-issue-item', 40);
+    if (improvementsListEl) staggerIn(improvementsListEl, '.ai-improvement-item', 40);
     
   } catch (err) {
     console.error('Failed to fetch AI insights:', err);

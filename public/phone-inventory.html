@@ -3,10 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Phone Inventory — IT Rack Inventory</title>
+  <title>Phone Inventory | IT Rack Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Current phone inventory status — see which phones are deployed and which are in stock." />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <meta name="description" content="Current phone inventory status. See which phones are deployed and which are in stock." />
+  <link rel="stylesheet" href="style.css?v=4" />
   <style>
     /* ── Page Layout ──────────────────────────────────────── */
     .pi-toolbar {
@@ -54,12 +54,21 @@
       border: 1px solid var(--border-subtle);
       border-radius: 10px;
       box-shadow: 0 1px 4px rgba(5, 25, 51, 0.05);
-      transition: box-shadow 0.15s ease, transform 0.15s ease;
+      transition: box-shadow 0.15s var(--ease-out), transform 0.15s var(--ease-out);
     }
 
     .pi-summary-card:hover {
       box-shadow: 0 4px 14px rgba(5, 25, 51, 0.1);
-      transform: translateY(-1px);
+    }
+
+    .pi-summary-card:active {
+      transform: scale(0.97);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .pi-summary-card:hover {
+        transform: translateY(-1px);
+      }
     }
 
     .pi-summary-icon {
@@ -113,7 +122,7 @@
       border: none;
       cursor: pointer;
       position: relative;
-      transition: color 0.15s ease;
+      transition: color 0.15s var(--ease-out);
     }
 
     .pi-tab:hover {
@@ -189,7 +198,7 @@
       width: 260px;
       background: var(--card-bg);
       color: var(--text-main);
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
     }
 
     .pi-search input:focus {
@@ -214,7 +223,7 @@
     .pi-filter-select:focus {
       outline: none;
       border-color: var(--blue);
-      box-shadow: 0 0 0 2px rgba(0, 125, 184, 0.15);
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
     }
 
     .pi-export-btn {
@@ -229,7 +238,7 @@
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: background-color 0.15s var(--ease-out), color 0.15s var(--ease-out), border-color 0.15s var(--ease-out), transform 0.15s var(--ease-out);
       margin-left: auto;
     }
 
@@ -237,6 +246,15 @@
       background: var(--blue);
       color: #fff;
       border-color: var(--blue);
+    }
+
+    .pi-export-btn:active {
+      transform: scale(0.97);
+    }
+
+    .pi-export-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
     }
 
     /* ── Table ─────────────────────────────────────────────── */
@@ -365,12 +383,21 @@
       border: 1px solid transparent;
       border-radius: 6px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: background-color 0.15s var(--ease-out), color 0.15s var(--ease-out), transform 0.15s var(--ease-out);
     }
 
     .pi-view-btn:hover {
       background: var(--blue);
       color: #fff;
+    }
+
+    .pi-view-btn:active {
+      transform: scale(0.97);
+    }
+
+    .pi-view-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0, 125, 184, 0.12);
     }
 
     /* ── Responsive ────────────────────────────────────────── */
@@ -402,7 +429,7 @@
         <a class="nav-tab" href="pipeline.html">Pipeline</a>
         <a class="nav-tab" href="statistics.html">Statistics</a>
         <a class="nav-tab" href="history.html">Activity Log</a>
-        <a class="nav-tab admin-only hidden" href="admin.html">⚙ Admin</a>
+        <a class="nav-tab admin-only hidden" href="admin.html">Admin</a>
       </nav>
     </div>
   </header>
@@ -420,7 +447,7 @@
       <div class="pi-toolbar">
         <div>
           <h1>Phone Inventory</h1>
-          <p class="pi-subtitle">Current status of all phones — see what's deployed and what's in stock.</p>
+          <p class="pi-subtitle">Current status of all phones. See what's deployed and what's in stock.</p>
         </div>
         <div class="pi-toolbar-right">
           <a class="pi-export-btn" href="phones.html" id="btn-pi-new-assignment">
@@ -511,7 +538,7 @@
     <div class="dialog" style="max-width:640px;">
       <div class="dialog-header">
         <h2 id="ph-detail-title" style="margin:0;">Phone Assignment Detail</h2>
-        <button type="button" class="btn ghost btn-sm" id="btn-ph-detail-close">✕ Close</button>
+        <button type="button" class="btn ghost btn-sm" id="btn-ph-detail-close">Close</button>
       </div>
       <div id="ph-detail-body" style="padding:18px 24px 24px;"></div>
     </div>

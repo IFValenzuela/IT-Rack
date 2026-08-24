@@ -25,7 +25,7 @@ async function initPage() {
   }
 
   document.getElementById('page-category-name').textContent = currentCategory;
-  document.title = `${currentCategory} Details — IT Rack Inventory`;
+  document.title = `${currentCategory} Details | IT Rack Inventory`;
 
   try {
     const data = await apiCall('GET', '/stats/devices-by-category');
@@ -251,12 +251,12 @@ function renderTable() {
   tbody.innerHTML = sorted.map(d => {
     const statusText = d.status === 'in' ? 'Storage' : 'Deployed';
     const statusClass = d.status === 'in' ? 'in' : 'out';
-    const dateStr = d.createdAt ? formatDate(d.createdAt) : '—';
+    const dateStr = d.createdAt ? formatDate(d.createdAt) : '-';
     return `
       <tr>
-        <td class="mono">${escHtml(d.serial || '—')}</td>
-        <td><strong>${escHtml(d.modelName || '—')}</strong></td>
-        <td>${escHtml(d.department || '—')}</td>
+        <td class="mono">${escHtml(d.serial || '-')}</td>
+        <td><strong>${escHtml(d.modelName || '-')}</strong></td>
+        <td>${escHtml(d.department || '-')}</td>
         <td><span class="status-pill ${statusClass}">${statusText}</span></td>
         <td>${dateStr}</td>
       </tr>

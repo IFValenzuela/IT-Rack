@@ -60,8 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (modelInput && modelModal) {
     modelInput.addEventListener('click', () => {
-      modelModal.classList.remove('hidden');
-      document.body.style.overflow = 'hidden';
+      openDialog(modelModal);
       // pre-select current value if exists
       if (modelInput.value) {
         const radio = modelModal.querySelector(`input[value="${modelInput.value}"]`);
@@ -70,8 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const closeModal = () => {
-      modelModal.classList.add('hidden');
-      document.body.style.overflow = '';
+      closeDialog(modelModal);
     };
 
     btnModelCancel?.addEventListener('click', closeModal);
@@ -143,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       searchResults.innerHTML = matches.map(p => `
         <div class="search-result-item" style="padding: 12px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; display: flex; flex-direction: column; gap: 4px;" data-id="${p.id}">
-          <div style="font-weight: 600; font-size: 0.95rem;">${escHtml(p.receivedBy)} <span style="font-weight: normal; color: var(--text-muted); font-size: 0.85rem;">(Emp: ${escHtml(p.employeeNumber || '—')})</span></div>
+          <div style="font-weight: 600; font-size: 0.95rem;">${escHtml(p.receivedBy)} <span style="font-weight: normal; color: var(--text-muted); font-size: 0.85rem;">(Emp: ${escHtml(p.employeeNumber || '-')})</span></div>
           <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; gap: 12px;">
             <span>${escHtml(p.phoneModel)}</span>
             <span>${escHtml(p.phoneNumber)}</span>

@@ -1,4 +1,5 @@
 'use strict';
+const fs = require('fs');
 const mysql = require('mysql2/promise');
 
 /**
@@ -14,7 +15,7 @@ const config = {
   port:     Number(process.env.DB_PORT || 3307),
 };
 
-if (process.env.DB_SOCKET) {
+if (process.env.DB_SOCKET && fs.existsSync(process.env.DB_SOCKET)) {
   config.socketPath = process.env.DB_SOCKET;
   config.host = 'localhost';
 }
