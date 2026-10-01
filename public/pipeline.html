@@ -382,6 +382,30 @@
       background: var(--bg);
     }
 
+    /* ── Overdue alerts ─────────────────────────────────────── */
+    .pipeline-alert-banner {
+      margin: 0 0 12px;
+      padding: 10px 14px;
+      border: 1px solid #fecaca;
+      background: #fef2f2;
+      color: #991b1b;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .pipeline-alert-banner[hidden] { display: none; }
+    .pipeline-alert-banner ul { margin: 6px 0 0 18px; padding: 0; }
+    .pipeline-card.is-overdue { border-color: #f87171; box-shadow: 0 0 0 1px #fecaca; }
+    .pipeline-overdue-tag {
+      align-self: flex-start;
+      margin-top: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #fee2e2;
+      color: #b91c1c;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
     /* ── Pipeline Card ──────────────────────────────────────── */
     .pipeline-card {
       display: flex;
@@ -1347,6 +1371,9 @@
           <button type="button" class="btn primary" id="btn-new-request" style="height:34px;font-size:0.8rem;">+ New Request</button>
         </div>
       </div>
+
+      <!-- Overdue alerts -->
+      <div class="pipeline-alert-banner" id="pipeline-alert-banner" hidden></div>
 
       <!-- Kanban Board -->
       <div class="pipeline-board-wrapper">

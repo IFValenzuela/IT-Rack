@@ -3,6 +3,7 @@ const express = require('express');
 const pool    = require('../db/pool');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const crypto = require('crypto');
+const alerts = require('../services/alerts');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -218,6 +219,27 @@ router.get('/stats/summary', async (_req, res) => {
     });
   } catch (e) {
     console.error('Pipeline summary error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── GET /api/pipeline/alerts — requests over their stage time limit
+router.get('/alerts', async (_req, res) => {
+  try {
+    const overdue = await alerts.getOverdue(pool);
+    res.json({ stage_limits: alerts.STAGE_LIMIT_HOURS, overdue });
+  } catch (e) {
+    console.error('Pipeline alerts error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/pipeline/alerts/run — run the check now and email (admin)
+router.post('/alerts/run', requireAdmin, async (_req, res) => {
+  try {
+    res.json(await alerts.runCheck(pool));
+  } catch (e) {
+    console.error('Pipeline alerts run error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });

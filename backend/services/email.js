@@ -32,6 +32,30 @@ const emailService = {
     }
   },
 
+  // Alert that a pipeline request has exceeded its stage time limit
+  async sendStageOverdueAlert(recipients, item) {
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const pipelineUrl = `${process.env.APP_URL}/pipeline.html`;
+    await getClient().emails.send({
+      from: process.env.FROM_EMAIL,
+      to: recipients,
+      subject: `[IT Rack] ${item.ticket_number} lleva ${Math.round(item.hours_in_stage)} h en "${item.current_status}"`,
+      html: `
+        <h2>Solicitud detenida en una etapa</h2>
+        <p>La solicitud <b>${esc(item.ticket_number)}</b> (${esc(item.device_model)}) excedió el tiempo límite de su etapa actual.</p>
+        <table cellpadding="6" style="border-collapse:collapse">
+          <tr><td>Etapa</td><td><b>${esc(item.current_status)}</b></td></tr>
+          <tr><td>Tiempo en la etapa</td><td><b>${Math.round(item.hours_in_stage)} h</b> (límite: ${item.limit_hours} h)</td></tr>
+          <tr><td>Solicitante</td><td>${esc(item.requested_by || '-')}</td></tr>
+          <tr><td>Responsable</td><td>${esc(item.assigned_to || 'Sin asignar')}</td></tr>
+        </table>
+        <p><a href="${pipelineUrl}">Abrir el pipeline</a></p>
+        <hr>
+        <p style="color: #666; font-size: 12px;">IT Rack Stock Inventory System</p>
+      `,
+    });
+  },
+
   // Send welcome email (optional)
   async sendWelcomeEmail(email, username) {
     try {

@@ -326,13 +326,30 @@ async function loadTechniciansForSelect() {
   }
 }
 
+let overdueByTicket = new Map();
+
+function renderAlertBanner(overdue) {
+  const el = document.getElementById('pipeline-alert-banner');
+  if (!el) return;
+  if (!overdue.length) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = `<strong>${overdue.length} request${overdue.length === 1 ? '' : 's'} over the stage time limit</strong><ul>` +
+    overdue.slice(0, 5).map(o =>
+      `<li>${escHtml(o.ticket_number)} &middot; ${escHtml(o.device_model)} &mdash; ${escHtml(o.current_status)}: ` +
+      `${Math.round(o.hours_in_stage)} h (limit ${o.limit_hours} h)</li>`).join('') +
+    (overdue.length > 5 ? `<li>and ${overdue.length - 5} more</li>` : '') + '</ul>';
+}
+
 async function loadPipelineData() {
   try {
-    const [requests, summary] = await Promise.all([
+    const [requests, summary, alerts] = await Promise.all([
       apiCall('GET', '/pipeline'),
       apiCall('GET', '/pipeline/stats/summary'),
+      apiCall('GET', '/pipeline/alerts').catch(() => ({ overdue: [] })),
     ]);
     allRequests = requests;
+    overdueByTicket = new Map((alerts.overdue || []).map(o => [o.ticket_number, o]));
+    renderAlertBanner(alerts.overdue || []);
     renderSummary(summary);
     renderBoard();
     renderChart();
@@ -538,6 +555,8 @@ function createCard(req) {
   card.className = 'pipeline-card';
   card.draggable = true;
   card.dataset.ticket = req.ticket_number;
+  const overdue = overdueByTicket.get(req.ticket_number);
+  if (overdue) card.classList.add('is-overdue');
 
   const ticketId = req.jira_ticket || req.ticket_number || '#UNKNOWN';
   const title = req.device_model || 'Untitled Request';
@@ -584,6 +603,7 @@ function createCard(req) {
       </div>
       <span class="pipeline-card-duration">${escHtml(timeInStage)}</span>
     </div>
+    ${overdue ? `<span class="pipeline-overdue-tag">Overdue: ${Math.round(overdue.hours_in_stage)} h / ${overdue.limit_hours} h</span>` : ''}
   `;
 
   // Drag events

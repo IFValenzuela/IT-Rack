@@ -55,6 +55,8 @@ if (pool) {
   app.use('/api/tickets',     require('./backend/routes/tickets'));
   app.use('/api/pipeline',    require('./backend/routes/pipeline'));
 
+  require('./backend/services/alerts').startScheduler(pool);
+
   // Ensure optional schema columns exist to avoid runtime SQL errors
   (async function ensureSchema() {
     try {
